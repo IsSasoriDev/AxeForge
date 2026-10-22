@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070a10">
+<title>AxeForge</title>
+<link rel="icon" href="/favicon.ico" type="image/svg+xml">
+<style>
+:root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#6b7a90;
+--cyan:#00e5ff;--mag:#ff2bd6;--green:#2bff88;--orange:#ff9f1c;--red:#ff3b5c;--violet:#8b5cff;--r:14px}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:radial-gradient(1200px 600px at 80% -10%,#10213a 0,transparent 60%),linear-gradient(var(--bg),var(--bg2));
+color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+nav{background:rgba(10,15,24,.85);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px);display:flex;flex-direction:column;overflow-y:auto}
+.logo{font-weight:800;font-size:22px;letter-spacing:1px;padding:4px 10px 18px}.logo b{color:var(--cyan)}.logo i{color:var(--mag);font-style:normal}
+nav button{all:unset;display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;color:var(--dim);cursor:pointer;font-weight:600;margin-bottom:2px}
+nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav button:hover{background:var(--panel);color:var(--text)}
+nav button.on{background:linear-gradient(90deg,rgba(0,229,255,.16),transparent);color:var(--cyan);box-shadow:inset 3px 0 var(--cyan)}
+nav .foot{margin-top:auto;padding:16px 10px 0;color:var(--dim);font-size:12px}
+main{padding:22px clamp(14px,3vw,34px) 90px;max-width:1280px;width:100%}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+header h1{font-size:20px;margin:0;flex:1}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid currentColor;background:color-mix(in srgb,currentColor 14%,transparent)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;animation:p 1.6s infinite}@keyframes p{50%{opacity:.25}}
+.meta{color:var(--dim);font-size:12px}
+.grid{display:grid;gap:14px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.mb{margin-bottom:14px}
+.card{background:linear-gradient(var(--panel),#0b0f17);border:1px solid var(--line);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
+.card h3{margin:0 0 10px;font-size:12px;color:var(--dim);font-weight:700;letter-spacing:.8px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.accent{position:absolute;left:0;top:16px;width:3px;height:16px;border-radius:0 3px 3px 0}
+.big{font-size:30px;font-weight:750;letter-spacing:-.5px}.big small{font-size:14px;color:var(--dim);font-weight:600;margin-left:3px}
+.sub{color:var(--dim);font-size:12px;margin-top:2px}
+.bar{height:5px;background:var(--line);border-radius:3px;margin-top:12px;overflow:hidden}.bar i{display:block;height:100%;border-radius:3px;transition:width .6s}
+.hero{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-bottom:14px}
+.gauge{display:grid;place-items:center;padding:10px}
+.gauge svg{width:210px;height:210px}.gauge .v{font-size:40px;font-weight:800;fill:var(--text)}.gauge .u{font-size:15px;fill:var(--cyan);font-weight:700}.gauge .s{font-size:11px;fill:var(--dim)}
+.chart{height:150px;width:100%}
+.chips .card .big{color:var(--cyan)}
+.tag{font-size:10px;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--dim);font-weight:700;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px}.kv div:nth-child(odd){color:var(--dim)}.kv div:nth-child(even){text-align:right;font-weight:600;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+.tune{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tune .pill{color:var(--violet)}
+section{display:none}section.on{display:block;animation:f .25s}@keyframes f{from{opacity:0;transform:translateY(4px)}}
+form .card{margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:600;color:var(--dim);margin:12px 0 5px}
+input,select,textarea{width:100%;padding:11px 12px;background:#070a10;border:1px solid var(--line);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:border .2s;font-family:inherit}
+input:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.12)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.switch:last-child{border:0}.switch b{display:block;font-weight:600}.switch span{color:var(--dim);font-size:12px}
+.tg{appearance:none;width:44px;height:24px;border-radius:12px;background:var(--line);position:relative;cursor:pointer;flex:none;padding:0;border:0}
+.tg::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
+.tg:checked{background:var(--cyan)}.tg:checked::after{left:23px}
+input[type=range]{padding:0;height:6px;accent-color:var(--cyan);background:none;border:0;box-shadow:none}
+.rv{float:right;color:var(--cyan);font-weight:700}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;align-items:center}
+.btn{all:unset;cursor:pointer;padding:10px 16px;border-radius:10px;font-weight:700;background:var(--cyan);color:#001318;transition:transform .1s,filter .2s;font-size:14px;text-align:center}
+.btn:hover{filter:brightness(1.1)}.btn:active{transform:scale(.97)}
+.btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--line)}.btn.warn{background:var(--red);color:#fff}.btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+.note{color:var(--dim);font-size:12px;margin-top:10px}
+.info{background:rgba(139,92,255,.1);border:1px solid rgba(139,92,255,.4);border-radius:12px;padding:12px 14px;color:#d9ccff;font-size:13px;margin-bottom:14px}
+.lim{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.lim div{background:var(--panel2);border-radius:10px;padding:10px}.lim b{display:block;font-size:18px}.lim span{font-size:11px;color:var(--dim)}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:28px;text-align:center;color:var(--dim);cursor:pointer;transition:.2s}
+.drop:hover,.drop.over{border-color:var(--cyan);color:var(--text)}
+.prog{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:12px;display:none}.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--mag))}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;transition:.3s;z-index:20;box-shadow:0 10px 30px #0008}
+#toast.show{transform:translateX(-50%) translateY(0)}
+.banner{display:none;background:rgba(255,59,92,.14);border:1px solid var(--red);color:#ffd5dc;padding:10px 14px;border-radius:12px;margin-bottom:14px}
+.wx{display:flex;align-items:center;gap:14px}.wx .t{font-size:34px;font-weight:800}
+/* blocks */
+.cubes{display:flex;gap:14px;align-items:flex-end;overflow-x:auto;padding:6px 2px 4px}
+.cube{flex:none;width:104px;text-align:center}.cube .t{font-size:11px;color:var(--dim);margin-bottom:6px}
+.cube .f{height:104px;border-radius:8px;padding:10px 6px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;box-shadow:6px -6px 0 rgba(255,255,255,.06);font-size:12px}
+.cube .f b{font-size:15px}.sep{flex:none;width:2px;height:120px;background:linear-gradient(var(--cyan),transparent);margin:0 4px;align-self:center}
+.hash{font:600 14px/1.6 ui-monospace,Consolas,monospace;word-break:break-all;color:var(--dim)}.hash em{font-style:normal;color:var(--cyan);text-shadow:0 0 8px var(--cyan)}
+/* pools */
+.pool{border:1px solid var(--line);border-radius:var(--r);padding:16px;background:linear-gradient(var(--panel),#0b0f17);margin-bottom:14px}
+.pool.off{opacity:.6}.pool .hd{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dim);flex:none}.dot.ok{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.wait{background:var(--orange)}
+.pool .hd b{flex:1;font-size:15px}
+.pstat{display:flex;gap:18px;flex-wrap:wrap;color:var(--dim);font-size:12px;margin:4px 0 2px}.pstat span b{color:var(--text)}
+/* screen preview + editor */
+.screen{background:#000;border-radius:12px;padding:10px;border:1px solid var(--line);display:inline-block;max-width:100%}
+.screen img{display:block;width:480px;max-width:100%;image-rendering:pixelated;border-radius:4px;aspect-ratio:480/320;background:#05070b}
+.screen img.small{width:320px;aspect-ratio:320/170}
+.plist{list-style:none;margin:0;padding:0}.plist li{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--panel2)}
+.plist li b{flex:1;font-weight:600}.plist li.dis b{color:var(--dim)}
+.ed-wrap{display:grid;grid-template-columns:1fr 250px;gap:14px}
+.canvas{position:relative;width:100%;aspect-ratio:480/272;background:#070a10;border:1px solid var(--line);border-radius:10px;
+background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:calc(100%/12) calc(100%/8);touch-action:none;user-select:none}
+.wd{position:absolute;padding:2px;cursor:grab}.wd>div{height:100%;background:linear-gradient(var(--panel),#0b0f17);border:1px solid var(--line);border-radius:7px;padding:5px 7px;overflow:hidden;position:relative}
+.wd.sel>div{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,229,255,.3)}.wd .c{font-size:10px;color:var(--dim);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.wd .v{font-weight:750;font-size:clamp(11px,2vw,22px);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wd .rs{position:absolute;right:2px;bottom:2px;width:14px;height:14px;cursor:nwse-resize;border-right:3px solid var(--cyan);border-bottom:3px solid var(--cyan);border-radius:0 0 6px 0;opacity:.7}
+.pal{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:330px;overflow-y:auto}.pal button{all:unset;cursor:pointer;padding:7px 8px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:600}
+.pal button:hover{border-color:var(--cyan)}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}.seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:7px;font-weight:700;font-size:13px;color:var(--dim)}.seg button.on{background:var(--cyan);color:#001318}
+/* logs */
+.console{background:#03050a;border:1px solid var(--line);border-radius:10px;height:420px;overflow:auto;padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+.console .E{color:var(--red)}.console .W{color:var(--orange)}.console .I{color:#9fb0c6}.console .D{color:var(--dim)}
+@media(max-width:1000px){.g4{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}.g3{grid-template-columns:1fr 1fr}.ed-wrap{grid-template-columns:1fr}}
+@media(max-width:720px){.app{grid-template-columns:1fr}
+nav{position:fixed;bottom:0;top:auto;height:auto;width:100%;display:flex;flex-direction:row;overflow-x:auto;padding:6px;border-right:0;border-top:1px solid var(--line);z-index:5}
+nav .logo,nav .foot{display:none}nav button{flex-direction:column;gap:3px;font-size:10px;padding:8px 10px;width:auto;flex:1;min-width:62px;justify-content:center}
+nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:1fr}main{padding-bottom:100px}}
+</style></head>
+<body><div class="app">
+<nav id="nav">
+<div class="logo"><b>AXE</b><i>FORGE</i></div>
+<button data-t="dash" class="on"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg>Dashboard</button>
+<button data-t="pools"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>Pools</button>
+<button data-t="tuning"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Tuning</button>
+<button data-t="display"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Display</button>
+<button data-t="clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Clock &amp; data</button>
+<button data-t="network"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M2 9a15 15 0 0120 0"/><circle cx="12" cy="19.5" r=".8"/></svg>Network</button>
+<button data-t="system"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>System</button>
+<div class="foot" id="navfoot"></div>
+</nav>
+<main>
+<header><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="meta" id="up"></span></header>
+<div class="banner" id="fault"></div>
+
+<!-- ============================== DASHBOARD -->
+<section id="dash" class="on">
+<div class="hero">
+ <div class="card gauge"><svg viewBox="0 0 220 220">
+  <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <path id="garcbg" fill="none" stroke="#1c2635" stroke-width="14" stroke-linecap="round"/>
+  <path id="garc" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" filter="url(#glow)"/>
+  <text x="110" y="112" text-anchor="middle" class="v" id="hrv">--</text>
+  <text x="110" y="138" text-anchor="middle" class="u" id="hru">TH/s</text>
+  <text x="110" y="196" text-anchor="middle" class="s" id="hrs"></text></svg></div>
+ <div class="card"><h3>Hashrate · last hour <span class="tag" id="eff">--</span></h3><svg class="chart" id="chart" preserveAspectRatio="none"></svg></div>
+</div>
+<div class="grid g4 mb">
+ <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="big" id="ct">--</div><div class="sub" id="cts"></div><div class="bar"><i id="ctb" style="background:var(--orange)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--violet)"></i><h3>VR temp</h3><div class="big" id="vt">--</div><div class="sub" id="vts"></div><div class="bar"><i id="vtb" style="background:var(--violet)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--mag)"></i><h3>Power</h3><div class="big" id="pw">--</div><div class="sub" id="pws"></div><div class="bar"><i id="pwb" style="background:var(--mag)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>Fan</h3><div class="big" id="fn">--</div><div class="sub" id="fns"></div><div class="bar"><i id="fnb" style="background:var(--cyan)"></i></div></div>
+</div>
+<div class="grid g4 chips mb" id="chips"></div>
+<div class="card mb"><h3>Blocks <span class="tag" id="fees">--</span></h3><div class="cubes" id="cubes"></div></div>
+<div class="grid g2 mb">
+ <div class="card"><h3>Now mining <span class="tag" id="nmpool">--</span></h3>
+  <div class="big" id="nmh">--</div><div class="sub" id="nmtag"></div>
+  <div class="kv" style="margin-top:12px"><div>Block reward</div><div id="nmrew">--</div><div>Transactions</div><div id="nmtx">--</div><div>Previous block</div><div id="nmprev" class="hash" style="font-size:11px">--</div></div></div>
+ <div class="card"><h3>Live share hash <span class="tag" id="lhd">--</span></h3><div class="hash" id="lh">waiting for the first share…</div>
+  <div class="sub" style="margin-top:8px" id="lhn"></div></div>
+</div>
+<div class="grid g3">
+ <div class="card"><h3>Auto-tune</h3><div class="tune"><span class="pill" id="tph">--</span><b id="tpt"></b></div><div class="sub" id="tnote" style="margin-top:8px"></div><div class="bar"><i id="tbar" style="background:var(--violet)"></i></div>
+  <div class="kv" style="margin-top:12px"><div>Best point</div><div id="tbest">--</div><div>Steps tested</div><div id="tsteps">0</div></div></div>
+ <div class="card"><h3>Pools <span class="tag" id="pmode">--</span></h3><div id="pmini"></div>
+  <div class="kv" style="margin-top:10px"><div>Best diff</div><div id="pbest">--</div><div>Blocks found</div><div id="pblk">0</div></div></div>
+ <div class="card"><h3>Weather</h3><div class="wx"><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div>
+  <div class="kv" style="margin-top:14px"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Firmware</div><div id="kver">--</div></div></div>
+</div>
+</section>
+
+<!-- ============================== POOLS -->
+<section id="pools">
+<div class="info"><b>About "one pool per ASIC":</b> on the NerdQaxe++ all 4 BM1370 chips share one serial chain and every job
+is broadcast to all of them (chips split the nonce range, the job packet carries no chip address). So pools can't be pinned to
+individual chips. Instead AxeForge splits the <i>miner's work</i> between pools by percentage — 4 pools at 25% each is the same
+hashrate as one chip per pool — or uses them as failover.</div>
+<div class="card mb"><h3>Mode</h3>
+ <div class="seg" id="pmodeseg"><button data-m="split" class="on">Split by %</button><button data-m="failover">Failover</button></div>
+ <p class="note" id="pmodenote"></p></div>
+<div id="pooleds"></div>
+<div class="btns"><button class="btn" onclick="savePools()">Save &amp; reconnect</button><span class="meta">No reboot needed. Weights are normalized across enabled pools.</span></div>
+</section>
+
+<!-- ============================== TUNING -->
+<section id="tuning"><form data-f><div class="card"><h3>Mode</h3>
+<div class="switch"><div><b>Auto-tune for max stable hashrate</b><span>Climbs the clock, adds voltage on errors, stops at thermal/power/error walls, then trims voltage back down.</span></div><input class="tg" type="checkbox" name="atune"></div></div>
+<div class="card"><h3>Manual point / tuner start</h3><div class="row">
+<div><label>Frequency (MHz) <span class="rv" id="fv"></span></label><input type="range" name="freq" min="400" max="750" step="6.25" oninput="fv.textContent=this.value"></div>
+<div><label>Core voltage (mV) <span class="rv" id="mvv"></span></label><input type="range" name="mv" min="1100" max="1300" step="10" oninput="mvv.textContent=this.value"></div></div>
+<p class="note">Used directly when auto-tune is off, and as the starting point when a new search begins.</p></div>
+<div class="card"><h3>Cooling</h3><div class="row">
+<div><label>Target chip temp (°C) <span class="rv" id="ftv"></span></label><input type="range" name="fantgt" min="40" max="70" oninput="ftv.textContent=this.value"></div>
+<div><label>Minimum fan speed (%) <span class="rv" id="fmv"></span></label><input type="range" name="fanmin" min="10" max="100" oninput="fmv.textContent=this.value"></div></div></div>
+<div class="card"><h3>Hard limits (compiled in)</h3><div class="lim" id="lims"></div></div>
+<div class="btns"><button class="btn">Save tuning</button><button type="button" class="btn alt" onclick="act('/api/retune')">Restart auto-tune search</button></div></form></section>
+
+<!-- ============================== DISPLAY -->
+<section id="display">
+<div class="grid g2 mb">
+ <div class="card"><h3>Live screen <span class="tag" id="scrkind">--</span></h3>
+  <div class="screen"><img id="scr" alt="screen"></div>
+  <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="pageGo(-1)">◀ Prev</button><button class="btn alt sm" onclick="pageGo(1)">Next ▶</button>
+  <label style="margin:0 0 0 6px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="scrlive" checked style="width:auto"> live</label></div>
+  <p class="note">This is the real LCD, captured from the miner every 2 s.</p></div>
+ <div class="card"><h3>Pages &amp; order</h3><ul class="plist" id="plist"></ul>
+  <div class="btns"><button class="btn" onclick="savePages()">Save pages</button><span class="meta">Use the arrows to reorder. System stays on (it has the setup QR).</span></div></div>
+</div>
+<div class="card mb"><h3>Layout editor <span class="seg" id="edseg"><button data-p="0" class="on">Custom 1</button><button data-p="1">Custom 2</button></span></h3>
+ <p class="note" id="edsmall" style="display:none;margin-top:0">Custom pages need the 3.5" screen. On the T-Display-S3 they're skipped, but layouts you save here are kept for later.</p>
+ <div class="ed-wrap"><div><div class="canvas" id="canvas"></div>
+  <p class="note">Drag to move, drag the corner to resize, click to select. 12 × 8 grid, same as the 480 × 272 page area. Fonts scale with widget size on the device.</p></div>
+  <div><label style="margin-top:0">Add widget</label><div class="pal" id="pal"></div>
+   <div id="props" style="margin-top:12px"></div></div></div>
+ <div class="btns"><button class="btn" onclick="saveLayout()">Save &amp; show on screen</button><button class="btn alt" onclick="clearLayout()">Clear page</button></div></div>
+<form data-f><div class="card"><h3>Screen settings</h3>
+<label style="margin-top:0">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
+<p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
+<label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
+<div class="row"><div><label>Start page</label><select name="defpage" id="defpage"></select></div>
+<div><label>Auto-rotate pages</label><select name="rotate"><option value="0">Off</option><option value="10">Every 10 s</option><option value="20">Every 20 s</option><option value="30">Every 30 s</option><option value="60">Every minute</option></select></div></div>
+<div class="switch" style="margin-top:8px"><div><b>Rotate 180°</b><span>Flip the screen if the miner is mounted upside down.</span></div><input class="tg" type="checkbox" name="rot180"></div>
+<p class="note">Buttons on the miner: short press = next/previous page, hold top = backlight, hold bottom = restart auto-tune.</p></div>
+<div class="btns"><button class="btn">Save screen settings</button></div></form>
+</section>
+
+<!-- ============================== CLOCK & DATA -->
+<section id="clock"><form data-f><div class="card"><h3>Clock &amp; weather</h3>
+<label>City</label><input name="city" placeholder="e.g. Bucharest">
+<div class="switch" style="margin-top:8px"><div><b>24-hour clock</b><span>Time from NTP; time zone detected from the city.</span></div><input class="tg" type="checkbox" name="h24"></div>
+<div class="switch"><div><b>Fahrenheit</b><span>Use °F and mph instead of °C and km/h.</span></div><input class="tg" type="checkbox" name="fahr"></div>
+<p class="note">Weather by Open-Meteo, refreshed every 15 minutes. Only the city name and its coordinates are sent.</p></div>
+<div class="card"><h3>Mempool feed</h3>
+<div class="switch"><div><b>Show mined &amp; upcoming blocks</b><span>Recent blocks, projected next blocks and fees, every 60 s.</span></div><input class="tg" type="checkbox" name="mempool"></div>
+<label>API base URL</label><input name="mpurl" placeholder="https://mempool.space">
+<p class="note">Use your own node's mempool instance here (e.g. http://umbrel.local:3006) to keep this private.</p></div>
+<div class="btns"><button class="btn">Save</button></div></form></section>
+
+<!-- ============================== NETWORK -->
+<section id="network"><form data-f><div class="card"><h3>Wi-Fi</h3>
+<label>Network name (SSID)</label><input name="ssid">
+<label>Password</label><input name="wpass" type="password" placeholder="leave empty to keep current">
+<div class="kv" style="margin-top:16px"><div>IP address</div><div id="nip">--</div><div>Signal</div><div id="nrssi">--</div></div>
+<p class="note">Changing Wi-Fi reboots the miner. If it can't connect, it opens the AxeForge-XXXX setup network again.</p></div>
+<div class="btns"><button class="btn">Save Wi-Fi</button></div></form></section>
+
+<!-- ============================== SYSTEM -->
+<section id="system">
+<div class="card mb"><h3>Live logs <span class="btns" style="margin:0"><input id="logf" placeholder="filter…" style="width:160px;padding:6px 10px">
+ <button class="btn alt sm" id="logpause" onclick="logPaused=!logPaused;this.textContent=logPaused?'Resume':'Pause'">Pause</button>
+ <button class="btn alt sm" onclick="logLines=[];renderLog()">Clear</button></span></h3>
+ <div class="console" id="console"></div></div>
+<div class="grid g2">
+<div class="card"><h3>Device</h3><div class="kv">
+<div>Firmware</div><div id="sver">--</div><div>Chips</div><div id="schips">--</div><div>Input</div><div id="svin">--</div>
+<div>Core</div><div id="svout">--</div><div>VR fan</div><div id="sfan2">--</div><div>Free memory</div><div id="sheap">--</div><div>Uptime</div><div id="sup">--</div></div>
+<div class="btns" style="margin-top:14px"><button class="btn alt" onclick="act('/api/restart')">Reboot miner</button></div></div>
+<div class="card"><h3>Firmware update</h3>
+<div class="drop" id="drop">Drop <b>axeforge.bin</b> here or click to choose<input type="file" id="file" accept=".bin" hidden></div>
+<div class="prog" id="prog"><i></i></div>
+<p class="note">Use the app image (axeforge.bin), not the factory image. Mining keeps running during the upload.</p></div>
+</div>
+</section>
+</main></div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+const titles={dash:'Dashboard',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
+let S={},cfg={},cur='dash';
+function tab(t){cur=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
+ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);
+ if(t=='display'){shot();drawCanvas()}if(t=='system')pollLogs()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500)}
+async function act(u,body){try{const r=await fetch(u,{method:'POST',body:body||''});const x=await r.text();toast(x);return x}catch(e){toast('Request failed')}}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hr=g=>g>=1000?[(g/1000).toFixed(2),'TH/s']:[g.toFixed(0),'GH/s'];
+const sfx=d=>{const u=['','k','M','G','T','P','E'];let i=0;while(d>=1000&&i<6){d/=1000;i++}return (i?d.toFixed(2):d.toFixed(0))+u[i]};
+const dur=s=>{const d=s/86400|0,h=s%86400/3600|0,m=s%3600/60|0;return (d?d+'d ':'')+h+'h '+m+'m'};
+const pct=(v,m)=>Math.max(0,Math.min(100,100*v/m))+'%';
+const ago=t=>{const m=Math.max(0,(Date.now()/1000-t)/60|0);return m<60?m+' min ago':(m/60|0)+' h ago'};
+const feeCol=f=>f<2?'#5b3fd9':f<5?'#3d7bff':f<10?'#1fbfa0':f<20?'#8fd12b':f<50?'#ffb21c':'#ff3b5c';
+const PROTO=['Stratum V1','V1 + TLS','Stratum V2'],PSHORT=['V1','TLS','SV2'];
+function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p=t=>[cx+r*Math.cos(a0+sw*t),cy+r*Math.sin(a0+sw*t)];
+ const [x0,y0]=p(0),[x1,y1]=p(1),[xf,yf]=p(Math.max(.001,Math.min(1,f)));
+ $('garcbg').setAttribute('d',`M${x0} ${y0}A${r} ${r} 0 1 1 ${x1} ${y1}`);$('garc').setAttribute('d',`M${x0} ${y0}A${r} ${r} 0 ${f*270>180?1:0} 1 ${xf} ${yf}`)}
+const statusCol={mining:'var(--green)',setup:'var(--violet)',connecting:'var(--orange)',fault:'var(--red)',overheat:'var(--red)'};
+const phaseCol={locked:'var(--green)',backoff:'var(--orange)',manual:'var(--dim)'};
+function hashHtml(h){if(!h)return'';const z=(h.match(/^0*/)||[''])[0].length;return `<em>${h.slice(0,z)}</em>${h.slice(z)}`}
+
+function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/4||1;
+ const ceil=cfg.limits?.chipCeil||68,tc=x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
+ return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor; the BM1370 has no readable die sensor">shared sensor</span>'}</h3>
+ <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%</div>
+ <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
+function blocks(m){
+ if(!m.valid){$('cubes').innerHTML=`<span class="meta">${esc(m.error||'Loading mempool…')}</span>`;return}
+ const nx=m.next.slice(0,3).reverse().map((b,i)=>`<div class="cube"><div class="t">${['~30 min','~20 min','next ~10 min'][i+3-Math.min(3,m.next.length)]}</div><div class="f" style="background:linear-gradient(${feeCol(b.fee)},${feeCol(b.fee)}aa)">
+  <div><b>~${b.fee.toFixed(0)}</b> sat/vB</div><div>${b.min.toFixed(0)}–${b.max.toFixed(0)} sat/vB</div><div>${b.txs.toLocaleString()} txs</div></div></div>`).join('');
+ const mn=m.mined.slice(0,5).map(b=>`<div class="cube"><div class="t">${ago(b.time)}</div><div class="f" style="background:linear-gradient(#4a3fb0,${feeCol(b.fee)}99)">
+  <div><b>${b.height}</b></div><div>~${b.fee.toFixed(1)} sat/vB<br>${b.txs.toLocaleString()} txs</div><div>${esc(b.pool)}</div></div></div>`).join('');
+ $('cubes').innerHTML=nx+'<div class="sep"></div>'+mn;
+ $('fees').textContent=`fees ${m.feeFast.toFixed(0)} / ${m.feeHour.toFixed(0)} / ${m.feeEco.toFixed(0)} sat/vB`}
+
+async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){return}
+ const L=cfg.limits||{chipCrit:80,vrCrit:100,maxPower:100,maxFreq:750};
+ const [v,u]=hr(S.hashrate);$('hrv').textContent=v;$('hru').textContent=u;
+ const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*2040*4/1000));
+ $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
+ const st=$('st');st.textContent=S.status;st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
+ $('fault').style.display=S.fault?'block':'none';$('fault').textContent='⚠ '+S.fault;
+ $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
+ $('vt').innerHTML=S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
+ $('pw').innerHTML=S.power.toFixed(0)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
+ $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=S.fanRpm+' rpm';$('fnb').style.width=S.fanPct+'%';
+ chips(S.chips);blocks(S.mempool);
+ const t=S.tuner,tp=$('tph');tp.textContent=t.phase;tp.style.color=phaseCol[t.phase]||'var(--violet)';
+ $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;
+ $('tbar').style.width=(t.phase=='locked'||t.phase=='manual'?100:t.progress)+'%';
+ $('tbest').textContent=t.bestFreq?`${t.bestFreq} MHz @ ${t.bestMv} mV (${hr(t.bestGhs).join(' ')})`:'searching…';$('tsteps').textContent=t.steps;
+ // template + hash
+ const tm=S.template;if(tm.valid){$('nmh').textContent='#'+tm.height.toLocaleString();$('nmtag').textContent=tm.tag||'';
+  $('nmpool').textContent='pool '+(tm.pool+1)+' · '+(S.pools[tm.pool]?.host||'');$('nmrew').textContent=tm.reward.toFixed(8)+' BTC';
+  $('nmtx').textContent='~'+(2**tm.branches).toLocaleString()+' (merkle depth '+tm.branches+')';$('nmprev').textContent=tm.prevHash}
+ if(S.lastHash){$('lh').innerHTML=hashHtml(S.lastHash);$('lhd').textContent='diff '+sfx(S.lastHashDiff);
+  $('lhn').textContent=(S.lastHash.match(/^0*/)[0].length)+' leading zeros · '+S.hashesChecked.toLocaleString()+' shares verified on the ESP32'}
+ // pools mini list
+ $('pmode').textContent=S.pool.mode;
+ $('pmini').innerHTML=S.pools.map((p,i)=>p.enabled?`<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span class="dot ${p.connected?'ok':'wait'}"></span>
+  <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.host)}</span><span class="tag">${PSHORT[p.proto]}</span><b>${p.workPct}%</b>
+  <span class="meta" style="color:var(--green)">${p.accepted}</span>/<span class="meta" style="color:var(--red)">${p.rejected}</span></div>`:'').join('')||'<span class="meta">No pools enabled</span>';
+ $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
+ const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
+ $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
+ $('nip').textContent=S.ip||'--';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
+ $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × BM1370';$('svin').textContent=S.vin.toFixed(2)+' V';
+ $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
+ $('navfoot').textContent=(S.ip||'')+' · v'+S.version;$('edsmall').style.display=S.screen=='tdisplay'?'':'none';
+ if(cur=='pools')poolLive()}
+async function chart(){let h;try{h=await (await fetch('/api/history')).json()}catch(e){return}
+ const c=$('chart'),W=c.clientWidth||600,H=c.clientHeight||150,pts=h.map((v,i)=>[i/(h.length-1)*W,v]).filter(p=>p[1]>0);
+ if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#6b7a90" text-anchor="middle" font-size="12">Collecting data — first point after 30 s</text>`;return}
+ const mx=Math.max(...pts.map(p=>p[1]))*1.08,mn=Math.min(...pts.map(p=>p[1]))*.92,y=v=>H-6-(v-mn)/(mx-mn||1)*(H-16);
+ const line=pts.map(p=>`${p[0].toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
+ c.setAttribute('viewBox',`0 0 ${W} ${H}`);
+ c.innerHTML=`<defs><linearGradient id="cf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00e5ff" stop-opacity=".35"/><stop offset="1" stop-color="#00e5ff" stop-opacity="0"/></linearGradient></defs>
+ ${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" stroke="#1c2635"/>`).join('')}
+ <polygon points="${pts[0][0]},${H} ${line} ${pts[pts.length-1][0]},${H}" fill="url(#cf)"/>
+ <polyline points="${line}" fill="none" stroke="#00e5ff" stroke-width="2.2" stroke-linejoin="round" filter="url(#glow)"/>
+ <text x="${W-4}" y="12" fill="#6b7a90" font-size="11" text-anchor="end">${hr(mx/1.08).join(' ')}</text>`}
+
+/* ---------------- generic settings forms */
+async function loadCfg(){cfg=await (await fetch('/api/settings')).json();
+ document.querySelectorAll('form[data-f] [name]').forEach(e=>{const v=cfg[e.name];if(v===undefined)return;if(e.type=='checkbox')e.checked=!!v;else e.value=v;e.dispatchEvent(new Event('input'))});
+ const L=cfg.limits;document.querySelector('[name=freq]').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=L.minMv;mv.max=L.maxMv;
+ $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[L.maxPower+' W','max power']]
+  .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+ pagesFrom(cfg.pages)}
+document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const d={};
+ f.querySelectorAll('[name]').forEach(el=>{d[el.name]=el.type=='checkbox'?el.checked:(el.type=='range'||el.type=='number'||el.tagName=='SELECT')?Number(el.value):el.value});
+ act('/api/settings',JSON.stringify(d)).then(loadCfg)});
+
+/* ---------------- pools editor */
+let P={pools:[],mode:'split'};
+async function loadPools(){P=await (await fetch('/api/pools')).json();setMode(P.mode);renderPools()}
+function setMode(m){P.mode=m;document.querySelectorAll('#pmodeseg button').forEach(b=>b.classList.toggle('on',b.dataset.m==m));
+ $('pmodenote').textContent=m=='split'?'Every enabled pool gets jobs in proportion to its weight. Shares go to the pool whose job found them.':'All work goes to the first connected pool in the list; the next one takes over if it drops.';
+ document.querySelectorAll('.wrow').forEach(e=>e.style.display=m=='split'?'':'none')}
+document.querySelectorAll('#pmodeseg button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+function renderPools(){$('pooleds').innerHTML=P.pools.map((p,i)=>`<div class="pool ${p.enabled?'':'off'}" id="pe${i}">
+ <div class="hd"><span class="dot" id="pd${i}"></span><b>Pool ${i+1}${i==0?' · primary':''}</b><span class="tag" id="ps${i}"></span>
+  <input class="tg" type="checkbox" ${p.enabled?'checked':''} onchange="P.pools[${i}].enabled=this.checked;$('pe${i}').classList.toggle('off',!this.checked)"></div>
+ <div class="pstat" id="pl${i}"></div>
+ <div class="row"><div style="grid-column:span 2"><label>Host</label><input value="${esc(p.url)}" oninput="P.pools[${i}].url=this.value.replace(/^stratum\\+(tcp|ssl):\\/\\//,'')" placeholder="pool.example.com"></div>
+  <div><label>Port</label><input type="number" value="${p.port}" oninput="P.pools[${i}].port=+this.value"></div>
+  <div><label>Protocol</label><select onchange="P.pools[${i}].proto=+this.value;$('k${i}').style.display=this.value==2?'':'none'">${PROTO.map((n,j)=>`<option value="${j}" ${p.proto==j?'selected':''}>${n}</option>`).join('')}</select></div></div>
+ <div class="row"><div style="grid-column:span 2"><label>Worker (BTC address.name)</label><input value="${esc(p.user)}" oninput="P.pools[${i}].user=this.value" autocomplete="off"></div>
+  <div><label>Password</label><input value="${esc(p.pass)}" oninput="P.pools[${i}].pass=this.value"></div></div>
+ <div class="wrow"><label>Share of work <span class="rv" id="wv${i}">${p.weight}%</span></label><input type="range" min="0" max="100" step="5" value="${p.weight}" oninput="P.pools[${i}].weight=+this.value;$('wv${i}').textContent=this.value+'%'"></div>
+ <div id="k${i}" style="display:${p.proto==2?'':'none'}"><label>SV2 authority public key (optional, base58)</label><input value="${esc(p.sv2key)}" oninput="P.pools[${i}].sv2key=this.value" placeholder="9bQHWXsQ2J9TRFTaxRh3KjoxdyLRfWVEy25YHtKF8y8gotLoCZZ">
+  <p class="note">With a key the pool's identity is verified (Noise NX + Schnorr). Without it the link is still encrypted but unauthenticated.</p></div>
+</div>`).join('');setMode(P.mode);poolLive()}
+function poolLive(){if(!S.pools)return;S.pools.forEach((p,i)=>{const d=$('pd'+i);if(!d)return;
+ d.className='dot '+(p.connected?'ok':p.enabled?'wait':'');$('ps'+i).textContent=p.status||'';
+ $('pl'+i).innerHTML=p.enabled?`<span><b>${p.workPct}%</b> of work</span><span><b>${hr(p.ghs).join(' ')}</b> est.</span><span>diff <b>${p.diff}</b></span>
+ <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>`:''})}
+async function savePools(){await act('/api/pools',JSON.stringify(P))}
+
+/* ---------------- screen preview + pages */
+const PAGES={d:'Dashboard',c:'Clock & weather',b:'Blocks & mempool',p:'Pools',x:'ASIC chips',s:'System (setup QR)',u:'Custom 1',v:'Custom 2'};
+let order=[];
+function pagesFrom(str){const on=(str||'').split('').filter(c=>PAGES[c]);if(!on.includes('s'))on.push('s');
+ order=[...on.map(k=>({k,on:true})),...Object.keys(PAGES).filter(k=>!on.includes(k)).map(k=>({k,on:false}))];renderPages()}
+function renderPages(){$('plist').innerHTML=order.map((p,i)=>`<li class="${p.on?'':'dis'}"><input type="checkbox" style="width:auto" ${p.on?'checked':''} ${p.k=='s'?'disabled':''}
+ onchange="order[${i}].on=this.checked;renderPages()"><b>${PAGES[p.k]}</b><button class="btn alt sm" onclick="mv(${i},-1)">▲</button><button class="btn alt sm" onclick="mv(${i},1)">▼</button>
+ <button class="btn alt sm" onclick="showKind('${p.k}')" title="show on the miner">👁</button></li>`).join('');
+ const en=order.filter(p=>p.on);$('defpage').innerHTML=en.map((p,i)=>`<option value="${i}">${PAGES[p.k]}</option>`).join('');$('defpage').value=cfg.defpage||0}
+function mv(i,d){const j=i+d;if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];renderPages()}
+async function savePages(){await act('/api/settings',JSON.stringify({pages:order.filter(p=>p.on).map(p=>p.k).join('')}));setTimeout(shot,800)}
+let shooting=false;
+function shot(){if(shooting)return;shooting=true;const i=$('scr'),n=new Image();
+ n.onload=()=>{i.classList.toggle('small',n.naturalWidth<400);i.src=n.src;shooting=false};n.onerror=()=>{shooting=false};n.src='/api/screen.bmp?'+Date.now()}
+async function pageGo(d){const r=await (await fetch('/api/page',{method:'POST',body:JSON.stringify({dir:d})})).json();$('scrkind').textContent=PAGES[r.kind]||r.kind;shot()}
+async function showKind(k){const r=await (await fetch('/api/page',{method:'POST',body:JSON.stringify({kind:k})})).json();$('scrkind').textContent=PAGES[r.kind]||r.kind;shot()}
+// one capture at a time, only while the tab is visible: each frame is 300 kB
+setInterval(()=>{if(cur=='display'&&!document.hidden&&$('scrlive').checked&&!drag)shot()},3000);
+
+/* ---------------- layout editor */
+const WT={text:['Text',4,1],hashrate:['Hashrate',4,2],gauge:['Hash gauge',4,4],chart:['Hashrate chart',6,3],chiptemp:['ASIC temp',3,2],vrtemp:['VR temp',3,2],
+power:['Power',3,2],eff:['Efficiency',3,2],fan:['Fan',3,2],chips:['ASIC bars',4,3],clock:['Clock',6,3],date:['Date',4,1],weather:['Weather',5,3],
+shares:['Shares',3,2],bestdiff:['Best diff',3,2],height:['Block height',3,2],netdiff:['Network diff',3,2],reward:['Block reward',4,2],
+lasthash:['Live hash',6,3],blocks:['Mempool blocks',6,3],nextblock:['Next block fee',3,2],fees:['Fee rates',4,2],tuner:['Auto-tune',4,2],uptime:['Uptime',3,1]};
+let L={pages:[[],[]]},ep=0,sel=-1,drag=null;
+async function loadLayout(){L=await (await fetch('/api/layout')).json();while(L.pages.length<2)L.pages.push([]);drawCanvas()}
+$('pal').innerHTML=Object.entries(WT).map(([k,v])=>`<button onclick="addW('${k}')">+ ${v[0]}</button>`).join('');
+document.querySelectorAll('#edseg button').forEach(b=>b.onclick=()=>{ep=+b.dataset.p;sel=-1;document.querySelectorAll('#edseg button').forEach(x=>x.classList.toggle('on',x==b));drawCanvas()});
+function sample(t){const s=S;if(!s.chips)return'';switch(t){case'hashrate':case'gauge':return hr(s.hashrate).join(' ');case'chiptemp':return s.chipTemp.toFixed(0)+'°C';case'vrtemp':return s.vrTemp.toFixed(0)+'°C';
+ case'power':return s.power.toFixed(0)+' W';case'eff':return(s.power/(s.hashrate/1000||1)).toFixed(1)+' J/TH';case'fan':return s.fanPct+'%';case'clock':return new Date().toTimeString().slice(0,5);
+ case'date':return new Date().toDateString().slice(0,10);case'weather':return s.weather.valid?s.weather.temp.toFixed(0)+'° '+s.weather.text:'--';case'shares':return s.pool.accepted+' / '+s.pool.rejected;
+ case'bestdiff':return sfx(s.pool.bestDiff);case'height':return s.template.height;case'netdiff':return sfx(s.pool.networkDiff);case'reward':return s.template.reward.toFixed(3)+' BTC';
+ case'lasthash':return(s.lastHash||'').slice(0,20)+'…';case'nextblock':return'~'+(s.mempool.next[0]?.fee||0).toFixed(0)+' sat/vB';case'fees':return s.mempool.feeFast+' / '+s.mempool.feeEco;
+ case'tuner':return s.freq+' MHz';case'uptime':return dur(s.uptime);case'chips':return s.chips.map(c=>c.ghs.toFixed(0)).join(' · ');case'blocks':return'▣ ▣ ▣';case'chart':return'〰〰〰';default:return''}}
+function drawCanvas(){const c=$('canvas'),ws=L.pages[ep]||[];c.innerHTML=ws.map((w,i)=>`<div class="wd ${i==sel?'sel':''}" data-i="${i}" style="left:${w.x/12*100}%;top:${w.y/8*100}%;width:${w.w/12*100}%;height:${w.h/8*100}%">
+ <div><div class="c">${esc(WT[w.t]?.[0]||w.t)}</div><div class="v">${w.t=='text'?esc(w.txt||'Text'):esc(sample(w.t))}</div><span class="rs"></span></div></div>`).join('');props()}
+function props(){const w=(L.pages[ep]||[])[sel];if(!w){$('props').innerHTML='<p class="note">Select a widget to edit it.</p>';return}
+ $('props').innerHTML=`<label style="margin-top:0">Selected: <b style="color:var(--text)">${esc(WT[w.t]?.[0]||w.t)}</b> · ${w.w}×${w.h}</label>
+ ${w.t=='text'?`<input value="${esc(w.txt||'')}" maxlength="38" placeholder="Your text" oninput="L.pages[ep][sel].txt=this.value;drawCanvasKeep()">`:''}
+ <div class="btns"><button class="btn warn sm" onclick="L.pages[ep].splice(sel,1);sel=-1;drawCanvas()">Delete</button></div>`}
+function drawCanvasKeep(){const w=L.pages[ep][sel];const el=document.querySelector(`.wd[data-i="${sel}"] .v`);if(el)el.textContent=w.txt||'Text'}
+function overlaps(ws,skip,x,y,w,h){return ws.some((o,i)=>i!=skip&&x<o.x+o.w&&o.x<x+w&&y<o.y+o.h&&o.y<y+h)}
+function addW(t){const [_,w,h]=WT[t];const ws=L.pages[ep];if(ws.length>=16){toast('Max 16 widgets per page');return}
+ for(let y=0;y<=8-h;y++)for(let x=0;x<=12-w;x++)if(!overlaps(ws,-1,x,y,w,h)){ws.push({t,x,y,w,h});sel=ws.length-1;drawCanvas();return}
+ toast('No free space for that size — make room or shrink something')}
+$('canvas').addEventListener('pointerdown',e=>{const el=e.target.closest('.wd');if(!el){sel=-1;drawCanvas();return}
+ sel=+el.dataset.i;const w=L.pages[ep][sel],r=$('canvas').getBoundingClientRect();
+ drag={mode:e.target.classList.contains('rs')?'size':'move',sx:e.clientX,sy:e.clientY,o:{...w},cw:r.width/12,ch:r.height/8};
+ e.target.setPointerCapture?.(e.pointerId);drawCanvas()});
+window.addEventListener('pointermove',e=>{if(!drag)return;const w=L.pages[ep][sel],dx=Math.round((e.clientX-drag.sx)/drag.cw),dy=Math.round((e.clientY-drag.sy)/drag.ch);let n={...w};
+ if(drag.mode=='move'){n.x=Math.max(0,Math.min(12-w.w,drag.o.x+dx));n.y=Math.max(0,Math.min(8-w.h,drag.o.y+dy))}
+ else{n.w=Math.max(1,Math.min(12-w.x,drag.o.w+dx));n.h=Math.max(1,Math.min(8-w.y,drag.o.h+dy))}
+ if(!overlaps(L.pages[ep],sel,n.x,n.y,n.w,n.h)&&(n.x!=w.x||n.y!=w.y||n.w!=w.w||n.h!=w.h)){Object.assign(w,n);drawCanvas()}});
+window.addEventListener('pointerup',()=>{drag=null});
+async function saveLayout(){await act('/api/layout',JSON.stringify(L));const k=ep?'v':'u';
+ if(!order.find(p=>p.k==k&&p.on)){order.find(p=>p.k==k).on=true;renderPages();await savePages()}setTimeout(()=>showKind(k),500)}
+function clearLayout(){if(confirm('Remove all widgets from this page?')){L.pages[ep]=[];sel=-1;drawCanvas()}}
+
+/* ---------------- logs */
+let logSince=0,logLines=[],logPaused=false,logTimer;
+function renderLog(){const f=$('logf').value.toLowerCase(),c=$('console'),stick=c.scrollTop+c.clientHeight>=c.scrollHeight-30;
+ c.innerHTML=logLines.filter(l=>!f||l.toLowerCase().includes(f)).slice(-800).map(l=>`<div class="${(l.match(/^([EWID]) \(/)||[])[1]||''}">${esc(l)}</div>`).join('');
+ if(stick)c.scrollTop=c.scrollHeight}
+$('logf').oninput=renderLog;
+async function pollLogs(){clearTimeout(logTimer);if(cur!='system')return;
+ if(!logPaused){try{const r=await (await fetch('/api/logs?since='+logSince)).json();if(r.text){const parts=r.text.split('\n');
+  if(logLines.length&&logSince)logLines[logLines.length-1]+=parts.shift();logLines.push(...parts);if(logLines.length>2000)logLines=logLines.slice(-1500);renderLog()}logSince=r.next}catch(e){}}
+ logTimer=setTimeout(pollLogs,1000)}
+
+/* ---------------- firmware upload */
+const drop=$('drop'),file=$('file');drop.onclick=()=>file.click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');upload(e.dataTransfer.files[0])};file.onchange=()=>upload(file.files[0]);
+function upload(f){if(!f)return;if(!confirm(`Install ${f.name} (${(f.size/1024|0)} kB)? The miner will reboot.`))return;
+ const x=new XMLHttpRequest(),pb=$('prog');pb.style.display='block';x.upload.onprogress=e=>pb.firstChild.style.width=(100*e.loaded/e.total)+'%';
+ x.onload=()=>toast(x.responseText);x.onerror=()=>toast('Upload failed');x.open('POST','/api/ota');x.send(f)}
+
+loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();
+setInterval(()=>{if(!document.hidden)tick()},2000);setInterval(()=>{if(!document.hidden)chart()},30000);
+</script></body></html>

@@ -1,0 +1,138 @@
+menu "AxeForge"
+
+    menu "Big display (3.5in 480x320)"
+        choice AF_LCD_BUS
+            prompt "Interface"
+            default AF_LCD_BUS_I80
+            config AF_LCD_BUS_I80
+                bool "8-bit parallel (i80)"
+            config AF_LCD_BUS_SPI
+                bool "SPI"
+        endchoice
+
+        choice AF_LCD_CONTROLLER
+            prompt "LCD controller"
+            default AF_LCD_ST7796
+            config AF_LCD_ST7796
+                bool "ST7796S"
+            config AF_LCD_ILI9488
+                bool "ILI9488"
+        endchoice
+
+        config AF_LCD_PIN_D0
+            int "D0 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 39
+        config AF_LCD_PIN_D1
+            int "D1 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 40
+        config AF_LCD_PIN_D2
+            int "D2 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 41
+        config AF_LCD_PIN_D3
+            int "D3 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 42
+        config AF_LCD_PIN_D4
+            int "D4 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 45
+        config AF_LCD_PIN_D5
+            int "D5 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 46
+        config AF_LCD_PIN_D6
+            int "D6 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 47
+        config AF_LCD_PIN_D7
+            int "D7 GPIO"
+            depends on AF_LCD_BUS_I80
+            default 48
+        config AF_LCD_PIN_WR
+            int "WR (write clock) GPIO"
+            depends on AF_LCD_BUS_I80
+            default 8
+        config AF_LCD_PIN_RD
+            int "RD GPIO (held high, -1 = none)"
+            depends on AF_LCD_BUS_I80
+            default 9
+        config AF_LCD_I80_KHZ
+            int "Parallel write clock (kHz)"
+            depends on AF_LCD_BUS_I80
+            range 2000 40000
+            default 20000
+
+        config AF_LCD_PIN_SCLK
+            int "SCLK GPIO"
+            depends on AF_LCD_BUS_SPI
+            default 8
+        config AF_LCD_PIN_MOSI
+            int "MOSI (SDA) GPIO"
+            depends on AF_LCD_BUS_SPI
+            default 39
+        config AF_LCD_SPI_MHZ
+            int "SPI clock (MHz)"
+            depends on AF_LCD_BUS_SPI
+            range 10 80
+            default 40
+
+        config AF_LCD_PIN_CS
+            int "CS GPIO"
+            default 6
+        config AF_LCD_PIN_DC
+            int "DC (RS) GPIO"
+            default 7
+        config AF_LCD_PIN_RST
+            int "RST GPIO (-1 = not connected)"
+            default 5
+        config AF_LCD_PIN_BL
+            int "Backlight GPIO (-1 = always on)"
+            default 38
+        config AF_LCD_PIN_PWR
+            int "Peripheral power enable GPIO, driven high (-1 = none)"
+            default 15
+        config AF_LCD_ROTATE_180
+            bool "Rotate 180 degrees"
+            default n
+        config AF_LCD_INVERT_COLORS
+            bool "Invert colors (IPS panels usually need this)"
+            default y
+        config AF_LCD_BGR
+            bool "BGR color order"
+            default y
+    endmenu
+
+    menu "Hard safety limits (auto-tuner can never exceed these)"
+        config AF_MAX_FREQ_MHZ
+            int "Max ASIC frequency (MHz)"
+            range 400 800
+            default 750
+        config AF_MAX_CORE_MV
+            int "Max core voltage (mV)"
+            range 1100 1350
+            default 1300
+        config AF_MIN_CORE_MV
+            int "Min core voltage (mV)"
+            range 1000 1200
+            default 1100
+        config AF_MAX_CHIP_TEMP
+            int "Tuner chip temperature ceiling (C)"
+            default 68
+        config AF_CRIT_CHIP_TEMP
+            int "Emergency shutdown chip temperature (C)"
+            default 80
+        config AF_MAX_VR_TEMP
+            int "Tuner VR temperature ceiling (C)"
+            default 85
+        config AF_CRIT_VR_TEMP
+            int "Emergency shutdown VR temperature (C)"
+            default 100
+        config AF_MAX_POWER_W
+            int "Max input power (W)"
+            default 100
+    endmenu
+
+endmenu

@@ -1,0 +1,77 @@
+name: Build
+
+# Every push / PR builds the firmware and keeps the .bin files as a workflow
+# artifact. Pushing a tag like v1.2.0 also publishes a GitHub Release.
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to create releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set firmware version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(cat version.txt | tr -d '[:space:]')-dev.${GITHUB_SHA::7}"
+          fi
+          echo "$VERSION" > version.txt
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building AxeForge $VERSION"
+
+      - name: Build with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3.2
+          target: esp32s3
+          command: |
+            idf.py build &&
+            cd build &&
+            esptool.py --chip esp32s3 merge_bin -o axeforge-factory.bin \
+              --flash_mode dio --flash_freq 80m --flash_size 16MB \
+              0x0 bootloader/bootloader.bin \
+              0x8000 partition_table/partition-table.bin \
+              0x10000 axeforge.bin
+
+      - name: Collect binaries
+        run: |
+          mkdir -p dist
+          sudo cp build/axeforge-factory.bin dist/axeforge-factory.bin
+          sudo cp build/axeforge.bin dist/axeforge.bin
+          sudo chown -R "$(id -u):$(id -g)" dist
+          cd dist && sha256sum *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: axeforge-${{ env.VERSION }}
+          path: dist/*
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AxeForge ${{ env.VERSION }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            dist/axeforge-factory.bin
+            dist/axeforge.bin
+            dist/SHA256SUMS.txt
+          body: |
+            ### Which file?
+            - **axeforge-factory.bin** — first install over USB. Flash at address `0x0` (web flasher or `esptool.py write_flash 0x0 axeforge-factory.bin`).
+            - **axeforge.bin** — update an AxeForge miner from the web UI: *System → Firmware update*. Keeps your settings.
+
+            Supports the NerdQaxe++ (pre-rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.

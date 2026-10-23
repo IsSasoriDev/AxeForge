@@ -173,7 +173,6 @@ Tags with a dash (for example `v1.2.0-beta1`) are marked as pre-releases.
 
 ## Not supported (yet)
 
-- Stratum V2 share submission is implemented but has not been tested end to end (that needs an SV2 pool account).
 - One pool per ASIC: not possible on this hardware (see above).
 
 ## Credits / license

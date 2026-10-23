@@ -173,6 +173,8 @@ void shutdown()
     s_powered = false;
     s_mv = 0;
     g_state.core_mv = 0;
+    // telemetry stops updating while off; don't leave the last readings on screen
+    g_state.pin = g_state.iin = g_state.vout = g_state.iout = 0;
     fan::set_pct(0, 100);
     fan::set_pct(1, 100);
 }

@@ -71,7 +71,7 @@ jobs:
             dist/axeforge.bin
             dist/SHA256SUMS.txt
           body: |
-            ## AxeForge v1.1.0
+            ## AxeForge v1.2.0
 
 ### Safety
 - **Fixed: a failed temperature sensor read was treated as 0 °C.** That turned off the 80 °C emergency cut-off and let the auto-tuner keep raising the clock with nothing to stop it.
@@ -96,6 +96,7 @@ jobs:
 
 ### Other
 - `axeforge-factory.bin` now also resets the OTA boot selection. Flashing it over USB always boots the new firmware, even on a board that was previously updated over Wi-Fi.
+- Visual Bug Fix
 
 ### Upgrading
 - From the web UI: System → upload `axeforge.bin`. Refresh the page after the reboot.

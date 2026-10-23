@@ -267,7 +267,7 @@ static void refresh_widget(Widget &w)
         break;
     case WType::Gauge: {
         fmt_hash(s.hashrate_ghs, hv, sizeof(hv), &hu);
-        float max_ghs = CONFIG_AF_MAX_FREQ_MHZ * 2040.0f * AF_NUM_ASICS / 1000.0f;
+        float max_ghs = board::limits().max_freq_mhz * 2040.0f * AF_NUM_ASICS / 1000.0f;
         lv_arc_set_value(w.aux, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
         set_stat(w, hv, hu);
         break;

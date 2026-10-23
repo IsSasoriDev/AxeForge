@@ -254,6 +254,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 </main></div>
 <div id="toast"></div>
 <script>
+{const f=window.fetch;window.fetch=(u,o={})=>{o.headers=Object.assign({'X-AxeForge':'1'},o.headers||{});return f(u,o)}}
 const $=id=>document.getElementById(id);
 const titles={dash:'Dashboard',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
 let S={},cfg={},cur='dash';
@@ -451,7 +452,7 @@ drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragle
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');upload(e.dataTransfer.files[0])};file.onchange=()=>upload(file.files[0]);
 function upload(f){if(!f)return;if(!confirm(`Install ${f.name} (${(f.size/1024|0)} kB)? The miner will reboot.`))return;
  const x=new XMLHttpRequest(),pb=$('prog');pb.style.display='block';x.upload.onprogress=e=>pb.firstChild.style.width=(100*e.loaded/e.total)+'%';
- x.onload=()=>toast(x.responseText);x.onerror=()=>toast('Upload failed');x.open('POST','/api/ota');x.send(f)}
+ x.onload=()=>toast(x.responseText);x.onerror=()=>toast('Upload failed');x.open('POST','/api/ota');x.setRequestHeader('X-AxeForge','1');x.send(f)}
 
 loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();
 setInterval(()=>{if(!document.hidden)tick()},2000);setInterval(()=>{if(!document.hidden)chart()},30000);

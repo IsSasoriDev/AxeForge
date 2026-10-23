@@ -74,8 +74,8 @@ static Result measure(int warmup_s, int window_s, float max_err)
 {
     Result r = {Verdict::Stable, 0, 0, 0, 0, 0};
     const float t_ceil = CONFIG_AF_MAX_CHIP_TEMP;
-    const float vr_ceil = CONFIG_AF_MAX_VR_TEMP;
-    const float p_ceil = CONFIG_AF_MAX_POWER_W;
+    const float vr_ceil = board::limits().vr_ceil_c;
+    const float p_ceil = board::limits().max_power_w;
     const int total = warmup_s + window_s;
     int hot = 0, watts = 0;
 
@@ -93,7 +93,9 @@ static Result measure(int warmup_s, int window_s, float max_err)
         if (g_state.pin > r.pmax) r.pmax = g_state.pin;
 
         // fail fast on clear limit violations (sustained, not single spikes)
-        hot = (g_state.chip_temp_max > t_ceil || g_state.vr_temp > vr_ceil) ? hot + 1 : 0;
+        // no reading counts as too hot: never climb blind
+        bool blind = !g_state.temp_ok || !g_state.vr_temp_ok;
+        hot = (blind || g_state.chip_temp_max > t_ceil || g_state.vr_temp > vr_ceil) ? hot + 1 : 0;
         watts = (g_state.pin > p_ceil) ? watts + 1 : 0;
         if (hot >= 10) {
             r.verdict = Verdict::Thermal;
@@ -159,9 +161,9 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
             }
             bumps = 0;
             bool near_thermal = r.tmax > CONFIG_AF_MAX_CHIP_TEMP - THERMAL_MARGIN_C ||
-                                r.vrmax > CONFIG_AF_MAX_VR_TEMP - THERMAL_MARGIN_C;
-            bool near_power = r.pmax > CONFIG_AF_MAX_POWER_W * 0.95f;
-            if (near_thermal || near_power || f + FREQ_STEP > CONFIG_AF_MAX_FREQ_MHZ) {
+                                r.vrmax > board::limits().vr_ceil_c - THERMAL_MARGIN_C;
+            bool near_power = r.pmax > board::limits().max_power_w * 0.95f;
+            if (near_thermal || near_power || f + FREQ_STEP > board::limits().max_freq_mhz) {
                 note(near_power ? "Power ceiling reached" : near_thermal ? "Thermal ceiling reached" : "Max freq reached");
                 return true;
             }

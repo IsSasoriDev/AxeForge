@@ -8,6 +8,7 @@
 #include "lvgl.h"
 #include "sdkconfig.h"
 
+#include "core/board.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "core/tuner.h"
@@ -696,7 +697,7 @@ static void refresh_dashboard()
     fmt_hash(s.hashrate_ghs, v, sizeof(v), &unit);
     lv_label_set_text(s_hash_val, v);
     lv_label_set_text(s_hash_unit, unit);
-    float max_ghs = CONFIG_AF_MAX_FREQ_MHZ * 2040.0f * AF_NUM_ASICS / 1000.0f;
+    float max_ghs = board::limits().max_freq_mhz * 2040.0f * AF_NUM_ASICS / 1000.0f;
     lv_arc_set_value(s_arc_hash, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
     int eff = s.expected_ghs > 0 ? (int) (100.0f * s.hashrate_ghs / s.expected_ghs) : 0;
     lv_arc_set_value(s_arc_eff, eff > 100 ? 100 : eff);
@@ -711,14 +712,14 @@ static void refresh_dashboard()
     lv_label_set_text_fmt(s_t_chip.sub, "<%dÂ°", CONFIG_AF_MAX_CHIP_TEMP);
 
     lv_label_set_text_fmt(s_t_vr.val, "%.0f\xC2\xB0", s.vr_temp);
-    lv_obj_set_style_text_color(s_t_vr.val, temp_color(s.vr_temp, CONFIG_AF_MAX_VR_TEMP - 10, CONFIG_AF_MAX_VR_TEMP), 0);
-    lv_bar_set_value(s_t_vr.bar, (int) (100 * s.vr_temp / CONFIG_AF_CRIT_VR_TEMP), LV_ANIM_ON);
+    lv_obj_set_style_text_color(s_t_vr.val, temp_color(s.vr_temp, board::limits().vr_ceil_c - 10, board::limits().vr_ceil_c), 0);
+    lv_bar_set_value(s_t_vr.bar, (int) (100 * s.vr_temp / board::limits().vr_crit_c), LV_ANIM_ON);
     lv_label_set_text_fmt(s_t_vr.sub, "%.2fV", s.vout);
 
     lv_label_set_text_fmt(s_t_pwr.val, "%.0fW", s.pin);
     float jth = s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0;
     lv_label_set_text_fmt(s_t_pwr.sub, "%.1f J/TH", jth);
-    lv_bar_set_value(s_t_pwr.bar, (int) (100 * s.pin / CONFIG_AF_MAX_POWER_W), LV_ANIM_ON);
+    lv_bar_set_value(s_t_pwr.bar, (int) (100 * s.pin / board::limits().max_power_w), LV_ANIM_ON);
 
     lv_label_set_text_fmt(s_t_fan.val, "%u%%", s.fan_pct);
     lv_label_set_text_fmt(s_t_fan.sub, "%u rpm", s.fan_rpm[0]);

@@ -12,7 +12,7 @@ namespace temp {
 // Number of ASIC-side TMP1075 sensors found (the one at 0x49 is the VR sensor).
 int detect();
 int count();
-// Board sensor under ASIC area `index`, in C, 0 on error.
+// Board sensor under ASIC area `index`, in C. NAN on error.
 float asic_area(int index);
-float vr_board();
+float vr_board();  // NAN on error
 }

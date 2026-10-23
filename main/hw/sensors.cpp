@@ -1,5 +1,6 @@
 #include "sensors.h"
 
+#include <math.h>
 #include "esp_log.h"
 #include "i2c_bus.h"
 
@@ -60,13 +61,22 @@ uint16_t rpm(int channel)
 #define TMP_BASE 0x48
 #define TMP_VR_INDEX 1
 
+// NAN on a bus error or an implausible reading, never 0: a dead sensor must
+// not look like a cool chip to the cut-off and the tuner.
 static float tmp_read(int dev)
 {
     uint8_t buf[2];
-    if (i2c_bus::read(TMP_BASE + dev, 0x00, buf, 2) != ESP_OK) return 0.0f;
+    if (i2c_bus::read(TMP_BASE + dev, 0x00, buf, 2) != ESP_OK) return NAN;
     uint16_t raw = (buf[0] << 8) | buf[1];
-    if (raw > 0x7ff0) return 0.0f;
+    if (raw > 0x7ff0) return NAN;  // below 0 C on a running miner means garbage
     return (raw >> 4) * 0.0625f;
+}
+
+static bool tmp_present(int dev)
+{
+    for (int tries = 0; tries < 3; tries++)
+        if (!isnan(tmp_read(dev))) return true;
+    return false;
 }
 
 static int s_num_asic_sensors = 0;
@@ -78,7 +88,7 @@ int detect()
     s_num_asic_sensors = 0;
     for (int i = 0; i < 4; i++) {
         if (i == TMP_VR_INDEX) continue;
-        if (tmp_read(i) == 0.0f) break;
+        if (!tmp_present(i)) break;
         s_num_asic_sensors++;
     }
     ESP_LOGI(TAG, "%d ASIC temperature sensors", s_num_asic_sensors);
@@ -87,7 +97,7 @@ int detect()
 
 float asic_area(int index)
 {
-    if (index >= s_num_asic_sensors) return 0.0f;
+    if (index >= s_num_asic_sensors) return NAN;
     // sensors live at 0x48, 0x4a, 0x4b (0x49 is the VR sensor)
     return tmp_read(index + (index ? 1 : 0));
 }

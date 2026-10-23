@@ -1,8 +1,8 @@
 # AxeForge
 
-New firmware for the **NerdQaxe++** (4× BM1370, TPS53647 regulator) driving a **3.5" 480×320 display** (8-bit parallel or SPI, ST7796S or ILI9488). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize.
+New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev ≤ 6, TPS546 on rev7) driving a **3.5" 480×320 display** (8-bit parallel or SPI, ST7796S or ILI9488). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize.
 
-> ⚠️ **Young firmware.** It runs on a real NerdQaxe++ (pre-rev7). The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Stratum V2 has been tested up to the encrypted handshake and connection setup, but not share submission. Keep a backup of your stock flash so you can go back.
+> ⚠️ **Young firmware.** It runs on a real NerdQaxe++ (pre-rev7). Rev7 support follows the upstream rev7 profile but has not been run on a rev7 board yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Stratum V2 has been tested up to the encrypted handshake and connection setup, but not share submission. Keep a backup of your stock flash so you can go back.
 
 ## What it does
 
@@ -30,18 +30,21 @@ New firmware for the **NerdQaxe++** (4× BM1370, TPS53647 regulator) driving a *
   - A full search takes about 1–2 hours. To start it again, hold **BTN2** or use the web UI.
 - **Safety (cannot be overridden from the UI):** the limits are compiled in through `idf.py menuconfig → AxeForge → Hard safety limits`. Defaults:
 
-  | Limit | Default |
-  |---|---|
-  | Max frequency | 750 MHz |
-  | Core voltage | 1100–1300 mV |
-  | Tuner chip-temp ceiling | 68 °C |
-  | Emergency chip-temp cut | 80 °C |
-  | Tuner VR-temp ceiling | 85 °C |
-  | Emergency VR-temp cut | 100 °C |
-  | Max power | 100 W |
+  | Limit | Rev ≤ 6 | Rev7 |
+  |---|---|---|
+  | Max frequency | 750 MHz | 1000 MHz |
+  | Core voltage | 1100–1300 mV | 1100–1300 mV |
+  | Tuner chip-temp ceiling | 68 °C | 68 °C |
+  | Emergency chip-temp cut | 80 °C | 80 °C |
+  | Tuner VR-temp ceiling | 85 °C (board sensor) | 95 °C (regulator die) |
+  | Emergency VR-temp cut | 100 °C | 105 °C |
+  | Max power | 100 W | 120 W |
+
+  The board revision is detected at boot from the regulator's device ID.
 
   - The emergency cut turns the core voltage off, waits until the miner cools 20 °C, then restarts 50 MHz lower.
   - Regulator faults (over-current, VOUT fault, PSU fault) also cut power. After a fault it retries 3 times.
+  - A temperature sensor that stops answering for 3 seconds also cuts power. A failed read never counts as a cool reading, and the miner won't power up without working sensors.
   - The monitor that handles all of this runs on its own task, separate from the tuner.
 - **Fans:** a PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops.
 
@@ -67,7 +70,7 @@ Other controls and alerts:
 
 ## Web UI
 
-Open `http://<miner-ip>/`. The tabs are:
+Open `http://<miner-ip>/`. The API only answers when it's reached by IP address or a LAN name (`.local`, `.lan`, a bare hostname, etc.), and any change has to come from the AxeForge page itself, so other web sites can't change settings or push firmware. Scripts that POST to the API need to send the header `X-AxeForge: 1`. The tabs are:
 - **Dashboard**
 - **Pools**
 - **Tuning**
@@ -150,9 +153,26 @@ idf.py menuconfig   # optional: pins / limits
 idf.py build
 ```
 
+## Releases (GitHub Actions)
+
+`.github/workflows/build.yml` builds the firmware on every push and pull request. The `.bin` files are attached to the run as an artifact.
+
+To publish a release, push a version tag:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+The workflow writes the tag into `version.txt`, builds with ESP-IDF v5.3.2 and creates a GitHub Release. Attached to it:
+- `axeforge-factory.bin`
+- `axeforge.bin`
+- `SHA256SUMS.txt`
+
+Tags with a dash (for example `v1.2.0-beta1`) are marked as pre-releases.
+
 ## Not supported (yet)
 
-- **Rev7 boards with the TPS546 regulator.** The firmware detects them and stays powered down instead of guessing.
 - Stratum V2 share submission is implemented but has not been tested end to end (that needs an SV2 pool account).
 - One pool per ASIC: not possible on this hardware (see above).
 

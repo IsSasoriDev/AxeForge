@@ -7,6 +7,7 @@
 #include "lvgl.h"
 #include "sdkconfig.h"
 
+#include "core/board.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "core/tuner.h"
@@ -372,7 +373,7 @@ static void refresh_dash()
     fmt_hash(s.hashrate_ghs, v, sizeof(v), &u);
     lv_label_set_text(s_hash, v);
     lv_label_set_text(s_unit, u);
-    float max_ghs = CONFIG_AF_MAX_FREQ_MHZ * 2040.0f * AF_NUM_ASICS / 1000.0f;
+    float max_ghs = board::limits().max_freq_mhz * 2040.0f * AF_NUM_ASICS / 1000.0f;
     lv_arc_set_value(s_arc, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
     lv_label_set_text_fmt(s_dash_vals[0], "%.0f\xC2\xB0" "C", s.chip_temp_max);
     lv_obj_set_style_text_color(s_dash_vals[0], temp_col(s.chip_temp_max, CONFIG_AF_MAX_CHIP_TEMP - 6, CONFIG_AF_MAX_CHIP_TEMP), 0);

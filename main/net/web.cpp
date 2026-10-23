@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include "cJSON.h"
 #include "esp_app_desc.h"
 #include "esp_heap_caps.h"
@@ -120,6 +121,8 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "errorPct", s.error_pct);
     cJSON_AddNumberToObject(r, "chipTemp", s.chip_temp_max);
     cJSON_AddNumberToObject(r, "vrTemp", s.vr_temp);
+    cJSON_AddBoolToObject(r, "tempOk", s.temp_ok && s.vr_temp_ok);
+    cJSON_AddStringToObject(r, "board", s.board_rev7 ? "rev7 (TPS546)" : "rev6 (TPS53647)");
     cJSON_AddNumberToObject(r, "power", s.pin);
     cJSON_AddNumberToObject(r, "vin", s.vin);
     cJSON_AddNumberToObject(r, "vout", s.vout);
@@ -284,14 +287,14 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "fahr", c.fahrenheit);
     cJSON_AddBoolToObject(r, "h24", c.clock_24h);
     cJSON *lim = cJSON_AddObjectToObject(r, "limits");
-    cJSON_AddNumberToObject(lim, "maxFreq", CONFIG_AF_MAX_FREQ_MHZ);
+    cJSON_AddNumberToObject(lim, "maxFreq", board::limits().max_freq_mhz);
     cJSON_AddNumberToObject(lim, "minMv", CONFIG_AF_MIN_CORE_MV);
     cJSON_AddNumberToObject(lim, "maxMv", CONFIG_AF_MAX_CORE_MV);
     cJSON_AddNumberToObject(lim, "chipCeil", CONFIG_AF_MAX_CHIP_TEMP);
     cJSON_AddNumberToObject(lim, "chipCrit", CONFIG_AF_CRIT_CHIP_TEMP);
-    cJSON_AddNumberToObject(lim, "vrCeil", CONFIG_AF_MAX_VR_TEMP);
-    cJSON_AddNumberToObject(lim, "vrCrit", CONFIG_AF_CRIT_VR_TEMP);
-    cJSON_AddNumberToObject(lim, "maxPower", CONFIG_AF_MAX_POWER_W);
+    cJSON_AddNumberToObject(lim, "vrCeil", board::limits().vr_ceil_c);
+    cJSON_AddNumberToObject(lim, "vrCrit", board::limits().vr_crit_c);
+    cJSON_AddNumberToObject(lim, "maxPower", board::limits().max_power_w);
     return send_json(req, r);
 }
 
@@ -577,6 +580,79 @@ static esp_err_t layout_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, "Layout saved and applied.");
 }
 
+// ------------------------------------------------------------------ guard
+// The API has no login, so it must at least be unusable from other web sites.
+// - Host has to name this device (an IP or a LAN name), which defeats DNS
+//   rebinding, where a foreign name is pointed at the miner's address.
+// - Anything that changes state needs the X-AxeForge header. A cross-site
+//   page can only send that after a CORS preflight, which is never granted.
+//   Origin and Sec-Fetch-Site, when the browser sends them, must be ours too.
+
+// 1 present, 0 absent, -1 too long to be legitimate
+static int get_hdr(httpd_req_t *req, const char *name, char *out, size_t len)
+{
+    size_t n = httpd_req_get_hdr_value_len(req, name);
+    if (n == 0) return 0;
+    if (n >= len) return -1;
+    return httpd_req_get_hdr_value_str(req, name, out, len) == ESP_OK ? 1 : -1;
+}
+
+static bool ends_with(const char *s, size_t n, const char *suffix)
+{
+    size_t k = strlen(suffix);
+    return n > k && strncasecmp(s + n - k, suffix, k) == 0;
+}
+
+static bool host_is_local(const char *host)
+{
+    if (host[0] == '[') return true;  // IPv6 literal
+    const char *colon = strchr(host, ':');
+    size_t n = colon ? (size_t) (colon - host) : strlen(host);
+    if (n == 0) return false;
+    bool dotted_ip = true, has_dot = false;
+    for (size_t i = 0; i < n; i++) {
+        char c = host[i];
+        if (c == '.') has_dot = true;
+        else if (c < '0' || c > '9') dotted_ip = false;
+    }
+    if (dotted_ip || !has_dot) return true;  // IPv4 literal or a bare LAN name
+    static const char *const local_suffixes[] = {".local", ".lan", ".home", ".home.arpa", ".internal",
+                                                 ".localdomain", ".fritz.box"};
+    for (const char *suf : local_suffixes)
+        if (ends_with(host, n, suf)) return true;
+    return false;
+}
+
+// Origin is "scheme://host[:port]" and must name the host the request went to.
+static bool origin_matches(const char *origin, const char *host)
+{
+    const char *p = strstr(origin, "://");
+    return p && strcasecmp(p + 3, host) == 0;
+}
+
+static esp_err_t deny(httpd_req_t *req, const char *why)
+{
+    ESP_LOGW(TAG, "blocked %s %s: %s", http_method_str((enum http_method) req->method), req->uri, why);
+    return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Forbidden");
+}
+
+typedef esp_err_t (*handler_fn)(httpd_req_t *);
+
+static esp_err_t api_guard(httpd_req_t *req)
+{
+    char host[96], v[128];
+    if (get_hdr(req, "Host", host, sizeof(host)) != 1 || !host_is_local(host)) return deny(req, "foreign Host");
+    if (req->method != HTTP_GET) {
+        if (get_hdr(req, "X-AxeForge", v, sizeof(v)) != 1) return deny(req, "missing X-AxeForge header");
+        int o = get_hdr(req, "Origin", v, sizeof(v));
+        if (o < 0 || (o == 1 && !origin_matches(v, host))) return deny(req, "cross-site Origin");
+        int f = get_hdr(req, "Sec-Fetch-Site", v, sizeof(v));
+        if (f < 0 || (f == 1 && strcmp(v, "same-origin") != 0 && strcmp(v, "none") != 0))
+            return deny(req, "cross-site request");
+    }
+    return ((handler_fn) req->user_ctx)(req);
+}
+
 namespace web {
 
 void start()
@@ -611,7 +687,13 @@ void start()
         {"/api/layout", HTTP_GET, layout_get, NULL},
         {"/api/layout", HTTP_POST, layout_post, NULL},
     };
-    for (const auto &u : uris) httpd_register_uri_handler(h, &u);
+    for (auto u : uris) {
+        if (strncmp(u.uri, "/api/", 5) == 0) {
+            u.user_ctx = (void *) u.handler;
+            u.handler = api_guard;
+        }
+        httpd_register_uri_handler(h, &u);
+    }
 }
 
 } // namespace web

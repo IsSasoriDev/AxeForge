@@ -133,6 +133,21 @@ menu "AxeForge"
         config AF_MAX_POWER_W
             int "Max input power (W)"
             default 100
+
+        comment "Rev7 boards (TPS546 regulator, detected at boot)"
+        config AF_REV7_MAX_FREQ_MHZ
+            int "Rev7 max ASIC frequency (MHz)"
+            range 400 1000
+            default 1000
+        config AF_REV7_MAX_POWER_W
+            int "Rev7 max power (W)"
+            default 120
+        config AF_REV7_MAX_VR_TEMP
+            int "Rev7 tuner regulator temperature ceiling (C)"
+            default 95
+        config AF_REV7_CRIT_VR_TEMP
+            int "Rev7 emergency shutdown regulator temperature (C)"
+            default 105
     endmenu
 
 endmenu

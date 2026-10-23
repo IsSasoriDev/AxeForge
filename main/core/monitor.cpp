@@ -19,6 +19,7 @@ static const char *TAG = "monitor";
 #define COOLDOWN_HYST_C 20.0f
 #define RECOVERY_FREQ_DROP 50
 #define MAX_FAULT_RETRIES 3
+#define SENSOR_LOSS_S 3  // consecutive failed temperature reads before cutting power
 
 // Small PI controller; output is fan duty in percent.
 struct FanPI {
@@ -51,6 +52,7 @@ static void monitor_task(void *)
     FanPI asic_pi, vr_pi;
     int tick = 0;
     int fault_retries = 0;
+    int sensor_bad = 0;
     char why[64];
 
     while (true) {
@@ -58,26 +60,35 @@ static void monitor_task(void *)
         g_state.uptime_s++;
         board::read_telemetry();
         Settings &cfg = settings::get();
+        const board::Limits &lim = board::limits();
+        bool sensors_ok = g_state.temp_ok && g_state.vr_temp_ok;
 
         if (board::is_powered()) {
-            float a = asic_pi.update(g_state.chip_temp_max, cfg.fan_target_c, cfg.fan_min_pct);
-            float v = vr_pi.update(g_state.vr_temp, VR_FAN_TARGET_C, cfg.fan_min_pct);
+            // a lost sensor reads as -1 here, which the PI treats as "full fan"
+            float a = asic_pi.update(g_state.temp_ok ? g_state.chip_temp_max : -1, cfg.fan_target_c, cfg.fan_min_pct);
+            float v = vr_pi.update(g_state.vr_temp_ok ? g_state.vr_temp : -1, VR_FAN_TARGET_C, cfg.fan_min_pct);
             fan::set_pct(0, a);
             fan::set_pct(1, v > a ? v : a);
             g_state.fan_pct = (uint8_t) a;
 
             // ---- hard limits: these cut power, no questions asked ----
+            sensor_bad = sensors_ok ? 0 : sensor_bad + 1;
+            if (sensor_bad >= SENSOR_LOSS_S) {
+                snprintf(why, sizeof(why), "%s temperature sensor not responding", g_state.temp_ok ? "VR" : "Chip");
+                emergency(SysStatus::Fault, why);
+                continue;
+            }
             if (g_state.chip_temp_max >= CONFIG_AF_CRIT_CHIP_TEMP) {
                 snprintf(why, sizeof(why), "Chip %.0fC >= %dC", g_state.chip_temp_max, CONFIG_AF_CRIT_CHIP_TEMP);
                 emergency(SysStatus::Overheat, why);
                 continue;
             }
-            if (g_state.vr_temp >= CONFIG_AF_CRIT_VR_TEMP) {
-                snprintf(why, sizeof(why), "VR %.0fC >= %dC", g_state.vr_temp, CONFIG_AF_CRIT_VR_TEMP);
+            if (g_state.vr_temp >= lim.vr_crit_c) {
+                snprintf(why, sizeof(why), "VR %.0fC >= %.0fC", g_state.vr_temp, lim.vr_crit_c);
                 emergency(SysStatus::Overheat, why);
                 continue;
             }
-            if (g_state.pin > CONFIG_AF_MAX_POWER_W * 1.15f) {
+            if (g_state.pin > lim.max_power_w * 1.15f) {
                 snprintf(why, sizeof(why), "Power %.0fW over limit", g_state.pin);
                 emergency(SysStatus::Fault, why);
                 continue;
@@ -98,8 +109,8 @@ static void monitor_task(void *)
             fan::set_pct(0, 100);
             fan::set_pct(1, 100);
             // wait until well below the trip point, then restart lower
-            if (g_state.chip_temp_max < CONFIG_AF_CRIT_CHIP_TEMP - COOLDOWN_HYST_C &&
-                g_state.vr_temp < CONFIG_AF_CRIT_VR_TEMP - COOLDOWN_HYST_C) {
+            if (sensors_ok && g_state.chip_temp_max < CONFIG_AF_CRIT_CHIP_TEMP - COOLDOWN_HYST_C &&
+                g_state.vr_temp < lim.vr_crit_c - COOLDOWN_HYST_C) {
                 uint16_t f = board::clamp_freq((cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz) - RECOVERY_FREQ_DROP);
                 uint16_t mv = cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
                 ESP_LOGW(TAG, "cooled down, restarting at %u MHz", f);

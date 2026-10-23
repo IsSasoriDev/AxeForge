@@ -143,6 +143,9 @@ struct MinerState {
     bool chip_temp_own[AF_NUM_ASICS] = {};  // false = borrowed from the nearest board sensor
     float chip_temp_max = 0;
     float vr_temp = 0;
+    bool temp_ok = false;     // every ASIC-side sensor answered this second
+    bool vr_temp_ok = false;
+    bool board_rev7 = false;  // TPS546 regulator
     uint16_t fan_rpm[2] = {};
     uint8_t fan_pct = 0;
 

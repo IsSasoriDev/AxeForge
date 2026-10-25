@@ -24,7 +24,7 @@
 #define C_PANEL lv_color_hex(0x0f1520)
 #define C_BORDER lv_color_hex(0x1c2635)
 #define C_TEXT lv_color_hex(0xe6edf6)
-#define C_DIM lv_color_hex(0x6b7a90)
+#define C_DIM lv_color_hex(0x9aa8bd)
 #define C_CYAN lv_color_hex(0x00e5ff)
 #define C_MAGENTA lv_color_hex(0xff2bd6)
 #define C_GREEN lv_color_hex(0x2bff88)
@@ -379,10 +379,10 @@ static void refresh_dash()
     lv_obj_set_style_text_color(s_dash_vals[0], temp_col(s.chip_temp_max, CONFIG_AF_MAX_CHIP_TEMP - 6, CONFIG_AF_MAX_CHIP_TEMP), 0);
     lv_label_set_text_fmt(s_dash_vals[1], "%.0f\xC2\xB0" "C", s.vr_temp);
     float jth = s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0;
-    lv_label_set_text_fmt(s_dash_vals[2], "%.0fW #6b7a90 %.1fJ/TH#", s.pin, jth);
-    lv_label_set_text_fmt(s_dash_vals[3], "%u%% #6b7a90 %u#", s.fan_pct, s.fan_rpm[0]);
+    lv_label_set_text_fmt(s_dash_vals[2], "%.0fW #9aa8bd %.1fJ/TH#", s.pin, jth);
+    lv_label_set_text_fmt(s_dash_vals[3], "%u%% #9aa8bd %u#", s.fan_pct, s.fan_rpm[0]);
     const char *ph = s.tuner.phase == TunerPhase::Locked ? "#2bff88 LOCKED#"
-                     : s.tuner.phase == TunerPhase::Off  ? "#6b7a90 MANUAL#"
+                     : s.tuner.phase == TunerPhase::Off  ? "#9aa8bd MANUAL#"
                                                          : "#8b5cff TUNING#";
     lv_label_set_text_fmt(s_tune, "%s %u MHz %u.%02uV  %s", ph, s.freq_mhz, s.core_mv / 1000, (s.core_mv % 1000) / 10,
                           s.tuner.note);
@@ -409,9 +409,9 @@ static void refresh_clock()
     const char *hu;
     fmt_hash(g_state.hashrate_ghs, hv, sizeof(hv), &hu);
     if (w.valid)
-        lv_label_set_text_fmt(s_clk_wx, "#ff9f1c %.0f\xC2\xB0# %s  #6b7a90 %s#  #00e5ff %s %s#", w.temp, weather::describe(w.code),
+        lv_label_set_text_fmt(s_clk_wx, "#ff9f1c %.0f\xC2\xB0# %s  #9aa8bd %s#  #00e5ff %s %s#", w.temp, weather::describe(w.code),
                               w.city, hv, hu);
-    else lv_label_set_text_fmt(s_clk_wx, "#6b7a90 %s#  #00e5ff %s %s#", w.error[0] ? w.error : "no weather", hv, hu);
+    else lv_label_set_text_fmt(s_clk_wx, "#9aa8bd %s#  #00e5ff %s %s#", w.error[0] ? w.error : "no weather", hv, hu);
 }
 
 static lv_color_t fee_col(float f)
@@ -476,7 +476,7 @@ static void refresh_blocks()
         hash_markup(s.last_hash, 32, buf, sizeof(buf));
         char d[16];
         fmt_diff(s.last_hash_diff, d, sizeof(d));
-        lv_label_set_text_fmt(s_blk_hash, "%s\n#6b7a90 share diff %s#", buf, d);
+        lv_label_set_text_fmt(s_blk_hash, "%s\n#9aa8bd share diff %s#", buf, d);
     }
 }
 
@@ -486,7 +486,7 @@ static void refresh_pool()
     char best[16];
     fmt_diff(s.best_diff, best, sizeof(best));
     uint32_t tot = s.shares_accepted + s.shares_rejected;
-    lv_label_set_text_fmt(s_pool_tot, "#2bff88 %lu# / #ff3b5c %lu#  #6b7a90 %.1f%% rej  best# #ff2bd6 %s#  #6b7a90 %s#",
+    lv_label_set_text_fmt(s_pool_tot, "#2bff88 %lu# / #ff3b5c %lu#  #9aa8bd %.1f%% rej  best# #ff2bd6 %s#  #9aa8bd %s#",
                           (unsigned long) s.shares_accepted, (unsigned long) s.shares_rejected,
                           tot ? 100.0f * s.shares_rejected / tot : 0.0f, best,
                           settings::get().pool_mode == PoolMode::Split ? "split" : "failover");
@@ -494,10 +494,10 @@ static void refresh_pool()
     for (int i = 0; i < AF_POOLS; i++) {
         const PoolState &p = s.pools[i];
         if (!p.enabled) {
-            lv_label_set_text_fmt(s_pool_rows[i], "#6b7a90 Pool %d - not set up#", i + 1);
+            lv_label_set_text_fmt(s_pool_rows[i], "#9aa8bd Pool %d - not set up#", i + 1);
             continue;
         }
-        lv_label_set_text_fmt(s_pool_rows[i], "%s %s #6b7a90 %s# #00e5ff %u%%# #2bff88 %lu#/#ff3b5c %lu#",
+        lv_label_set_text_fmt(s_pool_rows[i], "%s %s #9aa8bd %s# #00e5ff %u%%# #2bff88 %lu#/#ff3b5c %lu#",
                               p.connected ? "#2bff88 " LV_SYMBOL_OK "#" : "#ff9f1c " LV_SYMBOL_REFRESH "#", p.host,
                               proto[p.proto < 3 ? p.proto : 0], p.work_pct, (unsigned long) p.accepted,
                               (unsigned long) p.rejected);
@@ -511,7 +511,7 @@ static void refresh_chips()
     for (int i = 0; i < AF_NUM_ASICS; i++) {
         lv_label_set_text_fmt(s_chip_ghs[i], "%.0f", s.chip_ghs[i]);
         float tot = s.chip_ghs[i] + s.chip_err_ghs[i];
-        lv_label_set_text_fmt(s_chip_sub[i], "%s%.0f\xC2\xB0" "C\n#6b7a90 err %.1f%%#", s.chip_temp_own[i] ? "" : "~",
+        lv_label_set_text_fmt(s_chip_sub[i], "%s%.0f\xC2\xB0" "C\n#9aa8bd err %.1f%%#", s.chip_temp_own[i] ? "" : "~",
                               s.chip_temp[i], tot > 0 ? 100.0f * s.chip_err_ghs[i] / tot : 0.0f);
         lv_bar_set_value(s_chip_bar[i], per > 0 ? (int) (100 * s.chip_ghs[i] / per) : 0, LV_ANIM_ON);
     }
@@ -527,7 +527,7 @@ static void refresh_system()
                               s.ap_ssid);
     } else {
         snprintf(qr, sizeof(qr), "http://%s/", s.ip);
-        lv_label_set_text_fmt(s_sys, "#00e5ff SYSTEM#\n#6b7a90 Web UI#\nhttp://%s\n#6b7a90 Wi-Fi# %s\n#6b7a90 FW# AxeForge %s\n#6b7a90 Chips# %d x BM1370",
+        lv_label_set_text_fmt(s_sys, "#00e5ff SYSTEM#\n#9aa8bd Web UI#\nhttp://%s\n#9aa8bd Wi-Fi# %s\n#9aa8bd FW# AxeForge %s\n#9aa8bd Chips# %d x BM1370",
                               s.ip, s.ssid, esp_app_get_description()->version, s.chips_detected);
     }
     if (strcmp(qr, s_qr_text)) {

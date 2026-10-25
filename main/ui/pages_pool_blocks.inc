@@ -93,7 +93,7 @@ static void refresh_pool()
         lv_obj_set_style_bg_color(c.dot, !ps.enabled ? C_DIM : ps.connected ? C_GREEN : C_ORANGE, 0);
         if (!ps.enabled) {
             lv_label_set_text_fmt(c.host, "Pool %d", i + 1);
-            lv_label_set_text(c.main, "#6b7a90 not set up#");
+            lv_label_set_text(c.main, "#9aa8bd not set up#");
             lv_label_set_text(c.line1, "");
             lv_label_set_text(c.line2, "Add it in the web UI > Pools");
             lv_obj_add_flag(c.badge, LV_OBJ_FLAG_HIDDEN);
@@ -240,11 +240,11 @@ static void refresh_blocks()
 
     const BlockTemplate &t = s.tmpl;
     if (t.valid) {
-        lv_label_set_text_fmt(s_now_h, "#%lu", (unsigned long) t.height);
+        lv_label_set_text_fmt(s_now_h, "%lu", (unsigned long) t.height);
         lv_label_set_text_fmt(s_now_pool, "pool %d %s", t.pool + 1, s.pools[t.pool < 0 ? 0 : t.pool].host);
         char nd[24];
         fmt_diff(work::nbits_to_difficulty(t.nbits), nd, sizeof(nd));
-        lv_label_set_text_fmt(s_now_reward, "#2bff88 %.4f BTC#  #6b7a90 ~%u txs  diff %s#", t.reward_btc,
+        lv_label_set_text_fmt(s_now_reward, "#2bff88 %.4f BTC#  #9aa8bd ~%u txs  diff %s#", t.reward_btc,
                               1u << (t.branches > 15 ? 15 : t.branches), nd);
         lv_label_set_text(s_now_tag, t.tag[0] ? t.tag : "");
         lv_label_set_text_fmt(s_now_prev, "prev ...%s", t.prev_hash + 40);

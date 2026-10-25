@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "esp_err.h"
 
-// NerdQaxe++ I2C: SDA=44, SCL=43, 100 kHz. All access is serialized by a mutex
+// Board I2C (pins in core/board_config.h), 100 kHz. All access is serialized by a mutex
 // so the monitor task and tuner can share the bus.
 namespace i2c_bus {
 esp_err_t init();

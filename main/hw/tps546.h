@@ -1,16 +1,31 @@
 #pragma once
 #include <stdint.h>
 
-// TI TPS546D24 (NerdQaxe++ rev7). PMBus at 0x24. Two stacked phases feed the
-// two ASIC voltage domains in series, so the regulator output is twice the
-// per-chip core voltage. Everything here takes and returns the core voltage.
+// TI TPS546D24 at PMBus 0x24. The ASICs sit in voltage domains wired in
+// series, so the regulator output is `domains` times the per-chip core
+// voltage. Everything here takes and returns the core voltage.
 namespace tps546 {
 
-constexpr float CORE_MIN = 1.0f;
-constexpr float CORE_MAX = 1.5f;
+struct Profile {
+    const char *name;
+    int domains;
+    float vin_on, vin_off, vin_uv_warn, vin_ov_fault;
+    float scale_loop;
+    float core_min, core_max;  // per domain
+    float oc_warn_a, oc_fault_a;
+    float ov_warn_ratio;
+    uint8_t on_off_config;
+    bool stacked;               // two-phase stack: STACK/SYNC/compensation are written
+    uint16_t pin_detect_override;
+};
 
-bool detect();               // IC_DEVICE_ID matches a TPS546D24A/S
-bool init();                 // run-time config (RAM only, never NVM), output left off
+// NerdQaxe++ rev7: two stacked TPS546s, 2 domains
+extern const Profile NERDQAXE_REV7;
+// Bitaxe Hex / Supra Hex: one TPS546, 3 domains of 2 chips
+extern const Profile BITAXE_HEX;
+
+bool detect();                     // IC_DEVICE_ID matches a TPS546D24A/S
+bool init(const Profile &profile); // run-time config (RAM only, never NVM), output left off
 bool set_core(float volts);  // sets VOUT and switches the output on
 bool off();                  // PMBus OPERATION off
 void clear_faults();

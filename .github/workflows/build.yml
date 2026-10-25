@@ -1,7 +1,8 @@
 name: Build
 
 # Every push / PR builds the firmware and keeps the .bin files as a workflow
-# artifact. Pushing a tag like v1.2.0 also publishes a GitHub Release.
+# artifact. Pushing a tag like v1.2.0 also publishes a GitHub Release and the
+# web flasher (GitHub Pages, Settings -> Pages -> Source: GitHub Actions).
 on:
   push:
     branches: [main, master]
@@ -53,11 +54,29 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" dist
           cd dist && sha256sum *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt
 
+      # The flasher writes the pieces separately so the NVS area (Wi-Fi, pools)
+      # is left alone; the merged factory image would blank it.
+      - name: Stage web flasher
+        run: |
+          mkdir -p site
+          cp flasher/* site/
+          sudo cp build/bootloader/bootloader.bin build/partition_table/partition-table.bin \
+                  build/ota_data_initial.bin build/axeforge.bin site/
+          sudo chown -R "$(id -u):$(id -g)" site
+          sed -i "s/__VERSION__/${VERSION}/g" site/index.html site/manifest-*.json
+          ls -la site
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: axeforge-${{ env.VERSION }}
           path: dist/*
+
+      - name: Upload flasher for Pages
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
 
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -72,3 +91,19 @@ jobs:
             dist/SHA256SUMS.txt
           # notes live in their own Markdown file so editing them can't break this YAML
           body_path: RELEASE_NOTES.md
+
+  flasher:
+    # pre-releases (tags with a dash) don't replace the public flasher
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

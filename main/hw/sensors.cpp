@@ -3,11 +3,16 @@
 #include <math.h>
 #include "esp_log.h"
 #include "i2c_bus.h"
+#include "core/board_config.h"
 
 static const char *TAG = "sensors";
 
 // ---------------------------------------------------------------- EMC2302
+#if CONFIG_AF_BOARD_SUPRAHEX
+#define EMC_ADDR 0x2f  // EMC2302-2 variant
+#else
 #define EMC_ADDR 0x2e
+#endif
 #define EMC_POLARITY 0x2a
 #define EMC_OUTPUT_CONFIG 0x2b
 #define EMC_BASE_F123 0x2d
@@ -42,6 +47,16 @@ void set_pct(int channel, float pct)
     i2c_bus::write_byte(EMC_ADDR, base_for(channel) + EMC_OFS_SETTING, v);
 }
 
+bool check()
+{
+    uint8_t cfg = 0;
+    if (i2c_bus::read(EMC_ADDR, EMC_FAN2 + EMC_OFS_CONFIG1, &cfg, 1) != ESP_OK) return true;  // bus error, not a reset
+    if (cfg == (0b01 << 3)) return true;
+    ESP_LOGW(TAG, "fan controller config is %02x, it was reset - re-initialising", cfg);
+    init();
+    return false;
+}
+
 uint16_t rpm(int channel)
 {
     uint8_t msb = 0, lsb = 0;
@@ -59,7 +74,17 @@ uint16_t rpm(int channel)
 
 // ---------------------------------------------------------------- TMP1075
 #define TMP_BASE 0x48
+#if CONFIG_AF_BOARD_SUPRAHEX
+// Supra Hex: 0x4a and 0x4b sit next to the chips; the regulator reports its
+// own temperature over PMBus.
+static const int ASIC_SENSOR_DEV[] = {2, 3};
+#define TMP_VR_INDEX -1
+#else
+// NerdQaxe++: 0x48, 0x4a, 0x4b near the chips, 0x49 on the back of the VR
+static const int ASIC_SENSOR_DEV[] = {0, 2, 3};
 #define TMP_VR_INDEX 1
+#endif
+#define MAX_ASIC_SENSORS ((int) (sizeof(ASIC_SENSOR_DEV) / sizeof(ASIC_SENSOR_DEV[0])))
 
 // NAN on a bus error or an implausible reading, never 0: a dead sensor must
 // not look like a cool chip to the cut-off and the tuner.
@@ -86,9 +111,8 @@ namespace temp {
 int detect()
 {
     s_num_asic_sensors = 0;
-    for (int i = 0; i < 4; i++) {
-        if (i == TMP_VR_INDEX) continue;
-        if (!tmp_present(i)) break;
+    for (int i = 0; i < MAX_ASIC_SENSORS; i++) {
+        if (!tmp_present(ASIC_SENSOR_DEV[i])) break;
         s_num_asic_sensors++;
     }
     ESP_LOGI(TAG, "%d ASIC temperature sensors", s_num_asic_sensors);
@@ -97,12 +121,11 @@ int detect()
 
 float asic_area(int index)
 {
-    if (index >= s_num_asic_sensors) return NAN;
-    // sensors live at 0x48, 0x4a, 0x4b (0x49 is the VR sensor)
-    return tmp_read(index + (index ? 1 : 0));
+    if (index < 0 || index >= s_num_asic_sensors) return NAN;
+    return tmp_read(ASIC_SENSOR_DEV[index]);
 }
 
-float vr_board() { return tmp_read(TMP_VR_INDEX); }
+float vr_board() { return TMP_VR_INDEX < 0 ? NAN : tmp_read(TMP_VR_INDEX); }
 
 int count() { return s_num_asic_sensors; }
 

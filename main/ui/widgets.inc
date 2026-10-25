@@ -301,12 +301,12 @@ static void refresh_widget(Widget &w)
         set_stat(w, v, sub);
         break;
     case WType::Eff:
-        snprintf(v, sizeof(v), "%.1f #6b7a90 J/TH#", s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0.0f);
+        snprintf(v, sizeof(v), "%.1f #9aa8bd J/TH#", s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0.0f);
         set_stat(w, v, "");
         break;
     case WType::Fan:
         snprintf(v, sizeof(v), "%u%%", s.fan_pct);
-        snprintf(sub, sizeof(sub), "%u rpm", s.fan_rpm[0]);
+        snprintf(sub, sizeof(sub), "%u / %u rpm", s.fan_rpm[0], s.fan_rpm[1]);
         set_stat(w, v, sub);
         break;
     case WType::Chips: {
@@ -378,7 +378,7 @@ static void refresh_widget(Widget &w)
         set_stat(w, v, "");
         break;
     case WType::Reward:
-        snprintf(v, sizeof(v), "%.4f #6b7a90 BTC#", s.tmpl.reward_btc);
+        snprintf(v, sizeof(v), "%.4f #9aa8bd BTC#", s.tmpl.reward_btc);
         set_stat(w, v, s.tmpl.tag);
         break;
     case WType::LastHash: {
@@ -436,14 +436,14 @@ static void refresh_widget(Widget &w)
     }
     case WType::NextBlock: {
         const MempoolNext &n = s.mempool.next[0];
-        snprintf(v, sizeof(v), "~%.0f #6b7a90 sat/vB#", n.median_fee);
+        snprintf(v, sizeof(v), "~%.0f #9aa8bd sat/vB#", n.median_fee);
         snprintf(sub, sizeof(sub), "%lu txs", (unsigned long) n.txs);
         set_stat(w, v, sub);
         break;
     }
     case WType::Fees: {
         const MempoolState &m = s.mempool;
-        snprintf(v, sizeof(v), "#ff9f1c %.0f# #6b7a90 /# %.0f #6b7a90 /# #2bff88 %.0f#", m.fee_fast, m.fee_hour, m.fee_eco);
+        snprintf(v, sizeof(v), "#ff9f1c %.0f# #9aa8bd /# %.0f #9aa8bd /# #2bff88 %.0f#", m.fee_fast, m.fee_hour, m.fee_eco);
         set_stat(w, v, "fast/hour/eco");
         break;
     }

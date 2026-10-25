@@ -1,12 +1,14 @@
 # AxeForge
 
-New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev ≤ 6, TPS546 on rev7) driving a **3.5" 480×320 display** (8-bit parallel or SPI, ST7796S or ILI9488). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize.
+New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev5.1 and rev6, TPS546 on rev7) driving a **3.5" 480×320 display** (8-bit parallel or SPI, ST7796S or ILI9488). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize.
 
-> ⚠️ **Young firmware.** It runs on a real NerdQaxe++ (pre-rev7). Rev7 support follows the upstream rev7 profile but has not been run on a rev7 board yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Stratum V2 has been tested up to the encrypted handshake and connection setup, but not share submission. Keep a backup of your stock flash so you can go back.
+> **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable).
+
+> ⚠️ **Young firmware.** It runs on real NerdQaxe++ rev6 boards, and contributors run it on rev7. Rev5.1 uses the same regulator and code path as rev6. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Stratum V2 has been tested up to the encrypted handshake and connection setup, but not share submission. Keep a backup of your stock flash so you can go back.
 
 ## What it does
 
-- **Mining:** version rolling, 500 ms job rotation, every nonce re-hashed on the ESP32 before it's submitted, and per-chip hashrate and hardware-error counters read from the BM1370s.
+- **Mining:** version rolling, 500 ms job rotation, every nonce re-hashed on the ESP32 before it's submitted, and per-chip hashrate and hardware-error counters read from the BM1370s. A result the chain reports twice is dropped instead of being submitted again.
 - **Up to 4 pools**, each one using any of these protocols:
   - **Stratum V1**
   - **V1 over TLS**: the certificate is checked against the built-in CA bundle.
@@ -45,8 +47,11 @@ New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev ≤ 6
   - The emergency cut turns the core voltage off, waits until the miner cools 20 °C, then restarts 50 MHz lower.
   - Regulator faults (over-current, VOUT fault, PSU fault) also cut power. After a fault it retries 3 times.
   - A temperature sensor that stops answering for 3 seconds also cuts power. A failed read never counts as a cool reading, and the miner won't power up without working sensors.
+  - A fan that has been spinning but drops under 300 rpm at 30 % duty or more for 10 s cuts power (`Fan N stalled`).
+  - A chip that falls far below the others (or reports nonsense) for 15 s cuts power (`Chip N stopped hashing`). On boards whose chips sit in series voltage domains, a chip that stops drawing current lets its domain's voltage climb.
+  - Automatic recoveries (fault retries, overheat cool-down) re-detect the chips at the right baud rate.
   - The monitor that handles all of this runs on its own task, separate from the tuner.
-- **Fans:** a PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops.
+- **Fans:** a PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops. Within 3 °C of a tuner ceiling the fans go to 100 % regardless of the target, and both fan speeds are shown.
 
 ## Screen
 
@@ -81,7 +86,7 @@ Open `http://<miner-ip>/`. The API only answers when it's reached by IP address 
 - **Clock & data**: weather and the mempool source.
 - **Network**
 - **System**:
-  - A live log console.
+  - A live log console. Every change made through the API is logged with the client's address, and the next boot says who asked for the last restart.
   - Firmware update by uploading `axeforge.bin`, so later updates don't need USB.
 
 ## Screens
@@ -121,24 +126,26 @@ If the screen looks wrong:
 
 ## Flashing
 
-1. Hold the BOOT button and connect USB.
-2. Then either:
-   - use the web flasher at https://espressif.github.io/esptool-js/ and write `release/axeforge-factory.bin` at address `0x0`, or
-   - run:
+**Easiest:** open the web flasher at https://issasoridev.github.io/AxeForge/ in Chrome or Edge, connect the miner's USB-C port and press *Install*. It writes the firmware pieces separately, so saved Wi-Fi and pool settings are kept unless you tick *Erase*. If no serial port shows up, hold BOOT, tap RESET and release BOOT.
 
-     ```bash
-     python -m esptool --chip esp32s3 -b 921600 write_flash 0x0 axeforge-factory.bin
-     ```
+**With esptool**, either:
+- a clean install with the full image (this **resets all settings**, because the image covers the settings area too):
 
-If the miner has ever been updated through the web UI, also clear the OTA boot marker. Otherwise it keeps booting the last web-installed version instead of the factory image:
+  ```bash
+  python -m esptool --chip esp32s3 -b 921600 write_flash 0x0 axeforge-factory.bin
+  ```
 
-```bash
-python -m esptool --chip esp32s3 erase_region 0xc10000 0x2000
-```
+- or the separate pieces from a build, which keeps the settings:
 
-Later updates don't need USB: upload `release/axeforge.bin` under **System → Firmware update**. That keeps your settings.
+  ```bash
+  python -m esptool --chip esp32s3 -b 921600 write_flash 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 axeforge.bin 0xc10000 ota_data_initial.bin
+  ```
 
-Flashing the factory image wipes the stock settings. On first boot:
+Both reset the OTA boot marker, so the miner boots the version you just wrote.
+
+Later updates don't need USB: upload `axeforge.bin` under **System → Firmware update**. That keeps your settings.
+
+Coming from the stock firmware, or after a clean install, on first boot:
 1. Join the `AxeForge-XXXX` Wi-Fi network (or scan the QR code on the screen).
 2. Open http://192.168.4.1.
 3. Enter your Wi-Fi, pool and worker (BTC address), then save.
@@ -160,8 +167,8 @@ idf.py build
 To publish a release, push a version tag:
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag -a v1.2.0 -m "AxeForge v1.2.0"
+git push origin v1.2.0
 ```
 
 The workflow writes the tag into `version.txt`, builds with ESP-IDF v5.3.2 and creates a GitHub Release. Attached to it:
@@ -171,10 +178,15 @@ The workflow writes the tag into `version.txt`, builds with ESP-IDF v5.3.2 and c
 
 Tags with a dash (for example `v1.2.0-beta1`) are marked as pre-releases.
 
+A release tag also publishes the web flasher (`flasher/`) to GitHub Pages with that version's firmware. This needs a one-time setting: **Settings → Pages → Source: GitHub Actions**. Pre-releases don't replace the public flasher.
+
 ## Not supported (yet)
 
 - One pool per ASIC: not possible on this hardware (see above).
+- Bitaxe boards. The source has groundwork for the Supra Hex (`CONFIG_AF_BOARD_SUPRAHEX`: BM1368 driver, 3-domain TPS546 profile, 128×32 OLED), but it isn't finished or tested, and no Bitaxe firmware is built or released.
 
 ## Credits / license
 
-The BM1370 register sequences, TPS53647 setup, board pinout and the Stratum V2 Noise/protocol component (`components/stratum_v2`) are based on the open-source [ESP-Miner-NerdQAxePlus](https://github.com/shufps/ESP-Miner-NerdQAxePlus) (GPL-3.0). For that reason AxeForge is also released under GPL-3.0.
+The BM1370 register sequences, TPS53647 setup, board pinout and the Stratum V2 Noise/protocol component (`components/stratum_v2`) are based on the open-source [ESP-Miner-NerdQAxePlus](https://github.com/shufps/ESP-Miner-NerdQAxePlus) (GPL-3.0). The rev7 TPS546 profile comes from the same project's develop branch. For that reason AxeForge is also released under GPL-3.0.
+
+Thanks to [@cbyam](https://github.com/cbyam) for the SV2 latency, fan safety, recovery, duplicate-result, logging and readability fixes in v1.2.0.

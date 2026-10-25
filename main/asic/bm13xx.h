@@ -1,9 +1,14 @@
 #pragma once
 #include <stdint.h>
 
-// BM1370 chain driver over UART1 (TX=17, RX=18).
+#include "core/board_config.h"
 
-struct __attribute__((packed)) Bm1370Job {
+// BM13xx chain driver over UART1 (TX=17, RX=18). The chip model is fixed per
+// board at compile time: BM1370 on the NerdQaxe++, BM1368 on the Supra Hex.
+// Both speak the same framing and job format; they differ in chip ID, PLL
+// range, init sequence and which register holds the hash counter.
+
+struct __attribute__((packed)) AsicJob {
     uint8_t job_id;
     uint8_t num_midstates;
     uint8_t starting_nonce[4];
@@ -26,10 +31,17 @@ struct AsicResult {
     uint32_t data;
 };
 
-namespace bm1370 {
+namespace asic {
 
+#if AF_ASIC_BM1368
+constexpr const char *MODEL = "BM1368";
+constexpr int SMALL_CORES = 1276;
+constexpr uint8_t REG_NONCE_COUNT = 0x8C;  // total hash counter, 2^32 hashes per count
+#else
+constexpr const char *MODEL = "BM1370";
 constexpr int SMALL_CORES = 2040;
 constexpr uint8_t REG_NONCE_COUNT = 0x90;
+#endif
 constexpr uint8_t REG_HW_ERROR_COUNT = 0x4C;
 
 void uart_init();
@@ -42,11 +54,11 @@ float frequency();
 void set_difficulty_mask(uint32_t difficulty);
 
 // Returns the asic job id (slot) used.
-uint8_t send_job(uint32_t counter, Bm1370Job &job);
+uint8_t send_job(uint32_t counter, AsicJob &job);
 // Blocks up to timeout_ms for one 11-byte response.
 bool receive(AsicResult &out, int timeout_ms);
 
 void read_register_all(uint8_t reg);
 void reset_register_all(uint8_t reg);
 
-} // namespace bm1370
+} // namespace asic

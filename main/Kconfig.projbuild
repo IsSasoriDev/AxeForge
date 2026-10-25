@@ -1,6 +1,19 @@
 menu "AxeForge"
 
+    choice AF_BOARD
+        prompt "Target board"
+        default AF_BOARD_NERDQAXE
+        help
+            Each board gets its own firmware image: pinouts differ, and driving a
+            pin that belongs to another board's regulator is never safe.
+        config AF_BOARD_NERDQAXE
+            bool "NerdQaxe++ (4x BM1370)"
+        config AF_BOARD_SUPRAHEX
+            bool "Bitaxe Supra Hex 701/702 (6x BM1368)"
+    endchoice
+
     menu "Big display (3.5in 480x320)"
+        depends on AF_BOARD_NERDQAXE
         choice AF_LCD_BUS
             prompt "Interface"
             default AF_LCD_BUS_I80
@@ -109,6 +122,7 @@ menu "AxeForge"
         config AF_MAX_FREQ_MHZ
             int "Max ASIC frequency (MHz)"
             range 400 800
+            default 625 if AF_BOARD_SUPRAHEX
             default 750
         config AF_MAX_CORE_MV
             int "Max core voltage (mV)"
@@ -126,27 +140,35 @@ menu "AxeForge"
             default 80
         config AF_MAX_VR_TEMP
             int "Tuner VR temperature ceiling (C)"
+            default 95 if AF_BOARD_SUPRAHEX
             default 85
         config AF_CRIT_VR_TEMP
             int "Emergency shutdown VR temperature (C)"
+            default 105 if AF_BOARD_SUPRAHEX
             default 100
         config AF_MAX_POWER_W
             int "Max input power (W)"
+            default 120 if AF_BOARD_SUPRAHEX
             default 100
 
         comment "Rev7 boards (TPS546 regulator, detected at boot)"
+            depends on AF_BOARD_NERDQAXE
         config AF_REV7_MAX_FREQ_MHZ
             int "Rev7 max ASIC frequency (MHz)"
+            depends on AF_BOARD_NERDQAXE
             range 400 1000
             default 1000
         config AF_REV7_MAX_POWER_W
             int "Rev7 max power (W)"
+            depends on AF_BOARD_NERDQAXE
             default 120
         config AF_REV7_MAX_VR_TEMP
             int "Rev7 tuner regulator temperature ceiling (C)"
+            depends on AF_BOARD_NERDQAXE
             default 95
         config AF_REV7_CRIT_VR_TEMP
             int "Rev7 emergency shutdown regulator temperature (C)"
+            depends on AF_BOARD_NERDQAXE
             default 105
     endmenu
 

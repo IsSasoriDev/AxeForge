@@ -73,7 +73,7 @@ void bin2hex(const uint8_t *bin, size_t len, char *hex)
 }
 
 void build(const StratumJob &sj, const char *extranonce1, uint32_t en2, int en2_len, uint32_t version_mask,
-           uint32_t pool_diff, Work &w, Bm1370Job &cj)
+           uint32_t pool_diff, Work &w, AsicJob &cj)
 {
     // extranonce2: big-endian hex of the counter, padded to en2_len bytes
     if (en2_len > 16) en2_len = 16;

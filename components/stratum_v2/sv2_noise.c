@@ -63,12 +63,17 @@ static int noise_recv_exact(esp_transport_handle_t transport, uint8_t *buf, int 
     return 0;
 }
 
+// Writes the whole buffer: a TCP write may take only part of it.
 static int noise_send_all(esp_transport_handle_t transport, const uint8_t *buf, int len)
 {
-    int ret = esp_transport_write(transport, (const char *)buf, len, TRANSPORT_TIMEOUT_MS);
-    if (ret < 0) {
-        ESP_LOGE(TAG, "send failed: ret=%d", ret);
-        return -1;
+    int sent = 0;
+    while (sent < len) {
+        int ret = esp_transport_write(transport, (const char *)buf + sent, len - sent, TRANSPORT_TIMEOUT_MS);
+        if (ret <= 0) {
+            ESP_LOGE(TAG, "send failed: ret=%d (%d of %d bytes sent)", ret, sent, len);
+            return -1;
+        }
+        sent += ret;
     }
     return 0;
 }
@@ -507,36 +512,39 @@ int sv2_noise_send(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,
         return -1;
     }
 
-    // Encrypt header (6 bytes -> 22 bytes)
-    uint8_t enc_hdr[22];
-    if (noise_encrypt(ctx->send_key, ctx->send_nonce++, NULL, 0,
-                      frame, SV2_FRAME_HEADER_SIZE, enc_hdr) != 0) {
-        return -1;
-    }
-
-    if (noise_send_all(transport, enc_hdr, 22) != 0) {
-        return -1;
-    }
-
-    // Encrypt payload if present
     int payload_len = frame_len - SV2_FRAME_HEADER_SIZE;
-    if (payload_len > 0) {
-        uint8_t *enc_payload = SV2_SCRATCH_MALLOC(payload_len + 16);
-        if (!enc_payload) return -1;
 
+    // Header-only frame: encrypt (6 -> 22 bytes) and send directly off the stack.
+    if (payload_len <= 0) {
+        uint8_t enc_hdr[22];
         if (noise_encrypt(ctx->send_key, ctx->send_nonce++, NULL, 0,
-                          frame + SV2_FRAME_HEADER_SIZE, payload_len,
-                          enc_payload) != 0) {
-            free(enc_payload);
+                          frame, SV2_FRAME_HEADER_SIZE, enc_hdr) != 0) {
             return -1;
         }
-
-        int ret = noise_send_all(transport, enc_payload, payload_len + 16);
-        free(enc_payload);
-        if (ret != 0) return -1;
+        return noise_send_all(transport, enc_hdr, 22);
     }
 
-    return 0;
+    // Build the encrypted header and payload contiguously and send them in a
+    // single write, so a frame leaves as one TCP segment instead of a header
+    // segment followed by a payload segment (which Nagle holds back until the
+    // pool ACKs the header: ~40 ms per share). As in bitaxeorg/ESP-Miner#1771.
+    int total_len = 22 + payload_len + 16;
+    uint8_t stack_buf[128];
+    uint8_t *out = (total_len <= (int)sizeof(stack_buf)) ? stack_buf : SV2_SCRATCH_MALLOC(total_len);
+    if (!out) return -1;
+
+    // Encrypt header (nonce N) into out[0..21], payload (nonce N+1) into out[22..]
+    if (noise_encrypt(ctx->send_key, ctx->send_nonce++, NULL, 0,
+                      frame, SV2_FRAME_HEADER_SIZE, out) != 0 ||
+        noise_encrypt(ctx->send_key, ctx->send_nonce++, NULL, 0,
+                      frame + SV2_FRAME_HEADER_SIZE, payload_len, out + 22) != 0) {
+        if (out != stack_buf) free(out);
+        return -1;
+    }
+
+    int ret = noise_send_all(transport, out, total_len);
+    if (out != stack_buf) free(out);
+    return ret;
 }
 
 int sv2_noise_recv(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,

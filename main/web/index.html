@@ -5,7 +5,7 @@
 <title>AxeForge</title>
 <link rel="icon" href="/favicon.ico" type="image/svg+xml">
 <style>
-:root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#6b7a90;
+:root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#9aa8bd;
 --cyan:#00e5ff;--mag:#ff2bd6;--green:#2bff88;--orange:#ff9f1c;--red:#ff3b5c;--violet:#8b5cff;--r:14px}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
 body{background:radial-gradient(1200px 600px at 80% -10%,#10213a 0,transparent 60%),linear-gradient(var(--bg),var(--bg2));
@@ -303,14 +303,14 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
  $('vt').innerHTML=S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
  $('pw').innerHTML=S.power.toFixed(0)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
- $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=S.fanRpm+' rpm';$('fnb').style.width=S.fanPct+'%';
+ $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=S.fanRpm+' / '+S.fan2Rpm+' rpm';$('fnb').style.width=S.fanPct+'%';
  chips(S.chips);blocks(S.mempool);
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;tp.style.color=phaseCol[t.phase]||'var(--violet)';
  $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;
  $('tbar').style.width=(t.phase=='locked'||t.phase=='manual'?100:t.progress)+'%';
  $('tbest').textContent=t.bestFreq?`${t.bestFreq} MHz @ ${t.bestMv} mV (${hr(t.bestGhs).join(' ')})`:'searching…';$('tsteps').textContent=t.steps;
  // template + hash
- const tm=S.template;if(tm.valid){$('nmh').textContent='#'+tm.height.toLocaleString();$('nmtag').textContent=tm.tag||'';
+ const tm=S.template;if(tm.valid){$('nmh').textContent=tm.height.toLocaleString();$('nmtag').textContent=tm.tag||'';
   $('nmpool').textContent='pool '+(tm.pool+1)+' · '+(S.pools[tm.pool]?.host||'');$('nmrew').textContent=tm.reward.toFixed(8)+' BTC';
   $('nmtx').textContent='~'+(2**tm.branches).toLocaleString()+' (merkle depth '+tm.branches+')';$('nmprev').textContent=tm.prevHash}
  if(S.lastHash){$('lh').innerHTML=hashHtml(S.lastHash);$('lhd').textContent='diff '+sfx(S.lastHashDiff);
@@ -330,7 +330,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  if(cur=='pools')poolLive()}
 async function chart(){let h;try{h=await (await fetch('/api/history')).json()}catch(e){return}
  const c=$('chart'),W=c.clientWidth||600,H=c.clientHeight||150,pts=h.map((v,i)=>[i/(h.length-1)*W,v]).filter(p=>p[1]>0);
- if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#6b7a90" text-anchor="middle" font-size="12">Collecting data — first point after 30 s</text>`;return}
+ if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#9aa8bd" text-anchor="middle" font-size="12">Collecting data — first point after 30 s</text>`;return}
  const mx=Math.max(...pts.map(p=>p[1]))*1.08,mn=Math.min(...pts.map(p=>p[1]))*.92,y=v=>H-6-(v-mn)/(mx-mn||1)*(H-16);
  const line=pts.map(p=>`${p[0].toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
  c.setAttribute('viewBox',`0 0 ${W} ${H}`);
@@ -338,7 +338,7 @@ async function chart(){let h;try{h=await (await fetch('/api/history')).json()}ca
  ${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" stroke="#1c2635"/>`).join('')}
  <polygon points="${pts[0][0]},${H} ${line} ${pts[pts.length-1][0]},${H}" fill="url(#cf)"/>
  <polyline points="${line}" fill="none" stroke="#00e5ff" stroke-width="2.2" stroke-linejoin="round" filter="url(#glow)"/>
- <text x="${W-4}" y="12" fill="#6b7a90" font-size="11" text-anchor="end">${hr(mx/1.08).join(' ')}</text>`}
+ <text x="${W-4}" y="12" fill="#9aa8bd" font-size="11" text-anchor="end">${hr(mx/1.08).join(' ')}</text>`}
 
 /* ---------------- generic settings forms */
 async function loadCfg(){cfg=await (await fetch('/api/settings')).json();

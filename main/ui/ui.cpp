@@ -25,7 +25,7 @@
 #define C_PANEL lv_color_hex(0x0f1520)
 #define C_BORDER lv_color_hex(0x1c2635)
 #define C_TEXT lv_color_hex(0xe6edf6)
-#define C_DIM lv_color_hex(0x6b7a90)
+#define C_DIM lv_color_hex(0x9aa8bd)
 #define C_CYAN lv_color_hex(0x00e5ff)
 #define C_MAGENTA lv_color_hex(0xff2bd6)
 #define C_GREEN lv_color_hex(0x2bff88)
@@ -722,7 +722,7 @@ static void refresh_dashboard()
     lv_bar_set_value(s_t_pwr.bar, (int) (100 * s.pin / board::limits().max_power_w), LV_ANIM_ON);
 
     lv_label_set_text_fmt(s_t_fan.val, "%u%%", s.fan_pct);
-    lv_label_set_text_fmt(s_t_fan.sub, "%u rpm", s.fan_rpm[0]);
+    lv_label_set_text_fmt(s_t_fan.sub, "%u / %u rpm", s.fan_rpm[0], s.fan_rpm[1]);
     lv_bar_set_value(s_t_fan.bar, s.fan_pct, LV_ANIM_ON);
 
     const TunerState &t = s.tuner;
@@ -792,8 +792,8 @@ static void refresh_system()
         snprintf(qr, sizeof(qr), "http://%s/", s.ip);
         lv_label_set_text(s_sys_title, "SYSTEM");
         lv_label_set_text_fmt(s_sys_lines,
-                              "#6b7a90 Web UI# http://%s\n#6b7a90 Wi-Fi# %s\n#6b7a90 Firmware# AxeForge %s\n"
-                              "#6b7a90 Chips# %d x BM1370\n#6b7a90 Free heap# %u kB",
+                              "#9aa8bd Web UI# http://%s\n#9aa8bd Wi-Fi# %s\n#9aa8bd Firmware# AxeForge %s\n"
+                              "#9aa8bd Chips# %d x BM1370\n#9aa8bd Free heap# %u kB",
                               s.ip, s.ssid, esp_app_get_description()->version, s.chips_detected,
                               (unsigned) (esp_get_free_heap_size() / 1024));
     }
@@ -859,7 +859,7 @@ static void refresh_clock()
         }
         for (int i = 0; i < 3; i++) {
             if (i > 0 && have_time) lv_label_set_text(s_wx_days[i].name, wshort[(t.tm_wday + i) % 7]);
-            lv_label_set_text_fmt(s_wx_days[i].range, "%.0f\xC2\xB0\n#6b7a90 %.0f\xC2\xB0#", w.days[i].tmax, w.days[i].tmin);
+            lv_label_set_text_fmt(s_wx_days[i].range, "%.0f\xC2\xB0\n#9aa8bd %.0f\xC2\xB0#", w.days[i].tmax, w.days[i].tmin);
             if (s_wx_drawn_code[i + 1] != w.days[i].code) {
                 s_wx_drawn_code[i + 1] = w.days[i].code;
                 draw_weather_icon(s_wx_days[i].icon, w.days[i].code, true, C_DAYCARD);

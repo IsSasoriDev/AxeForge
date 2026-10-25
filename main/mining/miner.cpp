@@ -1,5 +1,7 @@
 #include "miner.h"
 
+#include <algorithm>
+
 #include <stdlib.h>
 #include <string.h>
 #include "esp_log.h"
@@ -8,7 +10,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
-#include "asic/bm1370.h"
+#include "asic/bm13xx.h"
 #include "core/board.h"
 #include "core/state.h"
 #include "mining/work.h"
@@ -17,7 +19,16 @@
 
 static const char *TAG = "miner";
 
+#if AF_ASIC_BM1368
+#define JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
+#else
 #define JOB_INTERVAL_MS 500
+#endif
+// A chip below this share of the median chip (or wildly above its expected rate) for
+// STALL_PERIODS counter periods in a row is reported as stalled.
+#define STALL_LOW 0.30f
+#define STALL_HIGH 3.0f
+#define STALL_PERIODS 3
 #define NUM_SLOTS 128
 #define ASIC_DIFF_MIN 512
 #define ASIC_DIFF_MAX 2048
@@ -151,11 +162,11 @@ static void job_task(void *)
         }
 
         Work w;
-        Bm1370Job cj;
+        AsicJob cj;
         work::build(s.tmpl, s.info.en1, s.en2++, s.info.en2_len, s.info.version_mask, s.info.difficulty, w, cj);
         w.pool = p;
-        bm1370::set_difficulty_mask(asic_difficulty(min_diff));
-        uint8_t slot = bm1370::send_job(s_job_counter++, cj);
+        asic::set_difficulty_mask(asic_difficulty(min_diff));
+        uint8_t slot = asic::send_job(s_job_counter++, cj);
         xSemaphoreTake(s_work_lock, portMAX_DELAY);
         s_work[slot] = w;
         xSemaphoreGive(s_work_lock);
@@ -206,6 +217,26 @@ static void on_counter(int chip, uint32_t cnt, bool is_error)
     portEXIT_CRITICAL(&s_win_mux);
 }
 
+// The chain occasionally reports the same nonce twice (a repeated UART frame, for
+// one). Submitting both gets the second rejected as a duplicate, so remember the
+// last few results and drop exact repeats.
+#define RECENT_RESULTS 32
+struct RecentResult {
+    uint8_t slot;
+    uint32_t nonce, version;
+};
+
+static bool seen_before(uint8_t slot, uint32_t nonce, uint32_t version)
+{
+    static RecentResult recent[RECENT_RESULTS];
+    static int next = 0;
+    for (const RecentResult &x : recent)
+        if (x.slot == slot && x.nonce == nonce && x.version == version) return true;
+    recent[next] = {slot, nonce, version};
+    next = (next + 1) % RECENT_RESULTS;
+    return false;
+}
+
 static void result_task(void *)
 {
     AsicResult r;
@@ -215,11 +246,11 @@ static void result_task(void *)
             vTaskDelay(pdMS_TO_TICKS(200));
             continue;
         }
-        if (!bm1370::receive(r, 1000)) continue;
+        if (!asic::receive(r, 1000)) continue;
 
         if (r.is_register) {
-            if (r.reg == bm1370::REG_NONCE_COUNT) on_counter(r.chip, r.data, false);
-            else if (r.reg == bm1370::REG_HW_ERROR_COUNT) on_counter(r.chip, r.data, true);
+            if (r.reg == asic::REG_NONCE_COUNT) on_counter(r.chip, r.data, false);
+            else if (r.reg == asic::REG_HW_ERROR_COUNT) on_counter(r.chip, r.data, true);
             continue;
         }
 
@@ -230,6 +261,12 @@ static void result_task(void *)
         if (!w.valid) continue;
 
         uint32_t version = w.version | r.version_bits;
+        if (seen_before(r.job_slot, r.nonce, version)) {
+            g_state.dup_results++;
+            ESP_LOGW(TAG, "chip %d repeated nonce %08lx (job slot %u), dropped (%lu so far)", r.chip,
+                     (unsigned long) r.nonce, r.job_slot, (unsigned long) g_state.dup_results);
+            continue;
+        }
         double diff = work::nonce_difficulty(w, r.nonce, version, hash);
         g_state.hashes_checked++;
         if (diff > g_state.session_best) g_state.session_best = diff;
@@ -262,19 +299,22 @@ static void result_task(void *)
 static void counter_task(void *)
 {
     vTaskDelay(pdMS_TO_TICKS(4000));
-    int n = 0;
+    int n = 0, periods = 0, stall = 0;
     while (true) {
         if (!board::is_powered()) {
             memset(s_prev_t, 0, sizeof(s_prev_t));
             memset(s_prev_err_t, 0, sizeof(s_prev_err_t));
             g_state.hashrate_ghs = 0;
+            memset(g_state.chip_ghs, 0, sizeof(g_state.chip_ghs));
+            memset(g_state.chip_err_ghs, 0, sizeof(g_state.chip_err_ghs));
+            periods = stall = 0;
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
         // two READ_ALL bursts must not overlap, so space them out
-        bm1370::read_register_all(bm1370::REG_NONCE_COUNT);
+        asic::read_register_all(asic::REG_NONCE_COUNT);
         vTaskDelay(pdMS_TO_TICKS(500));
-        bm1370::read_register_all(bm1370::REG_HW_ERROR_COUNT);
+        asic::read_register_all(asic::REG_HW_ERROR_COUNT);
         vTaskDelay(pdMS_TO_TICKS(500));
 
         float total = 0, err = 0;
@@ -284,6 +324,40 @@ static void counter_task(void *)
         }
         g_state.hashrate_ghs = g_state.hashrate_ghs ? 0.7f * g_state.hashrate_ghs + 0.3f * total : total;
         g_state.error_pct = (total + err) > 0 ? 100.0f * err / (total + err) : 0;
+
+        // Chips in series voltage domains share one current: a chip that stops
+        // hashing lets its domain's voltage climb. Report it so the monitor can
+        // cut power before that hurts anything.
+        // Compared against the median chip, so an idle board (no pool work yet)
+        // or one that is throttled as a whole never counts as a stall.
+        int chips = g_state.chips_detected < AF_NUM_ASICS ? g_state.chips_detected : AF_NUM_ASICS;
+        if (++periods > 3 && chips > 1 && g_state.expected_ghs > 0) {
+            float per = g_state.expected_ghs / chips;
+            float sorted[AF_NUM_ASICS];
+            memcpy(sorted, g_state.chip_ghs, sizeof(float) * chips);
+            std::sort(sorted, sorted + chips);
+            float med = sorted[chips / 2];
+            int bad = -1;
+            if (med >= 0.5f * per) {
+                for (int i = 0; i < chips; i++) {
+                    float v = g_state.chip_ghs[i];
+                    if (v < STALL_LOW * med || v > STALL_HIGH * per) bad = i;
+                }
+            }
+            stall = bad >= 0 ? stall + 1 : 0;
+            if (stall >= STALL_PERIODS) {
+                ESP_LOGE(TAG, "chip %d at %.0f GH/s while the others run ~%.0f", bad, g_state.chip_ghs[bad], med);
+                g_state.chip_stall = (uint8_t) (bad + 1);
+                stall = 0;
+            }
+        }
+        if (periods % 2 == 0) {
+            char line[128];
+            int o = 0;
+            for (int i = 0; i < chips && i < AF_NUM_ASICS && o < (int) sizeof(line) - 8; i++)
+                o += snprintf(line + o, sizeof(line) - o, " %.0f", g_state.chip_ghs[i]);
+            ESP_LOGI(TAG, "chips GH/s:%s | %.1fW %.3fV %.1fA", line, g_state.pin, g_state.vout, g_state.iout);
+        }
 
         if (++n % HISTORY_EVERY == 0) {
             g_state.history[g_state.history_head] = g_state.hashrate_ghs;

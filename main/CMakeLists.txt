@@ -1,4 +1,9 @@
 file(GLOB_RECURSE SRCS "*.cpp" "*.c")
+if(CONFIG_AF_BOARD_SUPRAHEX)
+    # no LCD: the OLED module (ui/oled.cpp) stands in for the LVGL screen UI
+    list(FILTER SRCS EXCLUDE REGEX ".*/ui/(display|ui|ui_small)\.cpp$")
+    list(FILTER SRCS EXCLUDE REGEX ".*/ui/fonts/.*")
+endif()
 idf_component_register(
     SRCS ${SRCS}
     INCLUDE_DIRS "."

@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-// TI TPS53647 multiphase buck (NerdQaxe++ rev <= 6). PMBus at 0x71.
+// TI TPS53647 multiphase buck (NerdQaxe++ rev5.1 and rev6). PMBus at 0x71.
 namespace tps53647 {
 
 constexpr float VOUT_MIN = 0.8f;

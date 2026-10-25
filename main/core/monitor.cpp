@@ -20,6 +20,15 @@ static const char *TAG = "monitor";
 #define RECOVERY_FREQ_DROP 50
 #define MAX_FAULT_RETRIES 3
 #define SENSOR_LOSS_S 3  // consecutive failed temperature reads before cutting power
+// A fan driven at least this hard but turning slower than this, for this long, has
+// stalled. Only fans seen spinning since boot count: a fan that is not fitted reads
+// 0 rpm too, and must not keep a one-fan miner from running.
+#define FAN_STALL_MIN_DUTY 30.0f
+#define FAN_STALL_RPM 300
+#define FAN_STALL_S 10
+// Within this many degrees of the tuner's ceiling the fans go to 100%, whatever the
+// fan target says: the tuner must never back off for heat while cooling is left.
+#define FAN_BOOST_MARGIN_C 3.0f
 
 // Small PI controller; output is fan duty in percent.
 struct FanPI {
@@ -53,6 +62,8 @@ static void monitor_task(void *)
     int tick = 0;
     int fault_retries = 0;
     int sensor_bad = 0;
+    int stall[2] = {0, 0};
+    bool fan_seen[2] = {false, false};
     char why[64];
 
     while (true) {
@@ -67,11 +78,53 @@ static void monitor_task(void *)
             // a lost sensor reads as -1 here, which the PI treats as "full fan"
             float a = asic_pi.update(g_state.temp_ok ? g_state.chip_temp_max : -1, cfg.fan_target_c, cfg.fan_min_pct);
             float v = vr_pi.update(g_state.vr_temp_ok ? g_state.vr_temp : -1, VR_FAN_TARGET_C, cfg.fan_min_pct);
+            if (g_state.chip_temp_max >= CONFIG_AF_MAX_CHIP_TEMP - FAN_BOOST_MARGIN_C) a = 100;
+            if (g_state.vr_temp >= lim.vr_ceil_c - FAN_BOOST_MARGIN_C) v = 100;
+#if CONFIG_AF_BOARD_SUPRAHEX
+            // both Hex fans blow across chips and regulator alike
+            fan::set_pct(0, v > a ? v : a);
+#else
             fan::set_pct(0, a);
+#endif
             fan::set_pct(1, v > a ? v : a);
             g_state.fan_pct = (uint8_t) a;
 
             // ---- hard limits: these cut power, no questions asked ----
+            if (g_state.chip_stall) {
+                snprintf(why, sizeof(why), "Chip %d stopped hashing", g_state.chip_stall - 1);
+                g_state.chip_stall = 0;
+                emergency(SysStatus::Fault, why);
+                continue;
+            }
+            fan::check();  // re-applies the fan setup if the controller lost it
+            // With one temperature sensor, a dead fan over the far chips would only
+            // show up once they were already too hot.
+#if CONFIG_AF_BOARD_SUPRAHEX
+            const float duty[2] = {v > a ? v : a, v > a ? v : a};
+#else
+            const float duty[2] = {a, v > a ? v : a};
+#endif
+            int stalled = -1;
+            for (int i = 0; i < 2; i++) {
+                if (g_state.fan_rpm[i] >= FAN_STALL_RPM && !fan_seen[i]) {
+                    fan_seen[i] = true;
+                    ESP_LOGI(TAG, "fan %d spinning (%u rpm)", i + 1, g_state.fan_rpm[i]);
+                }
+                bool slow = fan_seen[i] && duty[i] >= FAN_STALL_MIN_DUTY && g_state.fan_rpm[i] < FAN_STALL_RPM;
+                stall[i] = slow ? stall[i] + 1 : 0;
+                if (stall[i] >= FAN_STALL_S) stalled = i;
+            }
+            if (g_state.uptime_s == 60) {
+                for (int i = 0; i < 2; i++)
+                    if (!fan_seen[i]) ESP_LOGW(TAG, "fan %d not detected (0 rpm since boot); stall check off for it", i + 1);
+            }
+            if (stalled >= 0) {
+                snprintf(why, sizeof(why), "Fan %d stalled (%u rpm at %.0f%%)", stalled + 1, g_state.fan_rpm[stalled],
+                         duty[stalled]);
+                stall[0] = stall[1] = 0;
+                emergency(SysStatus::Fault, why);  // shutdown also runs both fans at 100%
+                continue;
+            }
             sensor_bad = sensors_ok ? 0 : sensor_bad + 1;
             if (sensor_bad >= SENSOR_LOSS_S) {
                 snprintf(why, sizeof(why), "%s temperature sensor not responding", g_state.temp_ok ? "VR" : "Chip");

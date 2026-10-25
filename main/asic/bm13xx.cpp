@@ -1,4 +1,4 @@
-#include "bm1370.h"
+#include "bm13xx.h"
 
 #include <math.h>
 #include <string.h>
@@ -8,11 +8,11 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
-static const char *TAG = "bm1370";
+static const char *TAG = "asic";
 
 #define UART UART_NUM_1
-#define PIN_TX 17
-#define PIN_RX 18
+#define PIN_TX AF_PIN_UART_TX
+#define PIN_RX AF_PIN_UART_RX
 
 #define TYPE_JOB 0x20
 #define TYPE_CMD 0x40
@@ -25,7 +25,11 @@ static const char *TAG = "bm1370";
 #define CMD_WRITE_ALL (TYPE_CMD | GROUP_ALL | CMD_WRITE)
 #define CMD_READ_ALL (TYPE_CMD | GROUP_ALL | CMD_READ)
 
+#if AF_ASIC_BM1368
+static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x68, 0x00, 0x00};
+#else
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x70, 0x00, 0x00};
+#endif
 
 static SemaphoreHandle_t s_tx_lock;
 static float s_freq = 56.25f;
@@ -117,6 +121,37 @@ static uint8_t reverse_bits(uint8_t v)
     return r;
 }
 
+#if AF_ASIC_BM1368
+// Reference PLL search for the BM1368: closest frequency, then lowest VCO,
+// then the smallest post divider product.
+static bool send_pll(float target)
+{
+    float min_diff = 1e9f, min_vco = 1e9f, best_f = 0;
+    int min_post = 1 << 16, best_ref = 0, best_fb = 0, best_p1 = 0, best_p2 = 0;
+    for (int ref = 2; ref > 0; ref--) {
+        for (int p1 = 7; p1 > 0; p1--) {
+            for (int p2 = 7; p2 > 0; p2--) {
+                int div = ref * p1 * p2;
+                int fb = (int) roundf(target / 25.0f * div);
+                if (p1 <= p2 || fb < 144 || fb > 235) continue;
+                float f = 25.0f * fb / div;
+                float diff = fabsf(target - f);
+                float vco = 25.0f * fb / ref;
+                if (diff < min_diff || (fabsf(diff - min_diff) < 1e-4f && vco < min_vco) ||
+                    (fabsf(diff - min_diff) < 1e-4f && fabsf(vco - min_vco) < 1e-4f && p1 * p2 < min_post)) {
+                    min_diff = diff;
+                    min_vco = vco;
+                    min_post = p1 * p2;
+                    best_ref = ref;
+                    best_fb = fb;
+                    best_p1 = p1;
+                    best_p2 = p2;
+                    best_f = f;
+                }
+            }
+        }
+    }
+#else
 // PLL search identical in output to the S21 register dumps.
 static bool send_pll(float target)
 {
@@ -142,6 +177,7 @@ static bool send_pll(float target)
             }
         }
     }
+#endif
     if (!best_fb) {
         ESP_LOGE(TAG, "no PLL setting for %.2f MHz", target);
         return false;
@@ -156,7 +192,7 @@ static bool send_pll(float target)
 
 static void set_version_mask_all() { write_all(0xA4, 0x90, 0x00, 0xFF, 0xFF); }
 
-namespace bm1370 {
+namespace asic {
 
 void uart_init()
 {
@@ -175,6 +211,10 @@ void uart_init()
 
 int init(float freq_mhz, int expected_chips, uint32_t difficulty)
 {
+    // Freshly powered chips listen at 115200. After switch_to_fast_baud() the UART
+    // stays at 1 Mbaud, so every later power-up (fault retry, overheat recovery)
+    // found no chips unless the port is set back first.
+    uart_set_baudrate(UART, 115200);
     uart_flush(UART);
     for (int i = 0; i < 4; i++) set_version_mask_all();
 
@@ -186,10 +226,36 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
         if (memcmp(buf, CHIP_ID, sizeof(CHIP_ID)) == 0) chips++;
         else ESP_LOGW(TAG, "unexpected reply during chip count");
     }
-    if (chips == expected_chips) ESP_LOGI(TAG, "%d chips detected", chips);
+    if (chips == expected_chips) ESP_LOGI(TAG, "%d %s chips detected", chips, MODEL);
     else ESP_LOGE(TAG, "%d chips detected, expected %d", chips, expected_chips);
     if (!chips) return 0;
 
+#if AF_ASIC_BM1368
+    // BM1368 sequence from the Bitaxe reference firmware (S21 register dumps)
+    send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
+    write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
+    write_all(0x18, 0xFF, 0x0F, 0xC1, 0x00);  // misc control
+    write_all(0x3C, 0x80, 0x00, 0x8B, 0x00);  // core register control
+    write_all(0x3C, 0x80, 0x00, 0x80, 0x18);
+    write_all(0x14, 0x00, 0x00, 0x00, 0xFF);  // ticket mask, set properly below
+    write_all(0x54, 0x00, 0x00, 0x00, 0x03);  // analog mux
+    write_all(0x58, 0x02, 0x11, 0x11, 0x11);  // IO driver strength
+
+    s_addr_interval = 256 / chips;
+    for (int i = 0; i < chips; i++) send2(TYPE_CMD | CMD_SETADDRESS, i * s_addr_interval, 0x00);
+    for (int i = 0; i < chips; i++) {
+        uint8_t a = i * s_addr_interval;
+        write_one(a, 0xA8, 0x00, 0x07, 0x01, 0xF0);
+        write_one(a, 0x18, 0xF0, 0x00, 0xC1, 0x00);
+        write_one(a, 0x3C, 0x80, 0x00, 0x8B, 0x00);
+        write_one(a, 0x3C, 0x80, 0x00, 0x80, 0x18);
+        write_one(a, 0x3C, 0x80, 0x00, 0x82, 0xAA);
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    s_diff_mask = 0xffffffff;
+    set_difficulty_mask(difficulty);
+
+#else
     set_version_mask_all();
     write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
     write_all(0x18, 0xF0, 0x00, 0xC1, 0x00);  // misc control
@@ -218,8 +284,13 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0xB9, 0x00, 0x00, 0x44, 0x80);
     write_all(0x3C, 0x80, 0x00, 0x8D, 0xEE);
 
+#endif
     set_frequency(freq_mhz);
+#if AF_ASIC_BM1368
+    write_all(0x10, 0x00, 0x00, 0x15, 0xA4);  // hash counting (S21 stock value)
+#else
     write_all(0x10, 0x00, 0x00, 0x1E, 0xB5);  // version rolling speed (stock value)
+#endif
     set_version_mask_all();
     return chips;
 }
@@ -266,7 +337,7 @@ void set_difficulty_mask(uint32_t difficulty)
     ESP_LOGI(TAG, "ticket mask %lu", (unsigned long) mask);
 }
 
-uint8_t send_job(uint32_t counter, Bm1370Job &job)
+uint8_t send_job(uint32_t counter, AsicJob &job)
 {
     job.job_id = (counter * 24) & 0x7f;
     job.num_midstates = 1;
@@ -310,4 +381,4 @@ void read_register_all(uint8_t reg) { send2(CMD_READ_ALL, 0x00, reg); }
 
 void reset_register_all(uint8_t reg) { write_all(reg, 0, 0, 0, 0); }
 
-} // namespace bm1370
+} // namespace asic

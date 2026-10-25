@@ -1,3 +1,8 @@
+// NerdQaxe++ (rev5.1/rev6: TPS53647, rev7: TPS546 stack). The Supra Hex lives in
+// board_suprahex.cpp; exactly one of the two is compiled.
+#include "sdkconfig.h"
+#if CONFIG_AF_BOARD_NERDQAXE
+
 #include "board.h"
 
 #include <math.h>
@@ -9,7 +14,7 @@
 #include "freertos/task.h"
 #include "sdkconfig.h"
 
-#include "asic/bm1370.h"
+#include "asic/bm13xx.h"
 #include "core/state.h"
 #include "hw/i2c_bus.h"
 #include "hw/sensors.h"
@@ -86,7 +91,7 @@ Error init_hardware()
     fan::set_pct(0, 100);
     fan::set_pct(1, 100);
     temp::detect();
-    bm1370::uart_init();
+    asic::uart_init();
 
     if (tps546::detect()) {
         s_rev7 = true;
@@ -124,7 +129,7 @@ Error power_up(uint16_t freq, uint16_t mv)
         // TPS546: EN first, then configure; the output turns on with the first VOUT
         gpio_set_level(PIN_VR_EN, 1);
         vTaskDelay(pdMS_TO_TICKS(50));
-        if (!tps546::init() || !tps546::set_core(init_mv / 1000.0f)) {
+        if (!tps546::init(tps546::NERDQAXE_REV7) || !tps546::set_core(init_mv / 1000.0f)) {
             tps546::off();
             gpio_set_level(PIN_VR_EN, 0);
             gpio_set_level(PIN_LDO_EN, 0);
@@ -145,19 +150,19 @@ Error power_up(uint16_t freq, uint16_t mv)
     gpio_set_level(PIN_ASIC_RST, 1);
     vTaskDelay(pdMS_TO_TICKS(250));
 
-    int chips = bm1370::init(freq, AF_NUM_ASICS, START_DIFFICULTY);
+    int chips = asic::init(freq, AF_NUM_ASICS, START_DIFFICULTY);
     g_state.chips_detected = chips;
     if (chips == 0) {
         shutdown();
         return Error::NoChips;
     }
-    bm1370::switch_to_fast_baud();
+    asic::switch_to_fast_baud();
     vTaskDelay(pdMS_TO_TICKS(500));
 
     set_core_mv(mv);
     s_freq = freq;
     g_state.freq_mhz = freq;
-    g_state.expected_ghs = freq * (float) bm1370::SMALL_CORES * chips / 1000.0f;
+    g_state.expected_ghs = freq * (float) asic::SMALL_CORES * chips / 1000.0f;
     return Error::None;
 }
 
@@ -196,10 +201,10 @@ bool set_freq_mhz(uint16_t mhz)
     Guard g;
     if (!s_powered) return false;
     mhz = clamp_freq(mhz);
-    if (!bm1370::set_frequency(mhz)) return false;
+    if (!asic::set_frequency(mhz)) return false;
     s_freq = mhz;
     g_state.freq_mhz = mhz;
-    g_state.expected_ghs = mhz * (float) bm1370::SMALL_CORES * g_state.chips_detected / 1000.0f;
+    g_state.expected_ghs = mhz * (float) asic::SMALL_CORES * g_state.chips_detected / 1000.0f;
     return true;
 }
 
@@ -290,3 +295,5 @@ const char *error_text(Error e)
 }
 
 } // namespace board
+
+#endif // CONFIG_AF_BOARD_NERDQAXE

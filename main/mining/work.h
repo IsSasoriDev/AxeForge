@@ -1,7 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
-#include "asic/bm1370.h"
+#include "asic/bm13xx.h"
 #include "core/state.h"
 
 #define MAX_MERKLE_BRANCHES 32
@@ -44,7 +44,7 @@ void bin2hex(const uint8_t *bin, size_t len, char *hex);
 // Builds the coinbase, merkle root and both the verification Work and the
 // chip job. extranonce1 is hex.
 void build(const StratumJob &sj, const char *extranonce1, uint32_t en2, int en2_len, uint32_t version_mask,
-           uint32_t pool_diff, Work &w, Bm1370Job &chip_job);
+           uint32_t pool_diff, Work &w, AsicJob &chip_job);
 
 // Returns share difficulty of a found nonce (0 = invalid hash).
 // hash_out (optional) receives the 32-byte block hash in internal order.

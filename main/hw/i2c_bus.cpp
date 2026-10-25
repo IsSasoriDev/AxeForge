@@ -1,12 +1,13 @@
 #include "i2c_bus.h"
 
 #include "driver/i2c.h"
+#include "core/board_config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
 #define I2C_PORT I2C_NUM_0
-#define I2C_SDA 44
-#define I2C_SCL 43
+#define I2C_SDA AF_PIN_I2C_SDA
+#define I2C_SCL AF_PIN_I2C_SCL
 #define I2C_HZ 100000
 #define I2C_TIMEOUT pdMS_TO_TICKS(100)
 

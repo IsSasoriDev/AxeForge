@@ -6,10 +6,13 @@ namespace fan {
 bool init();
 void set_pct(int channel, float pct);  // 0..100
 uint16_t rpm(int channel);
+// Re-initialises the controller if its config registers were reset (a supply
+// glitch does that); returns false if it had to.
+bool check();
 }
 
 namespace temp {
-// Number of ASIC-side TMP1075 sensors found (the one at 0x49 is the VR sensor).
+// Number of ASIC-side TMP1075 sensors found (the layout is per board, see sensors.cpp).
 int detect();
 int count();
 // Board sensor under ASIC area `index`, in C. NAN on error.

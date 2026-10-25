@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define AF_NUM_ASICS 4
+#include "core/board_config.h"  // AF_NUM_ASICS
 #define AF_HISTORY_LEN 120  // hashrate history points for the UI chart
 
 enum class TunerPhase : uint8_t {
@@ -146,6 +146,7 @@ struct MinerState {
     bool temp_ok = false;     // every ASIC-side sensor answered this second
     bool vr_temp_ok = false;
     bool board_rev7 = false;  // TPS546 regulator
+    uint8_t chip_stall = 0;   // 1-based chip that stopped hashing; the monitor acts on it
     uint16_t fan_rpm[2] = {};
     uint8_t fan_pct = 0;
 
@@ -179,6 +180,7 @@ struct MinerState {
     char last_hash[65] = "";      // most recent share hash, display order
     double last_hash_diff = 0;
     uint32_t hashes_checked = 0;  // nonces verified on the ESP32
+    uint32_t dup_results = 0;     // results the chips reported twice (dropped, never submitted)
 };
 
 extern MinerState g_state;

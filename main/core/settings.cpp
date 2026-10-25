@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "sdkconfig.h"
 
 static const char *TAG = "settings";
 static Settings s_settings;
@@ -105,6 +106,52 @@ void pools_from_json(const char *json)
     cJSON_Delete(a);
 }
 
+#if CONFIG_AF_BOARD_SUPRAHEX
+// First boot after switching from AxeOS: take over its Wi-Fi, pools and
+// clock settings (read-only, the "main" namespace is left untouched) so the
+// miner comes back on the same network instead of opening a setup AP.
+static bool import_axeos(Settings &s)
+{
+    nvs_handle_t h;
+    if (nvs_open("main", NVS_READONLY, &h) != ESP_OK) return false;
+    get_str(h, "wifissid", s.wifi_ssid, sizeof(s.wifi_ssid));
+    get_str(h, "wifipass", s.wifi_pass, sizeof(s.wifi_pass));
+    bool got_wifi = s.wifi_ssid[0] != 0;
+
+    PoolCfg &p = s.pools[0];
+    char url[sizeof(p.url)] = "";
+    get_str(h, "stratumurl", url, sizeof(url));
+    if (url[0]) {
+        strcpy(p.url, url);
+        p.enabled = true;
+        p.proto = PoolProto::V1;
+        get_u16(h, "stratumport", p.port);
+        get_str(h, "stratumuser", p.user, sizeof(p.user));
+        get_str(h, "stratumpass", p.pass, sizeof(p.pass));
+    }
+    PoolCfg &fb = s.pools[1];
+    url[0] = 0;
+    get_str(h, "fbstratumurl", url, sizeof(url));
+    if (url[0]) {
+        strcpy(fb.url, url);
+        fb.enabled = true;
+        fb.proto = PoolProto::V1;
+        get_u16(h, "fbstratumport", fb.port);
+        get_str(h, "fbstratumuser", fb.user, sizeof(fb.user));
+        get_str(h, "fbstratumpass", fb.pass, sizeof(fb.pass));
+        s.pool_mode = PoolMode::Failover;  // AxeOS treats it as a fallback, not a split
+    }
+    char f[16] = "";
+    get_str(h, "asicfrequency_f", f, sizeof(f));
+    if (atof(f) > 0) s.freq_mhz = (uint16_t) atof(f);
+    get_u16(h, "asicvoltage", s.core_mv);
+    nvs_close(h);
+    ESP_LOGW(TAG, "imported AxeOS settings: wifi '%s', pool %s:%u, %u MHz @ %u mV", s.wifi_ssid, p.url, p.port,
+             s.freq_mhz, s.core_mv);
+    return got_wifi;
+}
+#endif
+
 void load()
 {
     nvs_handle_t h;
@@ -113,9 +160,18 @@ void load()
     strcpy(s.pools[0].url, "public-pool.io");
     s.pools[0].port = 21496;
     s.pools[0].enabled = true;
+#if CONFIG_AF_BOARD_SUPRAHEX
+    s.freq_mhz = 490;  // BM1368 stock point
+    s.core_mv = 1166;
+    // two board sensors for six chips: keep real airflow over the unsensed ones
+    s.fan_min_pct = 45;
+#endif
 
     if (nvs_open("axeforge", NVS_READONLY, &h) != ESP_OK) {
         ESP_LOGW(TAG, "no saved settings, using defaults");
+#if CONFIG_AF_BOARD_SUPRAHEX
+        if (import_axeos(s)) save();
+#endif
         return;
     }
     get_str(h, "ssid", s.wifi_ssid, sizeof(s.wifi_ssid));

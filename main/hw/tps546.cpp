@@ -8,7 +8,6 @@
 static const char *TAG = "tps546";
 
 #define ADDR 0x24
-#define DOMAINS 2  // ASIC voltage domains in series
 
 // PMBus commands
 #define OPERATION 0x01
@@ -62,13 +61,8 @@ static const char *TAG = "tps546";
 #define OP_OFF 0x00
 #define OP_ON 0x80
 
-// Regulator-side output window (2 domains x 1.0..1.5 V)
-#define VOUT_MIN_V (CORE_MIN * DOMAINS)
-#define VOUT_MAX_V (CORE_MAX * DOMAINS)
-
-// Limits relative to VOUT_COMMAND, as in the rev7 reference profile
+// Limits relative to VOUT_COMMAND, as in the reference profiles
 #define OV_FAULT_RATIO 1.25f
-#define OV_WARN_RATIO 1.10f
 #define MARGIN_HIGH_RATIO 1.10f
 #define MARGIN_LOW_RATIO 0.90f
 #define UV_WARN_RATIO 0.90f
@@ -79,7 +73,17 @@ static const uint8_t DEVICE_IDS[][6] = {
     {0x54, 0x49, 0x54, 0x6D, 0x24, 0x41},  // TPS546D24A
     {0x54, 0x49, 0x54, 0x6D, 0x24, 0x62},  // TPS546D24S
 };
-static const uint8_t COMPENSATION[5] = {0x12, 0x34, 0x42, 0x25, 0x04};
+static const uint8_t COMPENSATION[5] = {0x12, 0x34, 0x42, 0x25, 0x04};  // stacked boards only
+
+namespace tps546 {
+const Profile NERDQAXE_REV7 = {"rev7 stack", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.0f, 1.5f,
+                               90.0f, 100.0f, 1.10f, 0x18, true, 0x0000};
+// from the Bitaxe reference firmware (VIN 11.5/11.0 V, 2.5..4.5 V out, 25/30 A)
+const Profile BITAXE_HEX = {"hex", 3, 11.5f, 11.0f, 11.0f, 14.0f, 0.125f, 2.5f / 3, 4.5f / 3,
+                            25.0f, 30.0f, 1.16f, 0x1F, false, 0xFFFF};
+}
+
+static const tps546::Profile *s_prof = &tps546::NERDQAXE_REV7;
 
 static bool s_initialized = false;
 static int s_vout_exp = -9;      // ULINEAR16 exponent from VOUT_MODE
@@ -157,7 +161,7 @@ static float lim(float ratio, float vout) { return s_relative ? ratio : ratio * 
 static bool write_upper_limits(float vout)
 {
     bool ok = wvout(VOUT_OV_FAULT_LIMIT, lim(OV_FAULT_RATIO, vout));
-    ok &= wvout(VOUT_OV_WARN_LIMIT, lim(OV_WARN_RATIO, vout));
+    ok &= wvout(VOUT_OV_WARN_LIMIT, lim(s_prof->ov_warn_ratio, vout));
     ok &= wvout(VOUT_MARGIN_HIGH, lim(MARGIN_HIGH_RATIO, vout));
     return ok;
 }
@@ -182,9 +186,11 @@ bool detect()
     return false;
 }
 
-bool init()
+bool init(const Profile &profile)
 {
     s_initialized = false;
+    s_prof = &profile;
+    const int domains = profile.domains;
     if (!detect()) {
         ESP_LOGE(TAG, "TPS546 not found");
         return false;
@@ -194,30 +200,32 @@ bool init()
     s_vout_exp = (mode & 0x10) ? (int) (mode & 0x1f) - 32 : (mode & 0x1f);
     s_relative = (mode & 0x80) != 0;
 
-    const float vout = 1.2f * DOMAINS;
+    const float vout = 1.2f * domains;
     bool ok = w8(OPERATION, OP_OFF);
-    ok &= w8(ON_OFF_CONFIG, 0x18);  // output follows the OPERATION command
-    ok &= w16(STACK_CONFIG, 0x0001);  // two-phase stack
-    ok &= w8(SYNC_CONFIG, 0xD0);
+    ok &= w8(ON_OFF_CONFIG, profile.on_off_config);
+    if (profile.stacked) {
+        ok &= w16(STACK_CONFIG, 0x0001);  // two-phase stack
+        ok &= w8(SYNC_CONFIG, 0xD0);
+    }
     ok &= w8(PHASE, 0xFF);
     ok &= wlin(FREQUENCY_SWITCH, 650);  // kHz
-    ok &= write_block(COMPENSATION_CONFIG, COMPENSATION, sizeof(COMPENSATION));
+    if (profile.stacked) ok &= write_block(COMPENSATION_CONFIG, COMPENSATION, sizeof(COMPENSATION));
 
-    ok &= wlin(VIN_ON, 11.0f);
-    ok &= wlin(VIN_OFF, 10.5f);
-    ok &= wlin(VIN_UV_WARN_LIMIT, 11.0f);
-    ok &= wlin(VIN_OV_FAULT_LIMIT, 14.0f);
+    ok &= wlin(VIN_UV_WARN_LIMIT, profile.vin_uv_warn);
+    ok &= wlin(VIN_ON, profile.vin_on);
+    ok &= wlin(VIN_OFF, profile.vin_off);
+    ok &= wlin(VIN_OV_FAULT_LIMIT, profile.vin_ov_fault);
     ok &= w8(VIN_OV_FAULT_RESPONSE, 0xB7);
 
-    ok &= wlin(VOUT_SCALE_LOOP, 0.125f);
+    ok &= wlin(VOUT_SCALE_LOOP, profile.scale_loop);
     ok &= wvout(VOUT_COMMAND, vout);
-    ok &= wvout(VOUT_MAX, VOUT_MAX_V);
-    ok &= wvout(VOUT_MIN, VOUT_MIN_V);
+    ok &= wvout(VOUT_MAX, profile.core_max * domains);
+    ok &= wvout(VOUT_MIN, profile.core_min * domains);
     ok &= write_upper_limits(vout);
     ok &= write_lower_limits(vout);
 
-    ok &= wlin(IOUT_OC_WARN_LIMIT, 90.0f);
-    ok &= wlin(IOUT_OC_FAULT_LIMIT, 100.0f);
+    ok &= wlin(IOUT_OC_WARN_LIMIT, profile.oc_warn_a);
+    ok &= wlin(IOUT_OC_FAULT_LIMIT, profile.oc_fault_a);
     ok &= w8(IOUT_OC_FAULT_RESPONSE, 0xC0);  // shut down, no retry
 
     ok &= wlin(OT_WARN_LIMIT, 105.0f);
@@ -230,7 +238,7 @@ bool init()
     ok &= w8(TON_MAX_FAULT_RESPONSE, 0x3B);
     ok &= wlin(TOFF_DELAY, 0);
     ok &= wlin(TOFF_FALL, 0);
-    ok &= w16(PIN_DETECT_OVERRIDE, 0x0000);
+    ok &= w16(PIN_DETECT_OVERRIDE, profile.pin_detect_override);
     // Never STORE_USER_ALL: a bad NVM write can leave the part unrecoverable.
     // The config above is rewritten on every power-up instead.
     if (!ok) {
@@ -241,18 +249,19 @@ bool init()
     s_vout_cmd = vout;
     clear_faults();
     s_initialized = true;
-    ESP_LOGI(TAG, "initialized: VOUT_MODE %02x (%s limits)", mode, s_relative ? "relative" : "absolute");
+    ESP_LOGI(TAG, "initialized (%s, %d domains): VOUT_MODE %02x (%s limits)", profile.name, domains, mode,
+             s_relative ? "relative" : "absolute");
     return true;
 }
 
 bool set_core(float volts)
 {
     if (!s_initialized) return false;
-    if (volts < CORE_MIN || volts > CORE_MAX) {
+    if (volts < s_prof->core_min || volts > s_prof->core_max) {
         ESP_LOGE(TAG, "refusing out-of-range core voltage %.3f", volts);
         return false;
     }
-    float v = volts * DOMAINS;
+    float v = volts * s_prof->domains;
     // keep the output inside its OV/UV window while it moves
     bool ok;
     if (v >= s_vout_cmd) ok = write_upper_limits(v) && wvout(VOUT_COMMAND, v) && write_lower_limits(v);
@@ -281,10 +290,10 @@ float vout()
     if (!s_initialized) return 0.0f;
     uint16_t v = 0;
     if (i2c_bus::read_word_le(ADDR, READ_VOUT, &v) != ESP_OK) return 0.0f;
-    return ulinear16_to_float(v) / DOMAINS;
+    return ulinear16_to_float(v) / s_prof->domains;
 }
 
-float pout() { return vout() * DOMAINS * iout(); }
+float pout() { return vout() * s_prof->domains * iout(); }
 
 uint8_t status_byte() { return read_status(STATUS_BYTE); }
 uint8_t status_iout() { return read_status(STATUS_IOUT); }

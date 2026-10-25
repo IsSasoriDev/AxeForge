@@ -1,32 +1,28 @@
-## AxeForge v1.1.0
+## AxeForge v1.2.0
+
+### Install from the browser
+- New **web flasher**: https://issasoridev.github.io/AxeForge/ — Chrome or Edge, USB cable, no tools. It keeps your Wi-Fi and pool settings unless you tick *Erase*.
+
+### Boards
+- **NerdQaxe++ rev5.1** is listed as supported. It uses the same TPS53647 regulator and code path as rev6, and the web UI now shows `rev5.1/6 (TPS53647)`.
 
 ### Safety
-- **Fixed: a failed temperature sensor read was treated as 0 °C.** That turned off the 80 °C emergency cut-off and let the auto-tuner keep raising the clock with nothing to stop it.
-  - A failed read is now treated as "no reading", never as a cool one.
-  - If a chip or VR sensor doesn't answer for 3 seconds, power to the ASICs is cut.
-  - While a sensor is missing, the fans run at 100% and the tuner won't step up.
-  - The miner refuses to power up unless its temperature sensors respond.
-  - New `tempOk` field in `/api/status`.
+- **Chip stall guard:** a chip that falls far below the others for 15 s cuts power (`Chip N stopped hashing`).
+- **Fan stall detection** (@cbyam): a fan that was spinning and drops under 300 rpm cuts power. Within 3 °C of a tuner ceiling the fans go to 100 %.
+- **Fixed: automatic recoveries found no chips** (@cbyam). After a fault or overheat the chips came back at 115200 baud while the ESP32 stayed at 1 Mbaud, so every retry failed.
+- The fan controller is re-initialised if a supply glitch resets it.
 
-### Security
-- **Fixed: the web API accepted cross-site requests.** A malicious page open in a browser on the same network could change pool settings, reboot the miner or push firmware.
-  - The API only answers when the miner is reached by IP address or a local name (`.local`, `.lan`, a bare hostname, …). This also blocks DNS-rebinding attacks.
-  - Any request that changes something must include the `X-AxeForge: 1` header. Requests whose browser headers mark them as cross-site (`Origin` / `Sec-Fetch-Site`) are rejected.
-  - The built-in web UI handles this automatically. **Scripts that POST to the API need to add the header**, e.g. `curl -H 'X-AxeForge: 1' ...`
+### Mining and pools
+- **Stratum V2:** each frame goes out in one write, and `TCP_NODELAY` is set on pool sockets (@cbyam). Share response went from about 53 ms to 7 ms in testing.
+- Results the chain reports twice are dropped instead of being submitted as duplicates (@cbyam). Counted as `dupResults` in `/api/status`.
 
-### New hardware
-- **NerdQaxe++ rev7 (TPS546 regulator) support.** The board revision is detected at boot, so rev6 boards behave exactly as before.
-  - Rev7 limits: 1000 MHz, 120 W; the tuner stops raising the clock at a regulator temperature of 95 °C, and power is cut at 105 °C. All are adjustable in menuconfig.
-  - The regulator settings are written on every power-up and never stored in the regulator's own memory.
-  - Based on the rev7 profile in upstream ESP-Miner-NerdQAxePlus (develop branch).
-  - ⚠️ Not yet tested on a real rev7 board. Please report boot logs and readings if you try it.
+### Web UI and logs
+- Every change made through the API is logged with the client's address, and a requested restart is remembered across the reboot (`restartedBy` in `/api/status`) (@cbyam).
+- Easier-to-read secondary text on the screen and in the web UI (@cbyam). Both fan speeds are shown.
 
-### Other
-- `axeforge-factory.bin` now also resets the OTA boot selection. Flashing it over USB always boots the new firmware, even on a board that was previously updated over Wi-Fi.
-- The power reading now drops to 0 W after an emergency cut-off instead of showing the last value.
+### Files
+- **Web flasher** — the easiest way to install or update over USB.
+- **axeforge.bin** — update an AxeForge miner from the web UI (*System → Firmware update*). Keeps your settings.
+- **axeforge-factory.bin** — full image for `esptool.py write_flash 0x0 axeforge-factory.bin`. This is a clean install: it **resets all settings**.
 
-### Which file?
-- **axeforge-factory.bin**: first install over USB. Flash at address `0x0` (web flasher or `esptool.py write_flash 0x0 axeforge-factory.bin`).
-- **axeforge.bin**: update an AxeForge miner from the web UI (*System → Firmware update*). Keeps your settings. Refresh the page after the reboot.
-
-Supports the NerdQaxe++ (rev ≤ 6 and rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.
+Supports the NerdQaxe++ (rev5.1, rev6 and rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.

@@ -29,7 +29,9 @@ static const char *TAG = "board";
 #define START_DIFFICULTY 2048
 
 // The TMP1075s sit on the PCB next to the chips; the die runs ~10 C hotter.
-#define DIE_TEMP_OFFSET 10.0f
+// Only rev7 adds this (as upstream does); rev <= 6 reports the raw sensor,
+// which is what the stock firmware and its thermal limits are based on.
+#define REV7_DIE_TEMP_OFFSET 10.0f
 
 static bool s_powered = false;
 static bool s_rev7 = false;
@@ -224,7 +226,7 @@ void read_telemetry()
                 ok = false;
                 t = 0;
             } else {
-                t += DIE_TEMP_OFFSET;
+                if (s_rev7) t += REV7_DIE_TEMP_OFFSET;
             }
             last = t;
         }

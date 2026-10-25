@@ -19,7 +19,9 @@
 #include "core/state.h"
 #include "core/tuner.h"
 #include "mining/miner.h"
+#include "net/captive.h"
 #include "net/mempool.h"
+#include "net/swarm.h"
 #include "net/weather.h"
 #include "net/web.h"
 #include "net/wifi.h"
@@ -125,6 +127,8 @@ extern "C" void app_main(void)
 #endif
     monitor::start();  // telemetry + fans + emergency cut-off, before any power-up
     wifi::start();
+    captive::start();
+    swarm::start();
     web::start();
     weather::start();
     mempool::start();

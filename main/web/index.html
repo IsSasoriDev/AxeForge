@@ -3,22 +3,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#070a10">
 <title>AxeForge</title>
+<script>try{const t=localStorage.getItem("af-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="icon" href="/favicon.ico" type="image/svg+xml">
 <style>
 :root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#9aa8bd;
---cyan:#00e5ff;--mag:#ff2bd6;--green:#2bff88;--orange:#ff9f1c;--red:#ff3b5c;--violet:#8b5cff;--r:14px}
+--cyan:#00e5ff;--mag:#ff2bd6;--green:#2bff88;--orange:#ff9f1c;--red:#ff3b5c;--violet:#8b5cff;--r:14px;
+--pend:#0b0f17;--input:#070a10;--navbg:rgba(10,15,24,.85);--console:#03050a;--glow:#10213a}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
-body{background:radial-gradient(1200px 600px at 80% -10%,#10213a 0,transparent 60%),linear-gradient(var(--bg),var(--bg2));
+body{background:radial-gradient(1200px 600px at 80% -10%,var(--glow) 0,transparent 60%),linear-gradient(var(--bg),var(--bg2));
 color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
-nav{background:rgba(10,15,24,.85);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px);display:flex;flex-direction:column;overflow-y:auto}
+.app{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}
+nav{background:var(--navbg);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px);display:flex;flex-direction:column;overflow-y:auto}
 .logo{font-weight:800;font-size:22px;letter-spacing:1px;padding:4px 10px 18px}.logo b{color:var(--cyan)}.logo i{color:var(--mag);font-style:normal}
 nav button{all:unset;display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;color:var(--dim);cursor:pointer;font-weight:600;margin-bottom:2px}
 nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 nav button:hover{background:var(--panel);color:var(--text)}
 nav button.on{background:linear-gradient(90deg,rgba(0,229,255,.16),transparent);color:var(--cyan);box-shadow:inset 3px 0 var(--cyan)}
 nav .foot{margin-top:auto;padding:16px 10px 0;color:var(--dim);font-size:12px}
-main{padding:22px clamp(14px,3vw,34px) 90px;max-width:1280px;width:100%}
+main{padding:22px clamp(14px,3vw,34px) 90px;max-width:1280px;width:100%;min-width:0}
 header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 header h1{font-size:20px;margin:0;flex:1}
 .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid currentColor;background:color-mix(in srgb,currentColor 14%,transparent)}
@@ -26,7 +28,7 @@ header h1{font-size:20px;margin:0;flex:1}
 .meta{color:var(--dim);font-size:12px}
 .grid{display:grid;gap:14px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
 .mb{margin-bottom:14px}
-.card{background:linear-gradient(var(--panel),#0b0f17);border:1px solid var(--line);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
+.card{background:linear-gradient(var(--panel),var(--pend));border:1px solid var(--line);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
 .card h3{margin:0 0 10px;font-size:12px;color:var(--dim);font-weight:700;letter-spacing:.8px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .accent{position:absolute;left:0;top:16px;width:3px;height:16px;border-radius:0 3px 3px 0}
 .big{font-size:30px;font-weight:750;letter-spacing:-.5px}.big small{font-size:14px;color:var(--dim);font-weight:600;margin-left:3px}
@@ -43,7 +45,7 @@ header h1{font-size:20px;margin:0;flex:1}
 section{display:none}section.on{display:block;animation:f .25s}@keyframes f{from{opacity:0;transform:translateY(4px)}}
 form .card{margin-bottom:14px}
 label{display:block;font-size:12px;font-weight:600;color:var(--dim);margin:12px 0 5px}
-input,select,textarea{width:100%;padding:11px 12px;background:#070a10;border:1px solid var(--line);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:border .2s;font-family:inherit}
+input,select,textarea{width:100%;padding:11px 12px;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:border .2s;font-family:inherit}
 input:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.12)}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .switch{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -75,7 +77,7 @@ input[type=range]{padding:0;height:6px;accent-color:var(--cyan);background:none;
 .cube .f b{font-size:15px}.sep{flex:none;width:2px;height:120px;background:linear-gradient(var(--cyan),transparent);margin:0 4px;align-self:center}
 .hash{font:600 14px/1.6 ui-monospace,Consolas,monospace;word-break:break-all;color:var(--dim)}.hash em{font-style:normal;color:var(--cyan);text-shadow:0 0 8px var(--cyan)}
 /* pools */
-.pool{border:1px solid var(--line);border-radius:var(--r);padding:16px;background:linear-gradient(var(--panel),#0b0f17);margin-bottom:14px}
+.pool{border:1px solid var(--line);border-radius:var(--r);padding:16px;background:linear-gradient(var(--panel),var(--pend));margin-bottom:14px}
 .pool.off{opacity:.6}.pool .hd{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--dim);flex:none}.dot.ok{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.wait{background:var(--orange)}
 .pool .hd b{flex:1;font-size:15px}
@@ -87,9 +89,9 @@ input[type=range]{padding:0;height:6px;accent-color:var(--cyan);background:none;
 .plist{list-style:none;margin:0;padding:0}.plist li{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--panel2)}
 .plist li b{flex:1;font-weight:600}.plist li.dis b{color:var(--dim)}
 .ed-wrap{display:grid;grid-template-columns:1fr 250px;gap:14px}
-.canvas{position:relative;width:100%;aspect-ratio:480/272;background:#070a10;border:1px solid var(--line);border-radius:10px;
+.canvas{position:relative;width:100%;aspect-ratio:480/272;background:var(--input);border:1px solid var(--line);border-radius:10px;
 background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:calc(100%/12) calc(100%/8);touch-action:none;user-select:none}
-.wd{position:absolute;padding:2px;cursor:grab}.wd>div{height:100%;background:linear-gradient(var(--panel),#0b0f17);border:1px solid var(--line);border-radius:7px;padding:5px 7px;overflow:hidden;position:relative}
+.wd{position:absolute;padding:2px;cursor:grab}.wd>div{height:100%;background:linear-gradient(var(--panel),var(--pend));border:1px solid var(--line);border-radius:7px;padding:5px 7px;overflow:hidden;position:relative}
 .wd.sel>div{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,229,255,.3)}.wd .c{font-size:10px;color:var(--dim);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
 .wd .v{font-weight:750;font-size:clamp(11px,2vw,22px);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wd .rs{position:absolute;right:2px;bottom:2px;width:14px;height:14px;cursor:nwse-resize;border-right:3px solid var(--cyan);border-bottom:3px solid var(--cyan);border-radius:0 0 6px 0;opacity:.7}
@@ -97,13 +99,54 @@ background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),line
 .pal button:hover{border-color:var(--cyan)}
 .seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}.seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:7px;font-weight:700;font-size:13px;color:var(--dim)}.seg button.on{background:var(--cyan);color:#001318}
 /* logs */
-.console{background:#03050a;border:1px solid var(--line);border-radius:10px;height:420px;overflow:auto;padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+.console{background:var(--console);border:1px solid var(--line);border-radius:10px;height:420px;overflow:auto;padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
 .console .E{color:var(--red)}.console .W{color:var(--orange)}.console .I{color:#9fb0c6}.console .D{color:var(--dim)}
 @media(max-width:1000px){.g4{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}.g3{grid-template-columns:1fr 1fr}.ed-wrap{grid-template-columns:1fr}}
 @media(max-width:720px){.app{grid-template-columns:1fr}
 nav{position:fixed;bottom:0;top:auto;height:auto;width:100%;display:flex;flex-direction:row;overflow-x:auto;padding:6px;border-right:0;border-top:1px solid var(--line);z-index:5}
 nav .logo,nav .foot{display:none}nav button{flex-direction:column;gap:3px;font-size:10px;padding:8px 10px;width:auto;flex:1;min-width:62px;justify-content:center}
 nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:1fr}main{padding-bottom:100px}}
+
+/* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
+html[data-theme=paper]{color-scheme:light;--bg:#f3f1ea;--bg2:#f3f1ea;--panel:#fbfaf5;--panel2:#ece9e0;--pend:#fbfaf5;--line:#1b1b1b;
+--text:#141414;--dim:#5e5e5a;--cyan:#141414;--mag:#141414;--green:#141414;--orange:#141414;--red:#b3261e;--violet:#141414;
+--input:#fffffc;--navbg:#f3f1ea;--console:#fbfaf5;--glow:transparent;--r:3px}
+html[data-theme=paper] *{box-shadow:none!important;text-shadow:none!important;animation:none!important}
+html[data-theme=paper] [filter]{filter:none}
+html[data-theme=paper] body{background:var(--bg)}
+html[data-theme=paper] .big,html[data-theme=paper] .gauge .v,html[data-theme=paper] .logo{font-family:Georgia,"Iowan Old Style",serif;font-weight:700;letter-spacing:0}
+html[data-theme=paper] .card,html[data-theme=paper] .pool{border-width:1.5px}
+html[data-theme=paper] .card h3{color:var(--text);border-bottom:1px solid var(--line);padding-bottom:6px}
+html[data-theme=paper] .accent{display:none}
+html[data-theme=paper] nav{border-right:1.5px solid var(--line)}
+html[data-theme=paper] nav button.on{background:none;color:var(--text);border-left:3px solid var(--line);border-radius:0}
+html[data-theme=paper] .btn{background:var(--text);color:var(--bg)}
+html[data-theme=paper] .btn.alt{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+html[data-theme=paper] .btn.warn{background:var(--red);color:#fff}
+html[data-theme=paper] .tg{background:#cfcbc0}html[data-theme=paper] .tg:checked{background:var(--text)}
+html[data-theme=paper] .tg::after{background:var(--bg)}
+html[data-theme=paper] .bar{background:#dcd8ce}
+html[data-theme=paper] .info{background:transparent;border:1.5px dashed var(--line);color:var(--text)}
+html[data-theme=paper] .banner{background:transparent;border:1.5px solid var(--red);color:var(--red)}
+html[data-theme=paper] .dot.ok{background:var(--text)}html[data-theme=paper] .dot.wait{background:transparent;border:1.5px solid var(--text)}
+html[data-theme=paper] .hash em{color:var(--text);font-weight:800;text-decoration:underline}
+html[data-theme=paper] .cube .f{background:var(--panel)!important;color:var(--text);border:1.5px solid var(--line)}
+html[data-theme=paper] .sep{background:var(--line)}
+html[data-theme=paper] #gg stop,html[data-theme=paper] #cf stop{stop-color:var(--text)}
+html[data-theme=paper] #garcbg{stroke:#dcd8ce}
+html[data-theme=paper] .chart polyline{stroke:var(--text)}
+html[data-theme=paper] .chart line{stroke:#d3cfc4}html[data-theme=paper] .chart text{fill:var(--dim)}
+html[data-theme=paper] .console .I{color:var(--text)}html[data-theme=paper] .console .W{color:#7a5a00}
+html[data-theme=paper] .canvas{background-image:linear-gradient(rgba(0,0,0,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.08) 1px,transparent 1px)}
+html[data-theme=paper] .screen{background:#fff}
+html[data-theme=paper] .prog i{background:var(--text)}
+html[data-theme=paper] .pill{background:transparent}
+/* swarm */
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th{text-align:left;font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}.tbl tr:last-child td{border-bottom:0}
+.tbl td.r,.tbl th.r{text-align:right}.tbl tr.off td{opacity:.5}.tbl a{color:var(--cyan);text-decoration:none;font-weight:600}
+.fanst{font-size:12px;color:var(--dim);margin-top:2px}
 </style></head>
 <body><div class="app">
 <nav id="nav">
@@ -111,6 +154,7 @@ nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:
 <button data-t="dash" class="on"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg>Dashboard</button>
 <button data-t="pools"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>Pools</button>
 <button data-t="tuning"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Tuning</button>
+<button data-t="swarm"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.8 7.2 6.3 15.8M13.2 7.2l4.5 8.6M7.5 18h9"/></svg>Swarm</button>
 <button data-t="display"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Display</button>
 <button data-t="clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Clock &amp; data</button>
 <button data-t="network"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M2 9a15 15 0 0120 0"/><circle cx="12" cy="19.5" r=".8"/></svg>Network</button>
@@ -159,6 +203,21 @@ nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:
 </div>
 </section>
 
+<!-- ============================== SWARM -->
+<section id="swarm">
+<div class="grid g4 mb">
+ <div class="card"><h3>Miners online</h3><div class="big" id="swon">--</div><div class="sub" id="swonsub"></div></div>
+ <div class="card"><h3>Total hashrate</h3><div class="big" id="swhr">--</div><div class="sub">all online miners</div></div>
+ <div class="card"><h3>Total power</h3><div class="big" id="swpw">--</div><div class="sub" id="swjth"></div></div>
+ <div class="card"><h3>Best difficulty</h3><div class="big" id="swbest">--</div><div class="sub" id="swbestby"></div></div>
+</div>
+<div class="card mb"><h3>Miners <span class="tag" id="swscan">updates every 15 s</span></h3>
+ <div style="overflow-x:auto"><table class="tbl" id="swt"></table></div>
+ <div class="btns" style="margin-top:14px"><input id="swip" placeholder="192.168.1.20" inputmode="decimal" style="max-width:190px">
+  <button class="btn alt" onclick="swAdd()">Add miner</button><button class="btn" onclick="swScan()">Scan network</button></div>
+ <p class="note">Works with AxeForge, AxeOS (Bitaxe) and NerdQAxe stock firmware. This miner polls the others itself, so their pages never have to be opened from here. Scanning checks every address in this miner's /24 network.</p></div>
+</section>
+
 <!-- ============================== POOLS -->
 <section id="pools">
 <div class="info"><b>About "one pool per ASIC":</b> on the NerdQaxe++ all 4 BM1370 chips share one serial chain and every job
@@ -181,7 +240,13 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <p class="note">Used directly when auto-tune is off, and as the starting point when a new search begins.</p></div>
 <div class="card"><h3>Cooling</h3><div class="row">
 <div><label>Target chip temp (°C) <span class="rv" id="ftv"></span></label><input type="range" name="fantgt" min="40" max="70" oninput="ftv.textContent=this.value"></div>
-<div><label>Minimum fan speed (%) <span class="rv" id="fmv"></span></label><input type="range" name="fanmin" min="10" max="100" oninput="fmv.textContent=this.value"></div></div></div>
+<div><label>Minimum fan speed (%) <span class="rv" id="fmv"></span></label><input type="range" name="fanmin" min="10" max="100" oninput="fmv.textContent=this.value"></div></div>
+<div class="row" style="margin-top:6px">
+<div><label>Fan 1 · ASIC header</label><div class="fanst" id="fan1st">--</div><select name="fmode0"><option value="0">Auto (follows chip temp)</option><option value="1">Manual</option></select>
+<label>Manual speed <span class="rv" id="fm0v"></span></label><input type="range" name="fman0" min="20" max="100" oninput="fm0v.textContent=this.value+'%'"></div>
+<div><label>Fan 2 · VR header</label><div class="fanst" id="fan2st">--</div><select name="fmode1"><option value="0">Auto (follows chip and VR temp)</option><option value="1">Manual</option></select>
+<label>Manual speed <span class="rv" id="fm1v"></span></label><input type="range" name="fman1" min="20" max="100" oninput="fm1v.textContent=this.value+'%'"></div></div>
+<p class="note">A header counts as connected once its fan has been seen spinning. Manual fans still go to 100% if a sensor is lost or the chips get within 3 °C of the ceiling.</p></div>
 <div class="card"><h3>Hard limits (compiled in)</h3><div class="lim" id="lims"></div></div>
 <div class="btns"><button class="btn">Save tuning</button><button type="button" class="btn alt" onclick="act('/api/retune')">Restart auto-tune search</button></div></form></section>
 
@@ -206,6 +271,8 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <form data-f><div class="card"><h3>Screen settings</h3>
 <label style="margin-top:0">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
+<label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option></select>
+<p class="note">Changing the theme reboots the miner so the screen is rebuilt with the new palette.</p>
 <label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <div class="row"><div><label>Start page</label><select name="defpage" id="defpage"></select></div>
 <div><label>Auto-rotate pages</label><select name="rotate"><option value="0">Off</option><option value="10">Every 10 s</option><option value="20">Every 20 s</option><option value="30">Every 30 s</option><option value="60">Every minute</option></select></div></div>
@@ -256,11 +323,11 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <script>
 {const f=window.fetch;window.fetch=(u,o={})=>{o.headers=Object.assign({'X-AxeForge':'1'},o.headers||{});return f(u,o)}}
 const $=id=>document.getElementById(id);
-const titles={dash:'Dashboard',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
+const titles={dash:'Dashboard',swarm:'Swarm',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
 let S={},cfg={},cur='dash';
 function tab(t){cur=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);
- if(t=='display'){shot();drawCanvas()}if(t=='system')pollLogs()}
+ if(t=='display'){shot();drawCanvas()}if(t=='system')pollLogs();if(t=='swarm')loadSwarm()}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500)}
 async function act(u,body){try{const r=await fetch(u,{method:'POST',body:body||''});const x=await r.text();toast(x);return x}catch(e){toast('Request failed')}}
@@ -303,8 +370,8 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
  $('vt').innerHTML=S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
  $('pw').innerHTML=S.power.toFixed(0)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
- $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=S.fanRpm+' / '+S.fan2Rpm+' rpm';$('fnb').style.width=S.fanPct+'%';
- chips(S.chips);blocks(S.mempool);
+ $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=fanText(S);$('fnb').style.width=S.fanPct+'%';
+ chips(S.chips);blocks(S.mempool);fanStatus();
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;tp.style.color=phaseCol[t.phase]||'var(--violet)';
  $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;
  $('tbar').style.width=(t.phase=='locked'||t.phase=='manual'?100:t.progress)+'%';
@@ -341,7 +408,33 @@ async function chart(){let h;try{h=await (await fetch('/api/history')).json()}ca
  <text x="${W-4}" y="12" fill="#9aa8bd" font-size="11" text-anchor="end">${hr(mx/1.08).join(' ')}</text>`}
 
 /* ---------------- generic settings forms */
-async function loadCfg(){cfg=await (await fetch('/api/settings')).json();
+function fanText(S){const f=(S.fans||[]).filter(x=>x.connected);
+ return f.length?f.length+(f.length>1?' fans · ':' fan · ')+f.map(x=>x.rpm).join(' / ')+' rpm':'no fan detected'}
+function fanStatus(){(S.fans||[]).forEach((f,i)=>{const e=$('fan'+(i+1)+'st');if(e)e.textContent=f.connected?`connected · ${f.rpm} rpm at ${f.speedPerc}%`:'nothing connected'})}
+function setTheme(t){const n=t==1?'paper':'';document.documentElement.dataset.theme=n;try{localStorage.setItem('af-theme',n)}catch(e){}
+ document.querySelector('meta[name=theme-color]').content=t==1?'#f3f1ea':'#070a10'}
+/* ---------------- swarm */
+let SW=null;
+async function loadSwarm(){try{SW=await (await fetch('/api/swarm')).json()}catch(e){return}
+ const M=SW.miners||[],ok=m=>m.hashrate<1e5,on=M.filter(m=>m.online);  // >100 TH/s from one small miner is a broken counter
+ const ths=on.filter(ok).reduce((a,m)=>a+m.hashrate,0),w=on.reduce((a,m)=>a+m.power,0);
+ $('swon').textContent=on.length+' / '+M.length;$('swonsub').textContent=M.length-on.length?(M.length-on.length)+' not answering':'all answering';
+ const h=hr(ths);$('swhr').innerHTML=h[0]+'<small>'+h[1]+'</small>';
+ $('swpw').innerHTML=w.toFixed(0)+'<small>W</small>';$('swjth').textContent=ths>1?(w/(ths/1000)).toFixed(1)+' J/TH':'';
+ const b=M.reduce((a,m)=>m.best>a.best?m:a,{best:0});$('swbest').textContent=b.best?sfx(b.best):'--';$('swbestby').textContent=b.best?(b.self?'this miner':b.name||b.ip):'';
+ $('swscan').textContent=SW.scanning?'scanning…':'updates every 15 s';
+ const up=s=>s>=86400?(s/86400|0)+'d '+(s/3600%24|0)+'h':(s/3600|0)+'h '+(s/60%60|0)+'m';
+ $('swt').innerHTML='<tr><th>Miner</th><th>Model</th><th class="r">Hashrate</th><th class="r">Temp</th><th class="r">Power</th><th class="r">Shares</th><th class="r">Best</th><th class="r">Uptime</th><th></th></tr>'+
+  M.map(m=>{const x=hr(m.hashrate);return `<tr class="${m.online?'':'off'}"><td><span class="dot ${m.online?'ok':''}" style="display:inline-block;margin-right:8px"></span>`+
+  (m.self?'<b>This miner</b>':`<a href="http://${esc(m.ip)}/" target="_blank" rel="noopener">${esc(m.name||m.ip)}</a>`)+`<div class="sub">${esc(m.ip)} · ${esc(m.kind)} ${esc(m.version)}</div></td>`+
+  `<td>${esc(m.model||'--')}</td><td class="r">${!m.online?'--':ok(m)?x[0]+' '+x[1]:'<span style="color:var(--red)" title="The miner reports an impossible value">invalid</span>'}</td><td class="r">${m.online?m.temp.toFixed(1)+'°C':'--'}</td><td class="r">${m.online?m.power.toFixed(0)+' W':'--'}</td>`+
+  `<td class="r">${m.accepted} / ${m.rejected}</td><td class="r">${m.best?sfx(m.best):'--'}</td><td class="r">${m.online?up(m.uptime):(m.ago>0?'seen '+up(m.ago)+' ago':'not seen since boot')}</td>`+
+  `<td class="r">${m.self?'':`<button class="btn alt sm" onclick="swDel('${esc(m.ip)}')">Remove</button>`}</td></tr>`}).join('')}
+async function swAdd(){const ip=$('swip').value.trim();if(!ip)return;await act('/api/swarm',JSON.stringify({add:ip}));$('swip').value='';setTimeout(loadSwarm,3000)}
+async function swDel(ip){await act('/api/swarm',JSON.stringify({remove:ip}));loadSwarm()}
+async function swScan(){await act('/api/swarm',JSON.stringify({scan:true}));loadSwarm()}
+setInterval(()=>{if(cur=='swarm'&&!document.hidden)loadSwarm()},5000);
+async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setTheme(cfg.theme);
  document.querySelectorAll('form[data-f] [name]').forEach(e=>{const v=cfg[e.name];if(v===undefined)return;if(e.type=='checkbox')e.checked=!!v;else e.value=v;e.dispatchEvent(new Event('input'))});
  const L=cfg.limits;document.querySelector('[name=freq]').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=L.minMv;mv.max=L.maxMv;
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[L.maxPower+' W','max power']]

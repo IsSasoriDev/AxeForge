@@ -63,7 +63,6 @@ static void monitor_task(void *)
     int fault_retries = 0;
     int sensor_bad = 0;
     int stall[2] = {0, 0};
-    bool fan_seen[2] = {false, false};
     char why[64];
 
     while (true) {
@@ -74,20 +73,40 @@ static void monitor_task(void *)
         const board::Limits &lim = board::limits();
         bool sensors_ok = g_state.temp_ok && g_state.vr_temp_ok;
 
+        // A header counts as connected once its fan has been seen spinning; an
+        // empty header reads 0 rpm and must not trip the stall check.
+        for (int i = 0; i < 2; i++) {
+            if (g_state.fan_rpm[i] >= FAN_STALL_RPM && !g_state.fan_present[i]) {
+                g_state.fan_present[i] = true;
+                ESP_LOGI(TAG, "fan %d connected (%u rpm)", i + 1, g_state.fan_rpm[i]);
+            }
+        }
+        if (g_state.uptime_s == 60) {
+            for (int i = 0; i < 2; i++)
+                if (!g_state.fan_present[i]) ESP_LOGW(TAG, "fan header %d: nothing connected (0 rpm since boot)", i + 1);
+        }
+
         if (board::is_powered()) {
             // a lost sensor reads as -1 here, which the PI treats as "full fan"
             float a = asic_pi.update(g_state.temp_ok ? g_state.chip_temp_max : -1, cfg.fan_target_c, cfg.fan_min_pct);
             float v = vr_pi.update(g_state.vr_temp_ok ? g_state.vr_temp : -1, VR_FAN_TARGET_C, cfg.fan_min_pct);
-            if (g_state.chip_temp_max >= CONFIG_AF_MAX_CHIP_TEMP - FAN_BOOST_MARGIN_C) a = 100;
-            if (g_state.vr_temp >= lim.vr_ceil_c - FAN_BOOST_MARGIN_C) v = 100;
 #if CONFIG_AF_BOARD_SUPRAHEX
             // both Hex fans blow across chips and regulator alike
-            fan::set_pct(0, v > a ? v : a);
+            float duty[2] = {v > a ? v : a, v > a ? v : a};
 #else
-            fan::set_pct(0, a);
+            float duty[2] = {a, v > a ? v : a};  // header 1: ASIC fan, header 2: VR fan
 #endif
-            fan::set_pct(1, v > a ? v : a);
-            g_state.fan_pct = (uint8_t) a;
+            // manual headers hold their duty, except when the miner needs the air:
+            // lost sensors and the last few degrees before a ceiling always mean 100 %
+            for (int i = 0; i < 2; i++)
+                if (cfg.fan_mode[i] == 1) duty[i] = sensors_ok ? cfg.fan_manual[i] : 100;
+            if (g_state.chip_temp_max >= CONFIG_AF_MAX_CHIP_TEMP - FAN_BOOST_MARGIN_C) duty[0] = duty[1] = 100;
+            if (g_state.vr_temp >= lim.vr_ceil_c - FAN_BOOST_MARGIN_C) duty[1] = 100;
+            for (int i = 0; i < 2; i++) {
+                fan::set_pct(i, duty[i]);
+                g_state.fan_duty[i] = (uint8_t) duty[i];
+            }
+            g_state.fan_pct = (uint8_t) duty[0];
 
             // ---- hard limits: these cut power, no questions asked ----
             if (g_state.chip_stall) {
@@ -99,24 +118,11 @@ static void monitor_task(void *)
             fan::check();  // re-applies the fan setup if the controller lost it
             // With one temperature sensor, a dead fan over the far chips would only
             // show up once they were already too hot.
-#if CONFIG_AF_BOARD_SUPRAHEX
-            const float duty[2] = {v > a ? v : a, v > a ? v : a};
-#else
-            const float duty[2] = {a, v > a ? v : a};
-#endif
             int stalled = -1;
             for (int i = 0; i < 2; i++) {
-                if (g_state.fan_rpm[i] >= FAN_STALL_RPM && !fan_seen[i]) {
-                    fan_seen[i] = true;
-                    ESP_LOGI(TAG, "fan %d spinning (%u rpm)", i + 1, g_state.fan_rpm[i]);
-                }
-                bool slow = fan_seen[i] && duty[i] >= FAN_STALL_MIN_DUTY && g_state.fan_rpm[i] < FAN_STALL_RPM;
+                bool slow = g_state.fan_present[i] && duty[i] >= FAN_STALL_MIN_DUTY && g_state.fan_rpm[i] < FAN_STALL_RPM;
                 stall[i] = slow ? stall[i] + 1 : 0;
                 if (stall[i] >= FAN_STALL_S) stalled = i;
-            }
-            if (g_state.uptime_s == 60) {
-                for (int i = 0; i < 2; i++)
-                    if (!fan_seen[i]) ESP_LOGW(TAG, "fan %d not detected (0 rpm since boot); stall check off for it", i + 1);
             }
             if (stalled >= 0) {
                 snprintf(why, sizeof(why), "Fan %d stalled (%u rpm at %.0f%%)", stalled + 1, g_state.fan_rpm[stalled],

@@ -202,6 +202,11 @@ void load()
     get_u16(h, "tmv", s.tuned_mv);
     get_u8(h, "fantgt", s.fan_target_c);
     get_u8(h, "fanmin", s.fan_min_pct);
+    get_u8(h, "fmode0", s.fan_mode[0]);
+    get_u8(h, "fmode1", s.fan_mode[1]);
+    get_u8(h, "fman0", s.fan_manual[0]);
+    get_u8(h, "fman1", s.fan_manual[1]);
+    get_u8(h, "theme", s.theme);
     get_u8(h, "bright", s.brightness);
     get_u8(h, "disptype", s.display_type);
     get_str(h, "pages", s.pages, sizeof(s.pages));
@@ -239,6 +244,11 @@ void save()
     nvs_set_u16(h, "tmv", s.tuned_mv);
     nvs_set_u8(h, "fantgt", s.fan_target_c);
     nvs_set_u8(h, "fanmin", s.fan_min_pct);
+    nvs_set_u8(h, "fmode0", s.fan_mode[0]);
+    nvs_set_u8(h, "fmode1", s.fan_mode[1]);
+    nvs_set_u8(h, "fman0", s.fan_manual[0]);
+    nvs_set_u8(h, "fman1", s.fan_manual[1]);
+    nvs_set_u8(h, "theme", s.theme);
     nvs_set_u8(h, "bright", s.brightness);
     nvs_set_u8(h, "disptype", s.display_type);
     nvs_set_str(h, "pages", s.pages);

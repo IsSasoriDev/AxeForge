@@ -24,6 +24,8 @@
 #include "mining/work.h"
 #include "net/mempool.h"
 #include "net/weather.h"
+#include "net/swarm.h"
+#include "net/wifi.h"
 #include "stratum/pools.h"
 #include "ui/layout_store.h"
 #include "ui/ui.h"
@@ -69,6 +71,8 @@ static char *recv_body(httpd_req_t *req, size_t max)
 static esp_err_t index_get(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "text/html");
+    // revalidate on every load, so a firmware update never leaves an old UI cached
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
     return httpd_resp_send(req, index_html_start, index_html_end - index_html_start - 1);
 }
 
@@ -138,6 +142,26 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "fanPct", s.fan_pct);
     cJSON_AddNumberToObject(r, "fanRpm", s.fan_rpm[0]);
     cJSON_AddNumberToObject(r, "fan2Rpm", s.fan_rpm[1]);
+    {
+        // same shape as the AxeOS / NerdQAxe "fans" list, so swarm tools can read it
+        const Settings &c = settings::get();
+        cJSON *fans = cJSON_AddArrayToObject(r, "fans");
+        int count = 0;
+        for (int i = 0; i < 2; i++) {
+            cJSON *f = cJSON_CreateObject();
+            char label[12];
+            snprintf(label, sizeof(label), "Fan %d", i + 1);
+            cJSON_AddStringToObject(f, "label", label);
+            cJSON_AddBoolToObject(f, "connected", s.fan_present[i]);
+            cJSON_AddNumberToObject(f, "rpm", s.fan_rpm[i]);
+            cJSON_AddNumberToObject(f, "speedPerc", s.fan_duty[i]);
+            cJSON_AddNumberToObject(f, "mode", c.fan_mode[i]);
+            cJSON_AddNumberToObject(f, "manualSpeed", c.fan_manual[i]);
+            cJSON_AddItemToArray(fans, f);
+            count += s.fan_present[i];
+        }
+        cJSON_AddNumberToObject(r, "fanCount", count);
+    }
     cJSON_AddNumberToObject(r, "uptime", s.uptime_s);
     cJSON_AddStringToObject(r, "resetReason", s.reset_reason);
     cJSON_AddStringToObject(r, "restartedBy", web::previous_restart());
@@ -291,6 +315,11 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "mv", c.core_mv);
     cJSON_AddNumberToObject(r, "fantgt", c.fan_target_c);
     cJSON_AddNumberToObject(r, "fanmin", c.fan_min_pct);
+    cJSON_AddNumberToObject(r, "fmode0", c.fan_mode[0]);
+    cJSON_AddNumberToObject(r, "fmode1", c.fan_mode[1]);
+    cJSON_AddNumberToObject(r, "fman0", c.fan_manual[0]);
+    cJSON_AddNumberToObject(r, "fman1", c.fan_manual[1]);
+    cJSON_AddNumberToObject(r, "theme", c.theme);
     cJSON_AddNumberToObject(r, "bright", c.brightness);
     cJSON_AddNumberToObject(r, "defpage", c.default_page);
     cJSON_AddNumberToObject(r, "rotate", c.page_rotate_s);
@@ -399,6 +428,15 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.core_mv = board::clamp_mv(get_int(j, "mv", c.core_mv, 0, 2000));
     c.fan_target_c = (uint8_t) get_int(j, "fantgt", c.fan_target_c, 40, 70);
     c.fan_min_pct = (uint8_t) get_int(j, "fanmin", c.fan_min_pct, 10, 100);
+    c.fan_mode[0] = (uint8_t) get_int(j, "fmode0", c.fan_mode[0], 0, 1);
+    c.fan_mode[1] = (uint8_t) get_int(j, "fmode1", c.fan_mode[1], 0, 1);
+    c.fan_manual[0] = (uint8_t) get_int(j, "fman0", c.fan_manual[0], 20, 100);
+    c.fan_manual[1] = (uint8_t) get_int(j, "fman1", c.fan_manual[1], 20, 100);
+    uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 1);
+    if (theme != c.theme) {
+        c.theme = theme;
+        reboot = true;  // the screen UI is built with the theme's palette
+    }
 
     // display: applied immediately
     c.brightness = (uint8_t) get_int(j, "bright", c.brightness, 5, 100);
@@ -610,6 +648,50 @@ static esp_err_t page_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, out);
 }
 
+// ------------------------------------------------------------------ swarm
+static esp_err_t swarm_get(httpd_req_t *req)
+{
+    char *out = swarm::to_json();
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    httpd_resp_sendstr(req, out ? out : "{}");
+    free(out);
+    return ESP_OK;
+}
+
+// {"add":"192.168.1.20"} | {"remove":"192.168.1.20"} | {"scan":true}
+static esp_err_t swarm_post(httpd_req_t *req)
+{
+    char *body = recv_body(req, 256);
+    cJSON *j = body ? cJSON_Parse(body) : nullptr;
+    free(body);
+    if (!j) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
+    const char *msg = "Nothing to do.";
+    cJSON *v;
+    if (cJSON_IsString(v = cJSON_GetObjectItem(j, "add")))
+        msg = swarm::add(v->valuestring) ? "Miner added." : "Not added: invalid address, duplicate or list full.";
+    else if (cJSON_IsString(v = cJSON_GetObjectItem(j, "remove")))
+        msg = swarm::remove(v->valuestring) ? "Miner removed." : "Not in the list.";
+    else if (cJSON_IsTrue(cJSON_GetObjectItem(j, "scan"))) {
+        swarm::request_scan();
+        msg = "Scanning the network, this takes about 20 seconds.";
+    }
+    cJSON_Delete(j);
+    return httpd_resp_sendstr(req, msg);
+}
+
+// Captive portal: in setup mode every unknown page (the OS connectivity checks
+// like /generate_204 or /hotspot-detect.html) is sent to the setup page.
+static esp_err_t not_found(httpd_req_t *req, httpd_err_code_t)
+{
+    if (wifi::in_setup_mode() && strncmp(req->uri, "/api/", 5) != 0) {
+        httpd_resp_set_status(req, "302 Found");
+        httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
+        return httpd_resp_send(req, NULL, 0);
+    }
+    return httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not found");
+}
+
 // ------------------------------------------------------------------ layout
 static esp_err_t layout_get(httpd_req_t *req)
 {
@@ -754,6 +836,8 @@ void start()
         {"/api/page", HTTP_POST, page_post, NULL},
         {"/api/layout", HTTP_GET, layout_get, NULL},
         {"/api/layout", HTTP_POST, layout_post, NULL},
+        {"/api/swarm", HTTP_GET, swarm_get, NULL},
+        {"/api/swarm", HTTP_POST, swarm_post, NULL},
     };
     for (auto u : uris) {
         if (strncmp(u.uri, "/api/", 5) == 0) {
@@ -762,6 +846,7 @@ void start()
         }
         httpd_register_uri_handler(h, &u);
     }
+    httpd_register_err_handler(h, HTTPD_404_NOT_FOUND, not_found);
 }
 
 } // namespace web

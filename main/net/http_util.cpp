@@ -10,12 +10,12 @@ static const char *TAG = "http";
 
 namespace http {
 
-char *get(const char *url, size_t max_len)
+char *get(const char *url, size_t max_len, int timeout_ms, bool quiet)
 {
     esp_http_client_config_t cfg = {};
     cfg.url = url;
     cfg.crt_bundle_attach = esp_crt_bundle_attach;
-    cfg.timeout_ms = 8000;
+    cfg.timeout_ms = timeout_ms;
     cfg.buffer_size = 2048;
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "Accept-Encoding", "identity");
@@ -32,10 +32,10 @@ char *get(const char *url, size_t max_len)
                 total += n;
             if (buf) buf[total] = 0;
         } else {
-            ESP_LOGW(TAG, "HTTP %d for %s", status, url);
+            if (!quiet) ESP_LOGW(TAG, "HTTP %d for %s", status, url);
         }
     } else {
-        ESP_LOGW(TAG, "request failed: %s", url);
+        if (!quiet) ESP_LOGW(TAG, "request failed: %s", url);
     }
     esp_http_client_cleanup(c);
     return buf;

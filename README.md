@@ -51,7 +51,9 @@ New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev5.1 an
   - A chip that falls far below the others (or reports nonsense) for 15 s cuts power (`Chip N stopped hashing`). On boards whose chips sit in series voltage domains, a chip that stops drawing current lets its domain's voltage climb.
   - Automatic recoveries (fault retries, overheat cool-down) re-detect the chips at the right baud rate.
   - The monitor that handles all of this runs on its own task, separate from the tuner.
-- **Fans:** a PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops. Within 3 °C of a tuner ceiling the fans go to 100 % regardless of the target, and both fan speeds are shown.
+- **Swarm:** one page with every miner on your network (AxeForge, AxeOS/Bitaxe, NerdQAxe stock firmware): hashrate, temperature, power, shares, best difficulty and uptime, plus totals. *Scan network* finds them; you can also add an address by hand. This miner polls the others itself, so the API protection stays strict and no CORS is needed.
+- **Themes:** *Forge* (dark neon) or *Paper* (minimal, e-ink style: ink on paper, hairline rules, no glow). One setting changes both the screen and the web UI.
+- **Fans:** both NerdQaxe++ fan headers are detected; a header counts as connected once its fan has been seen spinning. Each fan can run on *Auto* or a fixed *Manual* speed. A PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops. Within 3 °C of a tuner ceiling the fans go to 100 % regardless of the target, and both fan speeds are shown.
 
 ## Screen
 
@@ -146,7 +148,7 @@ Both reset the OTA boot marker, so the miner boots the version you just wrote.
 Later updates don't need USB: upload `axeforge.bin` under **System → Firmware update**. That keeps your settings.
 
 Coming from the stock firmware, or after a clean install, on first boot:
-1. Join the `AxeForge-XXXX` Wi-Fi network (or scan the QR code on the screen).
+1. Join the `AxeForge-XXXX` Wi-Fi network (or scan the QR code on the screen). Phones and laptops open the setup page by themselves (captive portal).
 2. Open http://192.168.4.1.
 3. Enter your Wi-Fi, pool and worker (BTC address), then save.
 

@@ -5,6 +5,7 @@
 #include <time.h>
 #include "esp_app_desc.h"
 #include "lvgl.h"
+#include "ui/theme.h"  // after lvgl.h: routes colours through the active theme
 #include "sdkconfig.h"
 
 #include "core/board.h"
@@ -23,6 +24,9 @@
 #define C_BG lv_color_hex(0x070a10)
 #define C_PANEL lv_color_hex(0x0f1520)
 #define C_BORDER lv_color_hex(0x1c2635)
+// empty part of bars, arcs, chart grid and page dots: same shade as C_BORDER in
+// Forge, but its own colour so other themes can lighten tracks and keep borders
+#define C_TRACK lv_color_hex(0x1c2636)
 #define C_TEXT lv_color_hex(0xe6edf6)
 #define C_DIM lv_color_hex(0x9aa8bd)
 #define C_CYAN lv_color_hex(0x00e5ff)
@@ -113,7 +117,7 @@ static lv_obj_t *bar(lv_obj_t *p, int w, lv_color_t c)
 {
     lv_obj_t *b = lv_bar_create(p);
     lv_obj_set_size(b, w, 3);
-    lv_obj_set_style_bg_color(b, C_BORDER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(b, C_TRACK, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(b, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_color(b, c, LV_PART_INDICATOR);
     lv_bar_set_range(b, 0, 100);
@@ -183,7 +187,7 @@ static void build_dash(lv_obj_t *p)
     lv_obj_remove_style(s_arc, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(s_arc, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_arc_width(s_arc, 10, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(s_arc, C_BORDER, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(s_arc, C_TRACK, LV_PART_MAIN);
     lv_obj_set_style_arc_width(s_arc, 10, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(s_arc, C_CYAN, LV_PART_INDICATOR);
     s_hash = label(p, &lv_font_montserrat_28, C_TEXT, "--");
@@ -276,7 +280,7 @@ static void build_chips(lv_obj_t *p)
 
 static void build_system(lv_obj_t *p)
 {
-    s_qr = lv_qrcode_create(p, 116, lv_color_hex(0x000000), lv_color_hex(0xffffff));
+    s_qr = lv_qrcode_create(p, 116, lv_color_black(), lv_color_white());
     lv_obj_set_pos(s_qr, 8, 8);
     lv_obj_set_style_border_color(s_qr, lv_color_hex(0xffffff), 0);
     lv_obj_set_style_border_width(s_qr, 4, 0);
@@ -323,7 +327,7 @@ static void show_page(int idx)
     for (int k = 0; k < NUM_KINDS; k++) lv_obj_add_flag(s_pages[k], LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(s_pages[s_order[s_page]], LV_OBJ_FLAG_HIDDEN);
     for (int i = 0; i < s_order_n; i++) {
-        lv_obj_set_style_bg_color(s_dots[i], i == s_page ? C_CYAN : C_BORDER, 0);
+        lv_obj_set_style_bg_color(s_dots[i], i == s_page ? C_CYAN : C_TRACK, 0);
         lv_obj_set_width(s_dots[i], i == s_page ? 12 : 4);
     }
 }
@@ -590,7 +594,7 @@ void build()
     build_pool(s_pages[K_POOL]);
     build_chips(s_pages[K_CHIPS]);
     build_system(s_pages[K_SYSTEM]);
-    for (int i = 0; i < NUM_KINDS; i++) s_dots[i] = box(scr, 0, H - 6, 4, 4, C_BORDER, 2);
+    for (int i = 0; i < NUM_KINDS; i++) s_dots[i] = box(scr, 0, H - 6, 4, 4, C_TRACK, 2);
 
     s_banner = box(scr, 0, HDR, W, 22, C_RED, 0);
     lv_obj_set_style_bg_opa(s_banner, LV_OPA_90, 0);

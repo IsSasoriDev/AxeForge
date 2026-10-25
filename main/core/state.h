@@ -149,6 +149,8 @@ struct MinerState {
     uint8_t chip_stall = 0;   // 1-based chip that stopped hashing; the monitor acts on it
     uint16_t fan_rpm[2] = {};
     uint8_t fan_pct = 0;
+    uint8_t fan_duty[2] = {};
+    bool fan_present[2] = {};  // seen spinning since boot (an empty header reads 0 rpm)
 
     // Pool
     bool pool_connected = false;

@@ -34,6 +34,10 @@ struct Settings {
 
     uint8_t fan_target_c = 60;   // PID target for hottest chip
     uint8_t fan_min_pct = 30;
+    // per fan header: 0 = auto (temperature loop), 1 = manual duty
+    uint8_t fan_mode[2] = {0, 0};
+    uint8_t fan_manual[2] = {60, 60};
+    uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (minimal, e-ink style)
     uint8_t brightness = 100;
 
     // display

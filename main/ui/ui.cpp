@@ -6,6 +6,7 @@
 #include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "lvgl.h"
+#include "ui/theme.h"  // after lvgl.h: routes colours through the active theme
 #include "sdkconfig.h"
 
 #include "core/board.h"
@@ -24,6 +25,9 @@
 #define C_BG lv_color_hex(0x070a10)
 #define C_PANEL lv_color_hex(0x0f1520)
 #define C_BORDER lv_color_hex(0x1c2635)
+// empty part of bars, arcs, chart grid and page dots: same shade as C_BORDER in
+// Forge, but its own colour so other themes can lighten tracks and keep borders
+#define C_TRACK lv_color_hex(0x1c2636)
 #define C_TEXT lv_color_hex(0xe6edf6)
 #define C_DIM lv_color_hex(0x9aa8bd)
 #define C_CYAN lv_color_hex(0x00e5ff)
@@ -164,7 +168,7 @@ static lv_obj_t *thin_bar(lv_obj_t *parent, lv_color_t color)
 {
     lv_obj_t *b = lv_bar_create(parent);
     lv_obj_set_height(b, 4);
-    lv_obj_set_style_bg_color(b, C_BORDER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(b, C_TRACK, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(b, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_color(b, color, LV_PART_INDICATOR);
     lv_obj_set_style_radius(b, 2, LV_PART_MAIN);
@@ -274,7 +278,7 @@ static void build_dashboard(lv_obj_t *p)
     lv_obj_remove_style(s_arc_hash, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(s_arc_hash, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_arc_width(s_arc_hash, 14, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(s_arc_hash, C_BORDER, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(s_arc_hash, C_TRACK, LV_PART_MAIN);
     lv_obj_set_style_arc_width(s_arc_hash, 14, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(s_arc_hash, C_CYAN, LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(s_arc_hash, true, LV_PART_INDICATOR);
@@ -287,7 +291,7 @@ static void build_dashboard(lv_obj_t *p)
     lv_obj_remove_style(s_arc_eff, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(s_arc_eff, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_arc_width(s_arc_eff, 4, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(s_arc_eff, C_BORDER, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(s_arc_eff, C_TRACK, LV_PART_MAIN);
     lv_obj_set_style_arc_width(s_arc_eff, 4, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(s_arc_eff, C_MAGENTA, LV_PART_INDICATOR);
 
@@ -336,7 +340,7 @@ static void build_dashboard(lv_obj_t *p)
     lv_obj_set_style_bg_opa(s_chart, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(s_chart, 0, 0);
     lv_obj_set_style_pad_all(s_chart, 0, 0);
-    lv_obj_set_style_line_color(s_chart, C_BORDER, LV_PART_MAIN);
+    lv_obj_set_style_line_color(s_chart, C_TRACK, LV_PART_MAIN);
     lv_chart_set_div_line_count(s_chart, 3, 0);
     lv_chart_set_type(s_chart, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(s_chart, AF_HISTORY_LEN);
@@ -566,9 +570,9 @@ static void build_chips(lv_obj_t *p)
 static void build_system(lv_obj_t *p)
 {
     lv_obj_t *pn = panel(p, 6, 4, LCD_H_RES - 12, 266);
-    s_qr = lv_qrcode_create(pn, 150, lv_color_hex(0x000000), lv_color_hex(0xffffff));
+    s_qr = lv_qrcode_create(pn, 150, lv_color_black(), lv_color_white());
     lv_obj_align(s_qr, LV_ALIGN_LEFT_MID, 14, 0);
-    lv_obj_set_style_border_color(s_qr, lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_border_color(s_qr, lv_color_white(), 0);
     lv_obj_set_style_border_width(s_qr, 6, 0);
     s_sys_title = label(pn, &lv_font_montserrat_20, C_CYAN, "");
     lv_obj_set_pos(s_sys_title, 186, 18);
@@ -617,7 +621,7 @@ static void show_page(int idx)
     for (int k = 0; k < NUM_KINDS; k++) lv_obj_add_flag(s_pages[k], LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(s_pages[s_order[s_page]], LV_OBJ_FLAG_HIDDEN);
     for (int i = 0; i < s_order_n; i++) {
-        lv_obj_set_style_bg_color(s_dots[i], i == s_page ? C_CYAN : C_BORDER, 0);
+        lv_obj_set_style_bg_color(s_dots[i], i == s_page ? C_CYAN : C_TRACK, 0);
         lv_obj_set_width(s_dots[i], i == s_page ? 18 : 6);
     }
 }
@@ -709,7 +713,7 @@ static void refresh_dashboard()
     lv_label_set_text_fmt(s_t_chip.val, "%.0f\xC2\xB0", s.chip_temp_max);
     lv_obj_set_style_text_color(s_t_chip.val, temp_color(s.chip_temp_max, CONFIG_AF_MAX_CHIP_TEMP - 6, CONFIG_AF_MAX_CHIP_TEMP), 0);
     lv_bar_set_value(s_t_chip.bar, (int) (100 * s.chip_temp_max / CONFIG_AF_CRIT_CHIP_TEMP), LV_ANIM_ON);
-    lv_label_set_text_fmt(s_t_chip.sub, "<%dÂ°", CONFIG_AF_MAX_CHIP_TEMP);
+    lv_label_set_text_fmt(s_t_chip.sub, "<%d°", CONFIG_AF_MAX_CHIP_TEMP);
 
     lv_label_set_text_fmt(s_t_vr.val, "%.0f\xC2\xB0", s.vr_temp);
     lv_obj_set_style_text_color(s_t_vr.val, temp_color(s.vr_temp, board::limits().vr_ceil_c - 10, board::limits().vr_ceil_c), 0);
@@ -722,7 +726,8 @@ static void refresh_dashboard()
     lv_bar_set_value(s_t_pwr.bar, (int) (100 * s.pin / board::limits().max_power_w), LV_ANIM_ON);
 
     lv_label_set_text_fmt(s_t_fan.val, "%u%%", s.fan_pct);
-    lv_label_set_text_fmt(s_t_fan.sub, "%u / %u rpm", s.fan_rpm[0], s.fan_rpm[1]);
+    if (s.fan_present[0] && s.fan_present[1]) lv_label_set_text(s_t_fan.sub, "2 fans");
+    else lv_label_set_text_fmt(s_t_fan.sub, "%u rpm", s.fan_present[1] ? s.fan_rpm[1] : s.fan_rpm[0]);
     lv_bar_set_value(s_t_fan.bar, s.fan_pct, LV_ANIM_ON);
 
     const TunerState &t = s.tuner;

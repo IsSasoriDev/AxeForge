@@ -1,28 +1,19 @@
-## AxeForge v1.2.0
+## AxeForge v1.3.0
 
-### Install from the browser
-- New **web flasher**: https://issasoridev.github.io/AxeForge/ — Chrome or Edge, USB cable, no tools. It keeps your Wi-Fi and pool settings unless you tick *Erase*.
+### New
+- **Swarm:** see every miner on your network in one place — AxeForge, AxeOS (Bitaxe) and NerdQAxe stock firmware. *Scan network* finds them; totals for hashrate, power and best difficulty. Readings no single small miner could produce are flagged as invalid and left out of the totals.
+- **Themes:** *Forge* (dark neon) and the new *Paper* — a minimal, e-ink style for both the screen and the web UI (*Display → Theme*).
+- **Captive portal:** joining the `AxeForge-XXXX` setup Wi-Fi opens the setup page automatically.
+- **Fans:** both NerdQaxe++ fan headers are detected (`fanCount` and a `fans` list in `/api/status`, same shape as AxeOS). Each fan can be *Auto* or *Manual*; manual fans still go to 100 % if a sensor is lost or the chips near the ceiling.
 
-### Boards
-- **NerdQaxe++ rev5.1** is listed as supported. It uses the same TPS53647 regulator and code path as rev6, and the web UI now shows `rev5.1/6 (TPS53647)`.
-
-### Safety
-- **Chip stall guard:** a chip that falls far below the others for 15 s cuts power (`Chip N stopped hashing`).
-- **Fan stall detection** (@cbyam): a fan that was spinning and drops under 300 rpm cuts power. Within 3 °C of a tuner ceiling the fans go to 100 %.
-- **Fixed: automatic recoveries found no chips** (@cbyam). After a fault or overheat the chips came back at 115200 baud while the ESP32 stayed at 1 Mbaud, so every retry failed.
-- The fan controller is re-initialised if a supply glitch resets it.
-
-### Mining and pools
-- **Stratum V2:** each frame goes out in one write, and `TCP_NODELAY` is set on pool sockets (@cbyam). Share response went from about 53 ms to 7 ms in testing.
-- Results the chain reports twice are dropped instead of being submitted as duplicates (@cbyam). Counted as `dupResults` in `/api/status`.
-
-### Web UI and logs
-- Every change made through the API is logged with the client's address, and a requested restart is remembered across the reboot (`restartedBy` in `/api/status`) (@cbyam).
-- Easier-to-read secondary text on the screen and in the web UI (@cbyam). Both fan speeds are shown.
+### Fixes
+- The web UI no longer scrolls sideways when a table or card is wider than the window.
+- After a firmware update the browser always loads the new web UI instead of a cached old one.
+- The chip temperature tile showed a broken `°` sign.
 
 ### Files
-- **Web flasher** — the easiest way to install or update over USB.
-- **axeforge.bin** — update an AxeForge miner from the web UI (*System → Firmware update*). Keeps your settings.
-- **axeforge-factory.bin** — full image for `esptool.py write_flash 0x0 axeforge-factory.bin`. This is a clean install: it **resets all settings**.
+- **Web flasher** — https://issasoridev.github.io/AxeForge/ — keeps your settings unless you tick *Erase*.
+- **axeforge.bin** — update from the web UI (*System → Firmware update*). Keeps your settings.
+- **axeforge-factory.bin** — full image for `esptool.py write_flash 0x0`; a clean install that **resets all settings**.
 
 Supports the NerdQaxe++ (rev5.1, rev6 and rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.

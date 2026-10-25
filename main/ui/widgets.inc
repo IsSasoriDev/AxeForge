@@ -100,7 +100,7 @@ static void build_widget(lv_obj_t *page, Widget &w, const char *type, int gx, in
         lv_obj_clear_flag(w.aux, LV_OBJ_FLAG_CLICKABLE);
         int aw = d / 12 + 2;
         lv_obj_set_style_arc_width(w.aux, aw, LV_PART_MAIN);
-        lv_obj_set_style_arc_color(w.aux, C_BORDER, LV_PART_MAIN);
+        lv_obj_set_style_arc_color(w.aux, C_TRACK, LV_PART_MAIN);
         lv_obj_set_style_arc_width(w.aux, aw, LV_PART_INDICATOR);
         lv_obj_set_style_arc_color(w.aux, C_CYAN, LV_PART_INDICATOR);
         w.val = label(w.box, d > 140 ? &lv_font_montserrat_48 : d > 90 ? &lv_font_montserrat_28 : &lv_font_montserrat_20, C_TEXT, "--");
@@ -116,7 +116,7 @@ static void build_widget(lv_obj_t *page, Widget &w, const char *type, int gx, in
         lv_obj_set_style_bg_opa(w.aux, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(w.aux, 0, 0);
         lv_obj_set_style_pad_all(w.aux, 0, 0);
-        lv_obj_set_style_line_color(w.aux, C_BORDER, LV_PART_MAIN);
+        lv_obj_set_style_line_color(w.aux, C_TRACK, LV_PART_MAIN);
         lv_chart_set_div_line_count(w.aux, 3, 0);
         lv_chart_set_point_count(w.aux, AF_HISTORY_LEN);
         lv_obj_set_style_size(w.aux, 0, LV_PART_INDICATOR);
@@ -306,7 +306,8 @@ static void refresh_widget(Widget &w)
         break;
     case WType::Fan:
         snprintf(v, sizeof(v), "%u%%", s.fan_pct);
-        snprintf(sub, sizeof(sub), "%u / %u rpm", s.fan_rpm[0], s.fan_rpm[1]);
+        if (s.fan_present[0] && s.fan_present[1]) snprintf(sub, sizeof(sub), "2 fans %u/%u", s.fan_rpm[0], s.fan_rpm[1]);
+        else snprintf(sub, sizeof(sub), "%u rpm", s.fan_present[1] ? s.fan_rpm[1] : s.fan_rpm[0]);
         set_stat(w, v, sub);
         break;
     case WType::Chips: {

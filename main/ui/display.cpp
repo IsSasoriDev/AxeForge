@@ -13,6 +13,9 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lvgl.h"
+#define THEME_IMPL
+#include "ui/theme.h"
+#undef THEME_IMPL
 #include "sdkconfig.h"
 
 #if CONFIG_AF_LCD_ST7796
@@ -216,7 +219,7 @@ static void lvgl_init()
     s_disp_drv.ver_res = s_h;
     s_disp_drv.flush_cb = flush_cb;
     s_disp_drv.draw_buf = &s_draw_buf;
-    lv_disp_drv_register(&s_disp_drv);
+    theme::apply_lvgl_theme(lv_disp_drv_register(&s_disp_drv));
 
     esp_timer_create_args_t ta = {};
     ta.callback = tick_cb;

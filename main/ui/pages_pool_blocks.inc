@@ -45,6 +45,10 @@ static void build_pool(lv_obj_t *p)
         lv_label_set_long_mode(c.host, LV_LABEL_LONG_DOT);
         lv_obj_set_pos(c.host, 24, 6);
         c.badge = blob(c.box, cw - 50, 6, 40, 16, C_BORDER, 8);
+        if (theme::paper()) {  // outlined tag instead of a filled pill
+            lv_obj_set_style_border_width(c.badge, 1, 0);
+            lv_obj_set_style_border_color(c.badge, C_TEXT, 0);
+        }
         c.badge_lbl = label(c.badge, &lv_font_montserrat_12, C_TEXT, "");
         lv_obj_center(c.badge_lbl);
         c.main = lv_label_create(c.box);
@@ -103,7 +107,7 @@ static void refresh_pool()
         lv_obj_clear_flag(c.badge, LV_OBJ_FLAG_HIDDEN);
         lv_label_set_text(c.host, ps.host);
         lv_label_set_text(c.badge_lbl, proto[ps.proto < 3 ? ps.proto : 0]);
-        lv_obj_set_style_bg_color(c.badge, pcol[ps.proto < 3 ? ps.proto : 0], 0);
+        lv_obj_set_style_bg_color(c.badge, theme::paper() ? C_PANEL : pcol[ps.proto < 3 ? ps.proto : 0], 0);
         char hv[16];
         const char *hu;
         fmt_hash(ps.ghs, hv, sizeof(hv), &hu);
@@ -144,17 +148,29 @@ static Cube make_cube(lv_obj_t *p, int x, int y, int sz)
     c.back = blob(p, x + 6, y + 16, sz, sz, C_BORDER, 6);  // depth layer for a 3D look
     c.face = blob(p, x, y + 22, sz, sz, C_PANEL, 6);
     lv_obj_set_style_bg_grad_dir(c.face, LV_GRAD_DIR_VER, 0);
-    c.l1 = label(c.face, &lv_font_montserrat_14, lv_color_hex(0xffffff), "");
+    // Paper draws the cubes as outlined boxes with ink text instead of fee-coloured blocks
+    const lv_color_t txt = theme::paper() ? C_TEXT : lv_color_hex(0xffffff);
+    if (theme::paper()) {
+        lv_obj_set_style_border_width(c.face, 1, 0);
+        lv_obj_set_style_border_color(c.face, C_TEXT, 0);
+    }
+    c.l1 = label(c.face, &lv_font_montserrat_14, txt, "");
     lv_obj_align(c.l1, LV_ALIGN_TOP_MID, 0, 8);
-    c.l2 = label(c.face, &lv_font_montserrat_12, lv_color_hex(0xffffff), "");
+    c.l2 = label(c.face, &lv_font_montserrat_12, txt, "");
     lv_obj_align(c.l2, LV_ALIGN_TOP_MID, 0, 28);
-    c.l3 = label(c.face, &lv_font_montserrat_12, lv_color_hex(0xffffff), "");
+    c.l3 = label(c.face, &lv_font_montserrat_12, txt, "");
     lv_obj_align(c.l3, LV_ALIGN_BOTTOM_MID, 0, -8);
     return c;
 }
 
 static void paint_cube(Cube &c, lv_color_t col)
 {
+    if (theme::paper()) {
+        lv_obj_set_style_bg_color(c.face, C_PANEL, 0);
+        lv_obj_set_style_bg_grad_color(c.face, C_PANEL, 0);
+        lv_obj_set_style_bg_color(c.back, C_TRACK, 0);
+        return;
+    }
     lv_obj_set_style_bg_color(c.face, col, 0);
     lv_obj_set_style_bg_grad_color(c.face, lv_color_darken(col, LV_OPA_40), 0);
     lv_obj_set_style_bg_color(c.back, lv_color_darken(col, LV_OPA_70), 0);

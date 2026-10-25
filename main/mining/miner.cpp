@@ -206,6 +206,26 @@ static void on_counter(int chip, uint32_t cnt, bool is_error)
     portEXIT_CRITICAL(&s_win_mux);
 }
 
+// The chain occasionally reports the same nonce twice (a repeated UART frame, for
+// one). Submitting both gets the second rejected as a duplicate, so remember the
+// last few results and drop exact repeats.
+#define RECENT_RESULTS 32
+struct RecentResult {
+    uint8_t slot;
+    uint32_t nonce, version;
+};
+
+static bool seen_before(uint8_t slot, uint32_t nonce, uint32_t version)
+{
+    static RecentResult recent[RECENT_RESULTS];
+    static int next = 0;
+    for (const RecentResult &x : recent)
+        if (x.slot == slot && x.nonce == nonce && x.version == version) return true;
+    recent[next] = {slot, nonce, version};
+    next = (next + 1) % RECENT_RESULTS;
+    return false;
+}
+
 static void result_task(void *)
 {
     AsicResult r;
@@ -230,6 +250,12 @@ static void result_task(void *)
         if (!w.valid) continue;
 
         uint32_t version = w.version | r.version_bits;
+        if (seen_before(r.job_slot, r.nonce, version)) {
+            g_state.dup_results++;
+            ESP_LOGW(TAG, "chip %d repeated nonce %08lx (job slot %u), dropped (%lu so far)", r.chip,
+                     (unsigned long) r.nonce, r.job_slot, (unsigned long) g_state.dup_results);
+            continue;
+        }
         double diff = work::nonce_difficulty(w, r.nonce, version, hash);
         g_state.hashes_checked++;
         if (diff > g_state.session_best) g_state.session_best = diff;

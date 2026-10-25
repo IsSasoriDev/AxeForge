@@ -179,6 +179,7 @@ struct MinerState {
     char last_hash[65] = "";      // most recent share hash, display order
     double last_hash_diff = 0;
     uint32_t hashes_checked = 0;  // nonces verified on the ESP32
+    uint32_t dup_results = 0;     // results the chips reported twice (dropped, never submitted)
 };
 
 extern MinerState g_state;

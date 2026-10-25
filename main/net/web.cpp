@@ -190,6 +190,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddStringToObject(r, "lastHash", s.last_hash);
     cJSON_AddNumberToObject(r, "lastHashDiff", s.last_hash_diff);
     cJSON_AddNumberToObject(r, "hashesChecked", s.hashes_checked);
+    cJSON_AddNumberToObject(r, "dupResults", s.dup_results);
 
     const MempoolState &m = s.mempool;
     cJSON *mp = cJSON_AddObjectToObject(r, "mempool");

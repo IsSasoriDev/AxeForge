@@ -722,7 +722,7 @@ static void refresh_dashboard()
     lv_bar_set_value(s_t_pwr.bar, (int) (100 * s.pin / board::limits().max_power_w), LV_ANIM_ON);
 
     lv_label_set_text_fmt(s_t_fan.val, "%u%%", s.fan_pct);
-    lv_label_set_text_fmt(s_t_fan.sub, "%u rpm", s.fan_rpm[0]);
+    lv_label_set_text_fmt(s_t_fan.sub, "%u / %u rpm", s.fan_rpm[0], s.fan_rpm[1]);
     lv_bar_set_value(s_t_fan.bar, s.fan_pct, LV_ANIM_ON);
 
     const TunerState &t = s.tuner;

@@ -303,7 +303,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
  $('vt').innerHTML=S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
  $('pw').innerHTML=S.power.toFixed(0)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
- $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=S.fanRpm+' rpm';$('fnb').style.width=S.fanPct+'%';
+ $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=S.fanRpm+' / '+S.fan2Rpm+' rpm';$('fnb').style.width=S.fanPct+'%';
  chips(S.chips);blocks(S.mempool);
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;tp.style.color=phaseCol[t.phase]||'var(--violet)';
  $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;

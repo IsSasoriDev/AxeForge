@@ -306,7 +306,7 @@ static void refresh_widget(Widget &w)
         break;
     case WType::Fan:
         snprintf(v, sizeof(v), "%u%%", s.fan_pct);
-        snprintf(sub, sizeof(sub), "%u rpm", s.fan_rpm[0]);
+        snprintf(sub, sizeof(sub), "%u / %u rpm", s.fan_rpm[0], s.fan_rpm[1]);
         set_stat(w, v, sub);
         break;
     case WType::Chips: {

@@ -28,6 +28,8 @@
 #include "ui/layout_store.h"
 #include "ui/ui.h"
 #include "ui/display.h"
+#include "esp_attr.h"
+#include "lwip/sockets.h"
 
 static const char *TAG = "web";
 
@@ -134,6 +136,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "fan2Rpm", s.fan_rpm[1]);
     cJSON_AddNumberToObject(r, "uptime", s.uptime_s);
     cJSON_AddStringToObject(r, "resetReason", s.reset_reason);
+    cJSON_AddStringToObject(r, "restartedBy", web::previous_restart());
     cJSON_AddStringToObject(r, "screen", display::small() ? "tdisplay" : "big");
     cJSON_AddNumberToObject(r, "rssi", rssi);
     cJSON_AddStringToObject(r, "ip", s.ip);
@@ -323,11 +326,46 @@ static bool get_bool(cJSON *root, const char *key, bool def)
     return cJSON_IsBool(v) ? cJSON_IsTrue(v) : def;
 }
 
+// Survives esp_restart() (not a power cut), so the next boot can say who asked.
+#define RESTART_NOTE_MAGIC 0x52534e54
+static RTC_NOINIT_ATTR struct {
+    uint32_t magic;
+    char why[80];
+} s_restart_note;
+
+// The client's address, also when it arrives as an IPv4-mapped IPv6 address.
+static void peer_ip(httpd_req_t *req, char *out, size_t len)
+{
+    struct sockaddr_storage a;
+    socklen_t al = sizeof(a);
+    snprintf(out, len, "?");
+    if (getpeername(httpd_req_to_sockfd(req), (struct sockaddr *) &a, &al) != 0) return;
+    if (a.ss_family == AF_INET) {
+        inet_ntop(AF_INET, &((struct sockaddr_in *) &a)->sin_addr, out, len);
+    } else if (a.ss_family == AF_INET6) {
+        const uint8_t *b = ((struct sockaddr_in6 *) &a)->sin6_addr.s6_addr;
+        static const uint8_t mapped[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+        if (memcmp(b, mapped, 12) == 0) snprintf(out, len, "%u.%u.%u.%u", b[12], b[13], b[14], b[15]);
+        else inet_ntop(AF_INET6, b, out, len);
+    }
+}
+
 static void reboot_task(void *)
 {
     vTaskDelay(pdMS_TO_TICKS(1000));
     board::shutdown();
     esp_restart();
+}
+
+static void schedule_reboot(httpd_req_t *req)
+{
+    char ip[48];
+    peer_ip(req, ip, sizeof(ip));
+    snprintf(s_restart_note.why, sizeof(s_restart_note.why), "%s %s from %s",
+             http_method_str((enum http_method) req->method), req->uri, ip);
+    s_restart_note.magic = RESTART_NOTE_MAGIC;
+    ESP_LOGW(TAG, "restart requested: %s", s_restart_note.why);
+    xTaskCreate(reboot_task, "reboot", 4096, NULL, 5, NULL);  // shutdown + logging needs >2 kB
 }
 
 static esp_err_t settings_post(httpd_req_t *req)
@@ -386,7 +424,7 @@ static esp_err_t settings_post(httpd_req_t *req)
 
     if (reboot) {
         httpd_resp_sendstr(req, "Saved. Rebooting to apply...");
-        xTaskCreate(reboot_task, "reboot", 4096, NULL, 5, NULL);  // shutdown + logging needs >2 kB
+        schedule_reboot(req);
     } else {
         httpd_resp_sendstr(req, "Saved.");
     }
@@ -404,7 +442,7 @@ static esp_err_t retune_post(httpd_req_t *req)
 static esp_err_t restart_post(httpd_req_t *req)
 {
     httpd_resp_sendstr(req, "Rebooting...");
-    xTaskCreate(reboot_task, "reboot", 4096, NULL, 5, NULL);  // shutdown + logging needs >2 kB
+    schedule_reboot(req);
     return ESP_OK;
 }
 
@@ -453,7 +491,7 @@ static esp_err_t ota_post(httpd_req_t *req)
     }
     ESP_LOGW(TAG, "OTA written to %s, rebooting", part->label);
     httpd_resp_sendstr(req, "Update installed. Rebooting...");
-    xTaskCreate(reboot_task, "reboot", 4096, NULL, 5, NULL);  // shutdown + logging needs >2 kB
+    schedule_reboot(req);
     return ESP_OK;
 }
 
@@ -632,7 +670,9 @@ static bool origin_matches(const char *origin, const char *host)
 
 static esp_err_t deny(httpd_req_t *req, const char *why)
 {
-    ESP_LOGW(TAG, "blocked %s %s: %s", http_method_str((enum http_method) req->method), req->uri, why);
+    char ip[48];
+    peer_ip(req, ip, sizeof(ip));
+    ESP_LOGW(TAG, "blocked %s %s from %s: %s", http_method_str((enum http_method) req->method), req->uri, ip, why);
     return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Forbidden");
 }
 
@@ -649,11 +689,30 @@ static esp_err_t api_guard(httpd_req_t *req)
         int f = get_hdr(req, "Sec-Fetch-Site", v, sizeof(v));
         if (f < 0 || (f == 1 && strcmp(v, "same-origin") != 0 && strcmp(v, "none") != 0))
             return deny(req, "cross-site request");
+        // every change to the miner leaves a trace of who made it
+        char ip[48];
+        peer_ip(req, ip, sizeof(ip));
+        ESP_LOGI(TAG, "%s %s from %s", http_method_str((enum http_method) req->method), req->uri, ip);
     }
     return ((handler_fn) req->user_ctx)(req);
 }
 
 namespace web {
+
+const char *previous_restart()
+{
+    static char prev[sizeof(s_restart_note.why)];
+    static bool read = false;
+    if (!read) {
+        read = true;
+        if (s_restart_note.magic == RESTART_NOTE_MAGIC) {
+            memcpy(prev, s_restart_note.why, sizeof(prev));
+            prev[sizeof(prev) - 1] = 0;
+        }
+        s_restart_note.magic = 0;  // one restart, one note
+    }
+    return prev;
+}
 
 void start()
 {

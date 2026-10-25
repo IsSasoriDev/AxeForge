@@ -38,6 +38,9 @@ extern "C" void app_main(void)
     esp_reset_reason_t rr = esp_reset_reason();
     snprintf(g_state.reset_reason, sizeof(g_state.reset_reason), "%s", rr < 16 ? reasons[rr] : "other");
     ESP_LOGW(TAG, "reset reason: %s", g_state.reset_reason);
+    // RTC memory is only kept over a software restart; anything else leaves junk
+    if (rr == ESP_RST_SW && web::previous_restart()[0]) ESP_LOGW(TAG, "previous restart: %s", web::previous_restart());
+    else if (rr != ESP_RST_SW) web::previous_restart();  // read once so stale RTC contents are cleared
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();

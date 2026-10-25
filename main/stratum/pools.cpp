@@ -16,6 +16,10 @@
 #include "freertos/idf_additions.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "lwip/sockets.h"
+
+// Part of tcp_transport, but only declared in its private header in IDF 5.3.
+extern "C" int esp_transport_get_socket(esp_transport_handle_t t);
 
 extern "C" {
 #include "libbase58.h"
@@ -158,6 +162,12 @@ static bool transport_connect(Pool &p, const PoolCfg &cfg)
         p.t = nullptr;
         return false;
     }
+    // Shares are small writes; with Nagle on they can sit waiting for the pool's
+    // delayed ACK (tens of ms). Covers V1 as well as SV2.
+    int fd = esp_transport_get_socket(p.t);
+    int one = 1;
+    if (fd < 0 || setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) != 0)
+        ESP_LOGW(TAG, "[%d] could not set TCP_NODELAY", p.idx);
     return true;
 }
 

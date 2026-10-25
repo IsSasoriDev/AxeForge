@@ -175,6 +175,10 @@ void uart_init()
 
 int init(float freq_mhz, int expected_chips, uint32_t difficulty)
 {
+    // Freshly powered chips listen at 115200. After switch_to_fast_baud() the UART
+    // stays at 1 Mbaud, so every later power-up (fault retry, overheat recovery)
+    // found no chips unless the port is set back first.
+    uart_set_baudrate(UART, 115200);
     uart_flush(UART);
     for (int i = 0; i < 4; i++) set_version_mask_all();
 

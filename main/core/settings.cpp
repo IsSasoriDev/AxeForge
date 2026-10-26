@@ -1,5 +1,6 @@
 #include "settings.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "cJSON.h"
@@ -8,6 +9,7 @@
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 #include "core/board_config.h"
+#include "core/state.h"
 
 static const char *TAG = "settings";
 static Settings s_settings;
@@ -197,6 +199,7 @@ void load()
     }
     get_str(h, "ssid", s.wifi_ssid, sizeof(s.wifi_ssid));
     get_str(h, "wpass", s.wifi_pass, sizeof(s.wifi_pass));
+    get_str(h, "host", s.hostname, sizeof(s.hostname));
 
     size_t len = 0;
     if (nvs_get_str(h, "pools", NULL, &len) == ESP_OK && len > 1) {
@@ -255,6 +258,7 @@ void save()
     const Settings &s = s_settings;
     nvs_set_str(h, "ssid", s.wifi_ssid);
     nvs_set_str(h, "wpass", s.wifi_pass);
+    nvs_set_str(h, "host", s.hostname);
     char *pools = pools_to_json();
     nvs_set_str(h, "pools", pools);
     free(pools);
@@ -287,6 +291,35 @@ void save()
     nvs_set_str(h, "mpurl", s.mempool_url);
     nvs_commit(h);
     nvs_close(h);
+}
+
+bool valid_hostname(const char *h)
+{
+    size_t n = strlen(h);
+    if (n < 1 || n > 32 || h[0] == '-' || h[n - 1] == '-') return false;
+    for (size_t i = 0; i < n; i++) {
+        char c = h[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-')) return false;
+    }
+    return true;
+}
+
+void worker_of(const char *user, char *out, size_t len)
+{
+    const char *dot = strchr(user, '.');
+    snprintf(out, len, "%s", dot ? dot + 1 : "");
+}
+
+void own_worker(char *out, size_t len)
+{
+    const Settings &s = s_settings;
+    int pick = -1;
+    for (int i = 0; i < AF_MAX_POOLS && pick < 0; i++)
+        if (s.pools[i].enabled && g_state.pools[i].connected) pick = i;
+    for (int i = 0; i < AF_MAX_POOLS && pick < 0; i++)
+        if (s.pools[i].enabled && s.pools[i].user[0]) pick = i;
+    if (pick < 0) out[0] = 0;
+    else worker_of(s.pools[pick].user, out, len);
 }
 
 } // namespace settings

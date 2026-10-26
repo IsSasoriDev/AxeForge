@@ -181,6 +181,10 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "rssi", rssi);
     cJSON_AddStringToObject(r, "ip", s.ip);
     cJSON_AddStringToObject(r, "ssid", s.ssid);
+    cJSON_AddStringToObject(r, "hostname", s.hostname);
+    char worker[33];
+    settings::own_worker(worker, sizeof(worker));
+    cJSON_AddStringToObject(r, "worker", worker);
     cJSON_AddStringToObject(r, "version", esp_app_get_description()->version);
     cJSON_AddNumberToObject(r, "freeHeap", esp_get_free_heap_size());
     cJSON_AddNumberToObject(r, "freeInternal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
@@ -329,6 +333,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     const Settings &c = settings::get();
     cJSON *r = cJSON_CreateObject();
     cJSON_AddStringToObject(r, "ssid", c.wifi_ssid);
+    cJSON_AddStringToObject(r, "hostname", c.hostname);
     cJSON_AddStringToObject(r, "pages", c.pages);
     cJSON_AddNumberToObject(r, "disptype", c.display_type);
     cJSON_AddBoolToObject(r, "mempool", c.mempool_on);
@@ -453,6 +458,19 @@ static esp_err_t settings_post(httpd_req_t *req)
     bool reboot = false;
     // network / pool: applied after a reboot
     reboot |= copy_str(j, "ssid", c.wifi_ssid, sizeof(c.wifi_ssid));
+    {
+        // empty means automatic; DHCP only learns a new name at boot
+        char old_host[sizeof(c.hostname)];
+        strcpy(old_host, c.hostname);
+        if (copy_str(j, "hostname", c.hostname, sizeof(c.hostname))) {
+            if (c.hostname[0] && !settings::valid_hostname(c.hostname)) {
+                ESP_LOGW(TAG, "hostname '%s' ignored: use letters, digits and hyphens", c.hostname);
+                strcpy(c.hostname, old_host);
+            } else {
+                reboot = true;
+            }
+        }
+    }
     cJSON *wp = cJSON_GetObjectItem(j, "wpass");
     if (cJSON_IsString(wp) && wp->valuestring[0]) reboot |= copy_str(j, "wpass", c.wifi_pass, sizeof(c.wifi_pass));
 

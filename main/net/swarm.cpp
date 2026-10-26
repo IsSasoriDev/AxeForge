@@ -13,6 +13,7 @@
 #include "nvs.h"
 
 #include "core/board_config.h"
+#include "core/settings.h"
 #include "core/state.h"
 #include "net/http_util.h"
 #include "net/wifi.h"
@@ -32,6 +33,7 @@ static const char *TAG = "swarm";
 struct Peer {
     char ip[16];
     char name[33];
+    char worker[33];    // pool worker name, the part after the address
     char kind[12];      // "AxeOS" (also NerdQAxe stock) or "AxeForge"
     char model[32];
     char version[24];
@@ -153,6 +155,9 @@ static bool fetch_axeos(const char *ip, Peer &p)
     if (j && cJSON_GetObjectItem(j, "hashRate")) {
         strcpy(p.kind, "AxeOS");
         str(j, "hostname", p.name, sizeof(p.name));
+        char user[96] = "";
+        str(j, "stratumUser", user, sizeof(user));
+        settings::worker_of(user, p.worker, sizeof(p.worker));
         str(j, "deviceModel", p.model, sizeof(p.model));
         if (!p.model[0]) {
             // stock Bitaxe AxeOS has no deviceModel here, but a board number and chip
@@ -187,7 +192,9 @@ static bool fetch_axeforge(const char *ip, Peer &p)
     free(body);
     if (j && cJSON_GetObjectItem(j, "hashrate") && cJSON_GetObjectItem(j, "board")) {
         strcpy(p.kind, "AxeForge");
-        snprintf(p.name, sizeof(p.name), "axeforge-%s", strrchr(ip, '.') + 1);
+        str(j, "hostname", p.name, sizeof(p.name));
+        if (!p.name[0]) snprintf(p.name, sizeof(p.name), "axeforge-%s", strrchr(ip, '.') + 1);  // older AxeForge
+        str(j, "worker", p.worker, sizeof(p.worker));
         str(j, "board", p.model, sizeof(p.model));
         str(j, "version", p.version, sizeof(p.version));
         p.ghs = num(j, "hashrate");
@@ -339,6 +346,7 @@ static void add_peer_json(cJSON *arr, const Peer &p, bool self)
     cJSON *o = cJSON_CreateObject();
     cJSON_AddStringToObject(o, "ip", p.ip);
     cJSON_AddStringToObject(o, "name", p.name);
+    cJSON_AddStringToObject(o, "worker", p.worker);
     cJSON_AddStringToObject(o, "kind", p.kind);
     cJSON_AddStringToObject(o, "model", p.model);
     cJSON_AddStringToObject(o, "version", p.version);
@@ -376,6 +384,7 @@ char *to_json()
     Peer me = {};
     snprintf(me.ip, sizeof(me.ip), "%s", s.ip);
     strcpy(me.name, "this miner");
+    settings::own_worker(me.worker, sizeof(me.worker));
     strcpy(me.kind, "AxeForge");
     snprintf(me.model, sizeof(me.model), "%s", AF_BOARD_NAME);
     me.online = true;

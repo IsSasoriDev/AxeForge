@@ -193,6 +193,7 @@ struct MinerState {
     // Network
     char ip[16] = "";
     char ssid[33] = "";
+    char hostname[33] = "";      // the name this miner gives DHCP
     int8_t rssi = 0;
     char ap_ssid[33] = "";
 

@@ -302,8 +302,10 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <section id="network"><form data-f><div class="card"><h3>Wi-Fi</h3>
 <label>Network name (SSID)</label><input name="ssid">
 <label>Password</label><input name="wpass" type="password" placeholder="leave empty to keep current">
+<label>Hostname</label><input name="hostname" id="hostin" maxlength="32" pattern="[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?" placeholder="automatic">
 <div class="kv" style="margin-top:16px"><div>IP address</div><div id="nip">--</div><div>Signal</div><div id="nrssi">--</div></div>
-<p class="note">Changing Wi-Fi reboots the miner. If it can't connect, it opens the AxeForge-XXXX setup network again.</p></div>
+<p class="note">The name this miner gives your router, and the one other miners' Swarm pages show. Leave it empty to keep the name the stock firmware used, or axeforge-XXXX.</p>
+<p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect, it opens the AxeForge-XXXX setup network again.</p></div>
 <div class="btns"><button class="btn">Save Wi-Fi</button></div></form></section>
 
 <!-- ============================== SYSTEM -->
@@ -405,7 +407,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
- $('nip').textContent=S.ip||'--';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
+ $('nip').textContent=S.ip||'--';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
  $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
  $('navfoot').textContent=(S.ip||'')+' · v'+S.version;$('edsmall').style.display=S.screen=='tdisplay'?'':'none';
@@ -441,7 +443,7 @@ async function loadSwarm(){try{SW=await (await fetch('/api/swarm')).json()}catch
  const up=s=>s>=86400?(s/86400|0)+'d '+(s/3600%24|0)+'h':(s/3600|0)+'h '+(s/60%60|0)+'m';
  $('swt').innerHTML='<tr><th>Miner</th><th>Model</th><th class="r">Hashrate</th><th class="r">Temp</th><th class="r">Power</th><th class="r">Shares</th><th class="r">Best</th><th class="r">Uptime</th><th></th></tr>'+
   M.map(m=>{const x=hr(m.hashrate);return `<tr class="${m.online?'':'off'}"><td><span class="dot ${m.online?'ok':''}" style="display:inline-block;margin-right:8px"></span>`+
-  (m.self?'<b>This miner</b>':`<a href="http://${esc(m.ip)}/" target="_blank" rel="noopener">${esc(m.name||m.ip)}</a>`)+`<div class="sub">${esc(m.ip)} · ${esc(m.kind)} ${esc(m.version)}</div></td>`+
+  (m.self?'<b>This miner</b>':`<a href="http://${esc(m.ip)}/" target="_blank" rel="noopener">${esc(m.name||m.ip)}</a>`)+`<div class="sub">${esc(m.ip)} · ${esc(m.kind)} ${esc(m.version)}${m.worker?' · '+esc(m.worker):''}</div></td>`+
   `<td>${esc(m.model||'--')}</td><td class="r">${!m.online?'--':ok(m)?x[0]+' '+x[1]:'<span style="color:var(--red)" title="The miner reports an impossible value">invalid</span>'}</td><td class="r">${m.online?m.temp.toFixed(1)+'°C':'--'}</td><td class="r">${m.online?m.power.toFixed(2)+' W':'--'}</td>`+
   `<td class="r">${m.accepted} / ${m.rejected}</td><td class="r">${m.best?sfx(m.best):'--'}</td><td class="r">${m.online?up(m.uptime):(m.ago>0?'seen '+up(m.ago)+' ago':'not seen since boot')}</td>`+
   `<td class="r">${m.self?'':`<button class="btn alt sm" onclick="swDel('${esc(m.ip)}')">Remove</button>`}</td></tr>`}).join('')}

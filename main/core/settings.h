@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include <stdint.h>
 
 #define AF_MAX_POOLS 4
@@ -21,6 +22,7 @@ struct PoolCfg {
 struct Settings {
     char wifi_ssid[33] = "";
     char wifi_pass[65] = "";
+    char hostname[33] = "";       // empty: stock firmware's name, else axeforge-XXXX
 
     PoolCfg pools[AF_MAX_POOLS];
     PoolMode pool_mode = PoolMode::Split;
@@ -66,4 +68,10 @@ Settings &get();
 // pools are stored as one JSON blob
 char *pools_to_json();  // caller frees
 void pools_from_json(const char *json);
+// 1-32 letters, digits and hyphens, not starting or ending with a hyphen
+bool valid_hostname(const char *h);
+// The worker part of a pool user ("address.worker" -> "worker"), or "".
+void worker_of(const char *user, char *out, size_t len);
+// This miner's worker name on the pool it is mining for.
+void own_worker(char *out, size_t len);
 }

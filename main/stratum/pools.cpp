@@ -17,6 +17,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lwip/sockets.h"
+#include <time.h>
 
 // Part of tcp_transport, but only declared in its private header in IDF 5.3.
 extern "C" int esp_transport_get_socket(esp_transport_handle_t t);
@@ -564,6 +565,12 @@ static void pool_task(void *arg)
         if (!wifi::connected()) {
             set_status(p, "Waiting for Wi-Fi");
             vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+        // With certificate date checks on, TLS cannot succeed before the clock is set
+        if (cfg.proto == PoolProto::V1Tls && time(NULL) < 1704067200) {
+            set_status(p, "Waiting for the clock (NTP) to check the pool certificate");
+            vTaskDelay(pdMS_TO_TICKS(2000));
             continue;
         }
         set_status(p, "Connecting...");

@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
@@ -14,6 +15,12 @@
 #include "mbedtls/chachapoly.h"
 
 #include "secp256k1.h"
+
+#define SV2_CLOCK_SET_AFTER 1704067200  // 2024-01-01: earlier means the clock was never set
+// Own tag: main.cpp keeps "sv2_noise" at WARN because it logs key material at INFO,
+// and the certificate date result should stay visible.
+static const char *CERT_TAG = "sv2_cert";
+#define SV2_CERT_SKEW_S 600             // tolerated difference between our clock and the pool's
 #include "secp256k1_ellswift.h"
 #include "secp256k1_schnorrsig.h"
 #include "secp256k1_extrakeys.h"
@@ -483,7 +490,26 @@ int sv2_noise_handshake(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,
             ESP_LOGE(TAG, "Server certificate INVALID - Schnorr signature verification failed!");
             return -1;
         }
-        ESP_LOGI(TAG, "Server certificate verified OK");
+        ESP_LOGI(CERT_TAG, "Server certificate verified OK");
+
+        // The signature only proves who issued the certificate; its dates say whether
+        // it may still be used. Pools sign a fresh one per handshake with valid_from =
+        // now, so allow some clock skew either way. Without a set clock (no NTP yet)
+        // the dates cannot be judged: connect, but say so.
+        time_t now = time(NULL);
+        if (now > SV2_CLOCK_SET_AFTER) {
+            if ((int64_t) now + SV2_CERT_SKEW_S < (int64_t) valid_from) {
+                ESP_LOGE(CERT_TAG, "Server certificate not valid yet (valid_from %lu, clock %lld)", valid_from, (long long) now);
+                return -1;
+            }
+            if ((int64_t) now - SV2_CERT_SKEW_S > (int64_t) not_valid_after) {
+                ESP_LOGE(CERT_TAG, "Server certificate EXPIRED (not_valid_after %lu, clock %lld)", not_valid_after, (long long) now);
+                return -1;
+            }
+            ESP_LOGI(CERT_TAG, "Server certificate dates OK (%lld days left)", ((long long) not_valid_after - now) / 86400);
+        } else {
+            ESP_LOGW(CERT_TAG, "Clock not set yet: server certificate dates not checked");
+        }
     } else {
         ESP_LOGW(TAG, "Skipping certificate verification (no authority pubkey)");
     }

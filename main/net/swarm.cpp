@@ -23,7 +23,9 @@ static const char *TAG = "swarm";
 #define POLL_S 15
 #define HTTP_TIMEOUT_MS 2500
 #define MAX_BODY 24576
-#define SCAN_BATCH 24
+// lwIP has 16 sockets in all (CONFIG_LWIP_MAX_SOCKETS), shared with the web
+// server and pools; probing more at once starves them and the fetches below.
+#define SCAN_BATCH 8
 #define SCAN_CONNECT_MS 600
 #define NVS_NS "af_swarm"
 
@@ -254,15 +256,16 @@ static void scan()
     uint32_t base = ntohl(self.s_addr) & 0xFFFFFF00u;
     int found = 0;
     ESP_LOGI(TAG, "scanning %s/24", g_state.ip);
-    for (int start = 1; start < 255; start += SCAN_BATCH) {
+    int h = 1, stalls = 0;
+    while (h < 255) {
         int fds[SCAN_BATCH];
         uint32_t hosts[SCAN_BATCH];
         int n = 0;
-        for (int h = start; h < start + SCAN_BATCH && h < 255; h++) {
+        for (; n < SCAN_BATCH && h < 255; h++) {
             uint32_t ip = base | h;
             if (htonl(ip) == self.s_addr) continue;
             int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-            if (fd < 0) break;
+            if (fd < 0) break;  // out of sockets: this host starts the next batch
             fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
             sockaddr_in a = {};
             a.sin_family = AF_INET;
@@ -273,7 +276,19 @@ static void scan()
             hosts[n] = ip;
             n++;
         }
+        if (n == 0) {
+            // nothing free right now; wait for the web server or a pool to let go
+            if (++stalls > 10) {
+                ESP_LOGW(TAG, "scan stopped at .%d: no free sockets", h);
+                break;
+            }
+            vTaskDelay(pdMS_TO_TICKS(SCAN_CONNECT_MS));
+            continue;
+        }
+        stalls = 0;
         vTaskDelay(pdMS_TO_TICKS(SCAN_CONNECT_MS));
+        // close the whole batch before fetching, so the fetches have sockets
+        bool open[SCAN_BATCH];
         for (int i = 0; i < n; i++) {
             fd_set w;
             FD_ZERO(&w);
@@ -281,10 +296,12 @@ static void scan()
             timeval tv = {0, 0};
             int err = 0;
             socklen_t el = sizeof(err);
-            bool open = select(fds[i] + 1, NULL, &w, NULL, &tv) > 0 &&
-                        getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &err, &el) == 0 && err == 0;
+            open[i] = select(fds[i] + 1, NULL, &w, NULL, &tv) > 0 &&
+                      getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &err, &el) == 0 && err == 0;
             close(fds[i]);
-            if (!open) continue;
+        }
+        for (int i = 0; i < n; i++) {
+            if (!open[i]) continue;
             char ip[16];
             in_addr ia;
             ia.s_addr = htonl(hosts[i]);

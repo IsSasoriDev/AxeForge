@@ -20,6 +20,7 @@ nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;st
 nav button:hover{background:var(--panel);color:var(--text)}
 nav button.on{background:linear-gradient(90deg,rgba(0,229,255,.16),transparent);color:var(--cyan);box-shadow:inset 3px 0 var(--cyan)}
 nav .foot{margin-top:auto;padding:16px 10px 0;color:var(--dim);font-size:12px}
+nav .foot a{color:inherit;text-decoration:underline dotted}nav .foot a:hover{color:var(--text)}
 main{padding:22px clamp(14px,3vw,34px) 90px;max-width:1280px;width:100%;min-width:0}
 header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 header h1{font-size:20px;margin:0;flex:1}
@@ -329,7 +330,8 @@ hashrate as one chip per pool — or uses them as failover.</div>
 {const f=window.fetch;window.fetch=(u,o={})=>{o.headers=Object.assign({'X-AxeForge':'1'},o.headers||{});return f(u,o)}}
 const $=id=>document.getElementById(id);
 const titles={dash:'Dashboard',swarm:'Swarm',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
-let S={},cfg={},cur='dash';
+let S={},cfg={},cur='dash',navv;
+const SRC='https://github.com/IsSasoriDev/AxeForge';
 function tab(t){cur=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);
  if(t=='display'){shot();drawCanvas()}if(t=='system')pollLogs();if(t=='swarm')loadSwarm()}
@@ -408,7 +410,11 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('nip').textContent=S.ip||'--';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
  $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
- $('navfoot').textContent=(S.ip||'')+' · v'+S.version;$('edsmall').style.display=S.screen=='tdisplay'?'':'none';
+ if(navv!==S.ip+S.version){navv=S.ip+S.version;
+  // release builds link to their tag's source, local and dev builds to the repo
+  const src=SRC+(/^\d+\.\d+\.\d+$/.test(S.version)?'/tree/v'+S.version:'');
+  $('navfoot').innerHTML=esc(S.ip||'')+` · <a href="${src}" target="_blank" rel="noopener" title="Source code">v${esc(S.version)}</a>`;}
+ $('edsmall').style.display=S.screen=='tdisplay'?'':'none';
  if(cur=='pools')poolLive()}
 async function chart(){let h;try{h=await (await fetch('/api/history')).json()}catch(e){return}
  const c=$('chart'),W=c.clientWidth||600,H=c.clientHeight||150,pts=h.map((v,i)=>[i/(h.length-1)*W,v]).filter(p=>p[1]>0);

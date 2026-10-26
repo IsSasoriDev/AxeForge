@@ -669,7 +669,7 @@ void submit(int i, const Work &w, uint32_t nonce, uint32_t version)
     snprintf(line, sizeof(line),
              "{\"id\":%lu,\"method\":\"mining.submit\",\"params\":[\"%s\",\"%s\",\"%s\",\"%08lx\",\"%08lx\",\"%08lx\"]}\n",
              (unsigned long) p.submit_id++, settings::get().pools[i].user, w.job_id, w.extranonce2,
-             (unsigned long) w.ntime, (unsigned long) nonce, (unsigned long) (version ^ w.version));
+             (unsigned long) w.ntime, (unsigned long) nonce, (unsigned long) (version & w.version_mask));
     send_line(p, line);
 }
 

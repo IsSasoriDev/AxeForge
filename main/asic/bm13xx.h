@@ -25,7 +25,7 @@ struct AsicResult {
     // nonce result
     uint8_t job_slot;         // index into the job table (asic job id)
     uint32_t nonce;
-    uint32_t version_bits;    // rolled bits, OR with job version
+    uint32_t version_bits;    // rolled header bits 13-28 (absolute, not a delta)
     int chip;
     // register result
     uint8_t reg;
@@ -57,6 +57,8 @@ void switch_to_fast_baud();
 bool set_frequency(float freq_mhz);
 float frequency();
 void set_difficulty_mask(uint32_t difficulty);
+// Restricts version rolling to the pool's BIP-310 mask.
+void set_version_mask(uint32_t mask);
 
 // Returns the asic job id (slot) used.
 uint8_t send_job(uint32_t counter, AsicJob &job);

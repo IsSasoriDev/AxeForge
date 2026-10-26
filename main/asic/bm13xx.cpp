@@ -36,6 +36,7 @@ static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x70, 0x00, 0x00};
 static SemaphoreHandle_t s_tx_lock;
 static float s_freq = 56.25f;
 static uint32_t s_diff_mask = 0xffffffff;
+static uint32_t s_version_mask = 0;  // 0 = unknown, rewrite on next set_version_mask
 static uint8_t s_addr_interval = 64;
 
 // ------------------------------------------------------------------ CRC
@@ -192,7 +193,11 @@ static bool send_pll(float target)
     return true;
 }
 
-static void set_version_mask_all() { write_all(0xA4, 0x90, 0x00, 0xFF, 0xFF); }
+static void set_version_mask_all()
+{
+    write_all(0xA4, 0x90, 0x00, 0xFF, 0xFF);
+    s_version_mask = 0;  // init rolls all 16 bits; the pool's mask is applied afterwards
+}
 
 namespace asic {
 
@@ -349,6 +354,17 @@ bool set_frequency(float target)
 }
 
 float frequency() { return s_freq; }
+
+// Version bits the chips may roll, as a block-header mask (bits 13-28 only).
+void set_version_mask(uint32_t mask)
+{
+    uint16_t bits = (uint16_t) (mask >> 13);
+    mask = (uint32_t) bits << 13;
+    if (mask == s_version_mask) return;
+    write_all(0xA4, 0x90, 0x00, bits >> 8, bits & 0xff);
+    s_version_mask = mask;
+    ESP_LOGI(TAG, "version mask %08lx", (unsigned long) mask);
+}
 
 void set_difficulty_mask(uint32_t difficulty)
 {

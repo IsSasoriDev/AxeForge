@@ -22,6 +22,8 @@ static const char *TAG = "tuner";
 #define WATCH_WINDOW_S 600      // rolling check once locked
 #define MAX_ERR_PCT 1.0f        // hw error rate that still counts as stable
 #define WATCH_MAX_ERR_PCT 2.0f
+#define WORST_CHIP_PCT 2.0f     // any one chip, while climbing
+#define WATCH_WORST_CHIP_PCT 3.0f  // any one chip, once locked (chips without a sensor drift first)
 #define MIN_EFFICIENCY 0.92f    // measured / theoretical hashrate
 #define THERMAL_MARGIN_C 2.0f   // stop climbing this close to the ceiling
 #define TRIM_MARGIN_MV 10       // added back after voltage trim
@@ -30,7 +32,7 @@ enum class Verdict { Stable, Errors, Thermal, Power, Aborted };
 
 struct Result {
     Verdict verdict;
-    float ghs, err, tmax, vrmax, pmax;
+    float ghs, err, worst_chip, tmax, vrmax, pmax;
 };
 
 static volatile bool s_restart = false;
@@ -70,9 +72,9 @@ static bool apply(uint16_t freq, uint16_t mv)
     return ok;
 }
 
-static Result measure(int warmup_s, int window_s, float max_err)
+static Result measure(int warmup_s, int window_s, float max_err, float max_chip_err)
 {
-    Result r = {Verdict::Stable, 0, 0, 0, 0, 0};
+    Result r = {Verdict::Stable, 0, 0, 0, 0, 0, 0};
     const float t_ceil = CONFIG_AF_MAX_CHIP_TEMP;
     const float vr_ceil = board::limits().vr_ceil_c;
     const float p_ceil = board::limits().max_power_w;
@@ -117,8 +119,10 @@ static Result measure(int warmup_s, int window_s, float max_err)
         }
     }
     miner::window_stats(&r.ghs, &r.err);
+    r.worst_chip = miner::window_worst_chip_err();
     float eff = g_state.expected_ghs > 0 ? r.ghs / g_state.expected_ghs : 0;
-    if (r.err > max_err || eff < MIN_EFFICIENCY) r.verdict = Verdict::Errors;
+    // the weakest chip fails first; an average over four chips can hide it
+    if (r.err > max_err || r.worst_chip > max_chip_err || eff < MIN_EFFICIENCY) r.verdict = Verdict::Errors;
     return r;
 }
 
@@ -144,11 +148,11 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
     while (true) {
         g_state.tuner.phase = TunerPhase::Measuring;
         note("Testing %.0f MHz @ %.0f mV", f, mv);
-        Result r = measure(WARMUP_S, WINDOW_S, MAX_ERR_PCT);
+        Result r = measure(WARMUP_S, WINDOW_S, MAX_ERR_PCT, WORST_CHIP_PCT);
         g_state.tuner.steps_done++;
         if (r.verdict == Verdict::Aborted) return false;
-        ESP_LOGI(TAG, "%u MHz %u mV: %s, %.0f GH/s, err %.2f%%, tmax %.1f, vr %.1f, %.0f W", f, mv,
-                 verdict_text(r.verdict), r.ghs, r.err, r.tmax, r.vrmax, r.pmax);
+        ESP_LOGI(TAG, "%u MHz %u mV: %s, %.0f GH/s, err %.2f%% (worst chip %.2f%%), tmax %.1f, vr %.1f, %.0f W", f, mv,
+                 verdict_text(r.verdict), r.ghs, r.err, r.worst_chip, r.tmax, r.vrmax, r.pmax);
 
         if (r.verdict == Verdict::Stable) {
             if (r.ghs > best_ghs) {
@@ -191,19 +195,23 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
 // Phase 2: lower the voltage at the best frequency while it stays stable.
 static bool trim(uint16_t f, uint16_t &mv, float &ghs)
 {
+    bool trimmed = false;
     while (mv - MV_STEP >= CONFIG_AF_MIN_CORE_MV) {
         uint16_t trial = mv - MV_STEP;
         g_state.tuner.phase = TunerPhase::Measuring;
         note("Trimming: %.0f MHz @ %.0f mV", f, trial);
         apply(f, trial);
-        Result r = measure(WARMUP_S / 2, WINDOW_S, MAX_ERR_PCT);
+        Result r = measure(WARMUP_S / 2, WINDOW_S, MAX_ERR_PCT, WORST_CHIP_PCT);
         g_state.tuner.steps_done++;
         if (r.verdict == Verdict::Aborted) return false;
         if (r.verdict != Verdict::Stable || r.ghs < ghs * 0.98f) break;
         mv = trial;
         ghs = r.ghs;
+        trimmed = true;
     }
-    mv = board::clamp_mv(mv + TRIM_MARGIN_MV);
+    // The margin goes back only if the voltage came down; otherwise it would put the
+    // lock above the point that was measured (and could push it over the power cap).
+    if (trimmed) mv = board::clamp_mv(mv + TRIM_MARGIN_MV);
     apply(f, mv);
     return true;
 }
@@ -249,10 +257,15 @@ static void tuner_task(void *)
             note("Starting search from %.0f MHz", best_f);
             if (!climb(best_f, best_mv, best_ghs)) continue;
             if (best_ghs <= 0) {
-                // nothing was stable, not even the start point: go below stock
-                best_f = board::clamp_freq(best_f - 2 * FREQ_STEP);
-                note("Start point unstable, dropping to %.0f MHz", best_f);
-                apply(best_f, best_mv);
+                // Nothing was stable, not even the start point: start lower and climb
+                // again, rather than locking a point that was never measured.
+                uint16_t lower = board::clamp_freq(best_f - 2 * FREQ_STEP);
+                if (lower < best_f) {
+                    note("Start point unstable, retrying from %.0f MHz", lower);
+                    apply(lower, best_mv);
+                    continue;
+                }
+                note("Unstable even at %.0f MHz", best_f);
                 lock_point(best_f, best_mv, 0);
                 continue;
             }
@@ -271,7 +284,7 @@ static void tuner_task(void *)
         g_state.tuner.best_mv = best_mv;
         while (!should_abort()) {
             snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Locked %u MHz @ %u mV", best_f, best_mv);
-            Result r = measure(0, WATCH_WINDOW_S, WATCH_MAX_ERR_PCT);
+            Result r = measure(0, WATCH_WINDOW_S, WATCH_MAX_ERR_PCT, WATCH_WORST_CHIP_PCT);
             if (r.verdict == Verdict::Aborted) break;
             if (r.verdict == Verdict::Stable) {
                 if (r.ghs > 0) g_state.tuner.best_ghs = r.ghs;

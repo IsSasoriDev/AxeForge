@@ -425,4 +425,16 @@ float window_stats(float *ghs, float *err_pct)
     return (float) ((esp_timer_get_time() - start) / 1000000.0);
 }
 
+float window_worst_chip_err()
+{
+    double worst = 0;
+    portENTER_CRITICAL(&s_win_mux);
+    for (int i = 0; i < AF_NUM_ASICS; i++) {
+        double n = s_win_valid[i] + s_win_err[i];
+        if (n > 0 && 100.0 * s_win_err[i] / n > worst) worst = 100.0 * s_win_err[i] / n;
+    }
+    portEXIT_CRITICAL(&s_win_mux);
+    return (float) worst;
+}
+
 } // namespace miner

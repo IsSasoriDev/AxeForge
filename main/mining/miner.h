@@ -9,4 +9,6 @@ void kick();               // new clean job available: dispatch now
 void reset_window();
 // Average over the current window; returns seconds covered.
 float window_stats(float *ghs, float *err_pct);
+// Highest per-chip error rate (percent) over the current window.
+float window_worst_chip_err();
 }

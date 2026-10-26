@@ -69,6 +69,8 @@ struct Pool {
 
     // SV2 channel
     uint32_t channel_id = 0;
+    uint32_t group_id = 0;
+    bool channel_closed = false;  // pool sent CloseChannel: reconnect
     uint32_t seq = 0;
     uint8_t ext_prefix[32] = {};
     uint8_t ext_prefix_len = 0;
@@ -464,6 +466,17 @@ static void v2_message(Pool &p, uint8_t type, const uint8_t *pl, int len)
         on_share_result(p, false, code);
         break;
     }
+    case SV2_MSG_CLOSE_CHANNEL: {
+        // The pool can end the channel and keep the connection open; without a
+        // channel there is no new work, so treat it as a disconnect.
+        char reason[64] = "";
+        if (sv2_parse_close_channel(pl, len, &channel, reason, sizeof(reason)) != 0) break;
+        if (channel != p.channel_id && (p.group_id == 0 || channel != p.group_id)) break;
+        ESP_LOGW(TAG, "[%d] pool closed SV2 channel %lu: %s", p.idx, (unsigned long) channel, reason);
+        set_status(p, "Channel closed by pool: %s", reason);
+        p.channel_closed = true;
+        break;
+    }
     default:
         break;
     }
@@ -521,6 +534,8 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
         p.ext_size = (uint8_t) ext_size;
         p.diff = sv2_target_to_pdiff(target);
         p.seq = 0;
+        p.group_id = group;
+        p.channel_closed = false;
     }
     p.version_mask = DEFAULT_VERSION_MASK;
     g_state.pools[p.idx].connected = true;
@@ -528,16 +543,29 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
     set_status(p, have_key ? "Connected (SV2, verified)" : "Connected (SV2, encrypted)");
     ESP_LOGI(TAG, "[%d] SV2 channel %lu open, diff %lu", p.idx, (unsigned long) p.channel_id, (unsigned long) p.diff);
 
-    while (!p.restart) {
-        int ready = esp_transport_poll_read(p.t, 1000);
-        if (ready < 0) break;
-        if (ready == 0) continue;
-        if (!v2_recv(p, hdr, buf, &len)) {
-            set_status(p, "Connection closed");
-            break;
+    {
+        // Same rule as V1: a pool that has sent nothing for this long has stopped
+        // giving us work, even if the socket still looks open.
+        int64_t last_rx = esp_timer_get_time();
+        while (!p.restart && !p.channel_closed) {
+            int ready = esp_transport_poll_read(p.t, 1000);
+            if (ready < 0) break;
+            if (ready == 0) {
+                if (esp_timer_get_time() - last_rx > IDLE_RECONNECT_S * 1000000LL) {
+                    ESP_LOGW(TAG, "[%d] idle too long, reconnecting", p.idx);
+                    set_status(p, "Pool silent, reconnecting");
+                    break;
+                }
+                continue;
+            }
+            if (!v2_recv(p, hdr, buf, &len)) {
+                set_status(p, "Connection closed");
+                break;
+            }
+            last_rx = esp_timer_get_time();
+            sv2_parse_frame_header(hdr, &fh);
+            v2_message(p, fh.msg_type, buf, len);
         }
-        sv2_parse_frame_header(hdr, &fh);
-        v2_message(p, fh.msg_type, buf, len);
     }
 out:
     free(buf);
@@ -579,6 +607,9 @@ static void pool_task(void *arg)
         xSemaphoreTake(p.lock, portMAX_DELAY);
         p.have_job = false;
         xSemaphoreGive(p.lock);
+        // results for this connection's jobs would be stale (or carry the old
+        // extranonce) on the next one
+        miner::forget_pool(p.idx);
         transport_close(p);
         if (!p.restart) {
             ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(backoff_s * 1000));

@@ -383,6 +383,20 @@ int sv2_parse_submit_shares_error(const uint8_t *payload, uint32_t len,
     return 0;
 }
 
+int sv2_parse_close_channel(const uint8_t *payload, uint32_t len,
+                            uint32_t *channel_id,
+                            char *reason_code, size_t reason_code_size)
+{
+    // channel_id(4) + STR0_255(1+N) = min 5 bytes
+    if (len < 5) return -1;
+
+    *channel_id = read_u32_le(payload);
+
+    int n = read_str0255(payload + 4, len - 4, reason_code, reason_code_size);
+    if (n < 0) return -1;
+    return 0;
+}
+
 // --- Extended channel message builders/parsers ---
 
 int sv2_build_open_extended_mining_channel(uint8_t *buf, size_t buf_len,

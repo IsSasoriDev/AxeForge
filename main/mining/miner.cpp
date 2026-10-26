@@ -398,6 +398,11 @@ void kick()
     if (s_job_task) xTaskNotifyGive(s_job_task);
 }
 
+void forget_pool(int pool)
+{
+    if (s_work_lock) invalidate_pool(pool);
+}
+
 void reset_window()
 {
     portENTER_CRITICAL(&s_win_mux);

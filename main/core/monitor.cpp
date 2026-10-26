@@ -19,6 +19,8 @@ static const char *TAG = "monitor";
 #define COOLDOWN_HYST_C 20.0f
 #define RECOVERY_FREQ_DROP 50
 #define MAX_FAULT_RETRIES 3
+#define MAX_OVERHEAT_RETRIES 3
+#define RECOVERY_WAIT_S 30  // between recovery attempts, so a failing power-up is not hammered
 #define SENSOR_LOSS_S 3  // consecutive failed temperature reads before cutting power
 // A fan driven at least this hard but turning slower than this, for this long, has
 // stalled. Only fans seen spinning since boot count: a fan that is not fitted reads
@@ -61,6 +63,7 @@ static void monitor_task(void *)
     FanPI asic_pi, vr_pi;
     int tick = 0;
     int fault_retries = 0;
+    int overheat_retries = 0, recovery_wait = 0;
     int sensor_bad = 0;
     int stall[2] = {0, 0};
     char why[64];
@@ -164,21 +167,24 @@ static void monitor_task(void *)
                 else if (!wifi::connected()) g_state.status = SysStatus::Connecting;
                 else g_state.status = g_state.pool_connected ? SysStatus::Mining : SysStatus::Connecting;
             }
-        } else if (g_state.status == SysStatus::Overheat) {
+        } else if (g_state.status == SysStatus::Overheat && overheat_retries < MAX_OVERHEAT_RETRIES) {
             fan::set_pct(0, 100);
             fan::set_pct(1, 100);
             // wait until well below the trip point, then restart lower
             if (sensors_ok && g_state.chip_temp_max < CONFIG_AF_CRIT_CHIP_TEMP - COOLDOWN_HYST_C &&
-                g_state.vr_temp < lim.vr_crit_c - COOLDOWN_HYST_C) {
+                g_state.vr_temp < lim.vr_crit_c - COOLDOWN_HYST_C && ++recovery_wait >= RECOVERY_WAIT_S) {
+                recovery_wait = 0;
+                overheat_retries++;
                 uint16_t f = board::clamp_freq((cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz) - RECOVERY_FREQ_DROP);
                 uint16_t mv = cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
-                ESP_LOGW(TAG, "cooled down, restarting at %u MHz", f);
-                if (cfg.autotune) {
-                    cfg.tuned_freq = f;
-                    cfg.tuned_mv = mv;
-                    settings::save();
-                }
+                ESP_LOGW(TAG, "cooled down, restarting at %u MHz (%d/%d)", f, overheat_retries, MAX_OVERHEAT_RETRIES);
                 if (board::power_up(f, mv) == board::Error::None) {
+                    // only a point that actually came up becomes the new tuned point
+                    if (cfg.autotune) {
+                        cfg.tuned_freq = f;
+                        cfg.tuned_mv = mv;
+                        settings::save();
+                    }
                     g_state.status = SysStatus::Mining;
                     g_state.fault[0] = 0;
                     miner::pause(false);

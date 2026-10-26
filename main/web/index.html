@@ -113,7 +113,7 @@ nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:
 
 /* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
 html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a1f;--pend:#131316;--line:#232328;--text:#ededef;--dim:#9a9aa3;
---cyan:#f7931a;--mag:#ffb35c;--green:#3ecf8e;--orange:#e3b341;--red:#f0564a;--violet:#9aa4ff;--input:#0a0a0b;--navbg:rgba(10,10,11,.88);--console:#070708;--glow:#2a1906;
+--cyan:#f7931a;--mag:#ffb35c;--green:#3ecf8e;--orange:#e3b341;--red:#f0564a;--violet:#f7931a;--input:#0a0a0b;--navbg:rgba(10,10,11,.88);--console:#070708;--glow:#2a1906;
 --g1:#f7931a;--g2:#ffb35c;--chart:#f7931a;--track:#232328;--axis:#9a9aa3}
 html[data-theme=paper]{color-scheme:light;--bg:#f3f1ea;--bg2:#f3f1ea;--panel:#fbfaf5;--panel2:#ece9e0;--pend:#fbfaf5;--line:#1b1b1b;
 --text:#141414;--dim:#5e5e5a;--cyan:#141414;--mag:#141414;--green:#141414;--orange:#141414;--red:#b3261e;--violet:#141414;
@@ -409,7 +409,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=fanText(S);$('fnb').style.width=S.fanPct+'%';
  if(ember())emberBars(S,L);
  chips(S.chips);blocks(S.mempool);fanStatus();
- const t=S.tuner,tp=$('tph');tp.textContent=t.phase;tp.style.color=phaseCol[t.phase]||'var(--violet)';
+ const t=S.tuner,tp=$('tph');tp.textContent=t.phase;const pc=phaseCol[t.phase]||(ember()?'var(--cyan)':'var(--violet)');tp.style.color=pc;if(ember())$('tbar').style.background=pc;
  $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;
  $('tbar').style.width=(t.phase=='locked'||t.phase=='manual'?100:t.progress)+'%';
  $('tbest').textContent=t.bestFreq?`${t.bestFreq} MHz @ ${t.bestMv} mV (${hr(t.bestGhs).join(' ')})`:'searching…';$('tsteps').textContent=t.steps;

@@ -1,6 +1,6 @@
 # AxeForge
 
-New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev5.1 and rev6, TPS546 on rev7) driving a **3.5" 480×320 display** (8-bit parallel or SPI, ST7796S or ILI9488). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize.
+New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev5.1 and rev6, TPS546 on rev7) and the **NerdAxe** (1× BM1366) driving a **3.5" 480×320 display** (8-bit parallel or SPI, ST7796S or ILI9488). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize.
 
 > **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable).
 

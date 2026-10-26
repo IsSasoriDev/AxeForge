@@ -127,8 +127,9 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "errorPct", s.error_pct);
     cJSON_AddNumberToObject(r, "chipTemp", s.chip_temp_max);
     cJSON_AddNumberToObject(r, "vrTemp", s.vr_temp);
+    cJSON_AddBoolToObject(r, "vrSensor", AF_HAS_VR_SENSOR);
     cJSON_AddBoolToObject(r, "tempOk", s.temp_ok && s.vr_temp_ok);
-#if CONFIG_AF_BOARD_SUPRAHEX
+#if CONFIG_AF_BOARD_SUPRAHEX || CONFIG_AF_BOARD_NERDAXE
     cJSON_AddStringToObject(r, "board", AF_BOARD_NAME);
 #else
     cJSON_AddStringToObject(r, "board", s.board_rev7 ? "rev7 (TPS546)" : "rev5.1/6 (TPS53647)");
@@ -493,6 +494,34 @@ static esp_err_t restart_post(httpd_req_t *req)
     return ESP_OK;
 }
 
+// This image's board tag, kept in the binary so the next upload can check it.
+// External linkage and a real reference (logged in web::start) so neither the
+// compiler nor --gc-sections can drop it.
+extern const char af_board_tag[];
+const char af_board_tag[] = AF_BOARD_TAG;
+
+// Looks for "AXEFORGE-BOARD:<id>;" in `data`. Returns the id length (copied to
+// `id`) or 0. The bare prefix used by this search sits in rodata too, followed
+// by a NUL, so only a complete tag counts.
+static int find_board_tag(const char *data, int len, char *id, int id_cap)
+{
+    const int plen = sizeof(AF_BOARD_TAG_PREFIX) - 1;
+    for (int i = 0; i + plen < len; i++) {
+        if (data[i] != 'A' || memcmp(data + i, AF_BOARD_TAG_PREFIX, plen) != 0) continue;
+        int k = 0;
+        const char *p = data + i + plen;
+        while (i + plen + k < len && k < id_cap - 1 &&
+               ((p[k] >= 'a' && p[k] <= 'z') || (p[k] >= '0' && p[k] <= '9')))
+            k++;
+        if (k >= 2 && i + plen + k < len && p[k] == ';') {
+            memcpy(id, p, k);
+            id[k] = 0;
+            return k;
+        }
+    }
+    return 0;
+}
+
 // Raw .bin upload (the app image, not the factory image).
 static esp_err_t ota_post(httpd_req_t *req)
 {
@@ -503,15 +532,21 @@ static esp_err_t ota_post(httpd_req_t *req)
     ESP_LOGW(TAG, "OTA upload started (%d bytes)", req->content_len);
 
     esp_ota_handle_t h;
-    if (esp_ota_begin(part, OTA_SIZE_UNKNOWN, &h) != ESP_OK)
+    // erase sector by sector as data arrives: a one-shot 4 MB erase stalls the CPU
+    // for seconds, long enough for the sensor reads to fail and trip the cut-off
+    if (esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &h) != ESP_OK)
         return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "ota begin failed");
 
-    // mining keeps running; only the HTTP task is busy while writing
-    char *buf = (char *) malloc(4096);
-    int remaining = req->content_len;
-    bool ok = true, first = true;
+    // mining keeps running; only the HTTP task is busy while writing.
+    // The last bytes of each chunk are kept in front of the next one, so a
+    // board tag split across two chunks is still found.
+    const int CHUNK = 4096, KEEP = 48;
+    char *buf = (char *) malloc(CHUNK + KEEP);
+    int remaining = req->content_len, carry = 0;
+    bool ok = true, first = true, wrong_board = false;
+    char other[24] = "";
     while (remaining > 0) {
-        int n = httpd_req_recv(req, buf, remaining < 4096 ? remaining : 4096);
+        int n = httpd_req_recv(req, buf + carry, remaining < CHUNK ? remaining : CHUNK);
         if (n == HTTPD_SOCK_ERR_TIMEOUT) continue;
         if (n <= 0) {
             ok = false;
@@ -524,13 +559,29 @@ static esp_err_t ota_post(httpd_req_t *req)
                 break;
             }
         }
-        if (esp_ota_write(h, buf, n) != ESP_OK) {
+        if (!other[0] && find_board_tag(buf, carry + n, other, sizeof(other)) && strcmp(other, AF_BOARD_ID) != 0) {
+            wrong_board = true;
+            ok = false;
+            break;
+        }
+        if (esp_ota_write(h, buf + carry, n) != ESP_OK) {
             ok = false;
             break;
         }
         remaining -= n;
+        int total = carry + n;
+        carry = total < KEEP ? total : KEEP;
+        memmove(buf, buf + total - carry, carry);
     }
     free(buf);
+    if (wrong_board) {
+        esp_ota_abort(h);
+        ESP_LOGE(TAG, "OTA refused: image is for '%s', this is '%s'", other, AF_BOARD_ID);
+        char msg[160];
+        snprintf(msg, sizeof(msg), "Upload refused: that firmware is for the %s build, this miner needs the %s build.",
+                 other, AF_BOARD_ID);
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+    }
     if (!ok || esp_ota_end(h) != ESP_OK || esp_ota_set_boot_partition(part) != ESP_OK) {
         if (ok) ESP_LOGE(TAG, "OTA validation failed");
         else esp_ota_abort(h);
@@ -807,6 +858,7 @@ const char *previous_restart()
 
 void start()
 {
+    ESP_LOGI(TAG, "firmware board tag %s", af_board_tag);
     httpd_handle_t h = NULL;
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
     cfg.stack_size = 8192;

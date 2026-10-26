@@ -38,19 +38,24 @@ jobs:
           target: esp32s3
           command: |
             idf.py build &&
-            cd build &&
-            esptool.py --chip esp32s3 merge_bin -o axeforge-factory.bin \
-              --flash_mode dio --flash_freq 80m --flash_size 16MB \
-              0x0 bootloader/bootloader.bin \
-              0x8000 partition_table/partition-table.bin \
-              0x10000 axeforge.bin \
-              0xc10000 ota_data_initial.bin
+            idf.py -B build_nerdaxe -D SDKCONFIG=build_nerdaxe/sdkconfig \
+              -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.nerdaxe" build &&
+            for b in build build_nerdaxe; do
+              (cd $b && esptool.py --chip esp32s3 merge_bin -o axeforge-factory.bin \
+                --flash_mode dio --flash_freq 80m --flash_size 16MB \
+                0x0 bootloader/bootloader.bin \
+                0x8000 partition_table/partition-table.bin \
+                0x10000 axeforge.bin \
+                0xc10000 ota_data_initial.bin) || exit 1
+            done
 
       - name: Collect binaries
         run: |
           mkdir -p dist
           sudo cp build/axeforge-factory.bin dist/axeforge-factory.bin
           sudo cp build/axeforge.bin dist/axeforge.bin
+          sudo cp build_nerdaxe/axeforge-factory.bin dist/axeforge-nerdaxe-factory.bin
+          sudo cp build_nerdaxe/axeforge.bin dist/axeforge-nerdaxe.bin
           sudo chown -R "$(id -u):$(id -g)" dist
           cd dist && sha256sum *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt
 
@@ -62,6 +67,9 @@ jobs:
           cp flasher/* site/
           sudo cp build/bootloader/bootloader.bin build/partition_table/partition-table.bin \
                   build/ota_data_initial.bin build/axeforge.bin site/
+          mkdir -p site/nerdaxe
+          sudo cp build_nerdaxe/bootloader/bootloader.bin build_nerdaxe/partition_table/partition-table.bin \
+                  build_nerdaxe/ota_data_initial.bin build_nerdaxe/axeforge.bin site/nerdaxe/
           sudo chown -R "$(id -u):$(id -g)" site
           sed -i "s/__VERSION__/${VERSION}/g" site/index.html site/manifest-*.json
           ls -la site
@@ -88,6 +96,8 @@ jobs:
           files: |
             dist/axeforge-factory.bin
             dist/axeforge.bin
+            dist/axeforge-nerdaxe-factory.bin
+            dist/axeforge-nerdaxe.bin
             dist/SHA256SUMS.txt
           # notes live in their own Markdown file so editing them can't break this YAML
           body_path: RELEASE_NOTES.md

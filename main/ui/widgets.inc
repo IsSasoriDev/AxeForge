@@ -291,7 +291,8 @@ static void refresh_widget(Widget &w)
         lv_obj_set_style_text_color(w.val, temp_color(s.chip_temp_max, CONFIG_AF_MAX_CHIP_TEMP - 6, CONFIG_AF_MAX_CHIP_TEMP), 0);
         break;
     case WType::VrTemp:
-        snprintf(v, sizeof(v), "%.0f\xC2\xB0" "C", s.vr_temp);
+        if (AF_HAS_VR_SENSOR) snprintf(v, sizeof(v), "%.0f\xC2\xB0" "C", s.vr_temp);
+        else snprintf(v, sizeof(v), "--");
         snprintf(sub, sizeof(sub), "%.2fV", s.vout);
         set_stat(w, v, sub);
         break;

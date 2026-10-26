@@ -107,6 +107,9 @@ extern "C" void app_main(void)
     // This NVS also holds AxeOS's settings and the board identity: never erase it.
     if (err != ESP_OK) fall_back_to_stock("settings storage unreadable");
     boot_guard(rr);
+#elif CONFIG_AF_BOARD_NERDAXE
+    // shares NVS with the stock firmware's settings: never erase it
+    if (err != ESP_OK) ESP_LOGE(TAG, "NVS init failed (%s), running on defaults", esp_err_to_name(err));
 #else
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();

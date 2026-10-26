@@ -9,6 +9,7 @@
 #include "ui/theme.h"  // after lvgl.h: routes colours through the active theme
 #include "sdkconfig.h"
 
+#include "asic/bm13xx.h"
 #include "core/board.h"
 #include "core/settings.h"
 #include "core/state.h"
@@ -715,7 +716,8 @@ static void refresh_dashboard()
     lv_bar_set_value(s_t_chip.bar, (int) (100 * s.chip_temp_max / CONFIG_AF_CRIT_CHIP_TEMP), LV_ANIM_ON);
     lv_label_set_text_fmt(s_t_chip.sub, "<%d°", CONFIG_AF_MAX_CHIP_TEMP);
 
-    lv_label_set_text_fmt(s_t_vr.val, "%.0f\xC2\xB0", s.vr_temp);
+    if (AF_HAS_VR_SENSOR) lv_label_set_text_fmt(s_t_vr.val, "%.0f\xC2\xB0", s.vr_temp);
+    else lv_label_set_text(s_t_vr.val, "--");
     lv_obj_set_style_text_color(s_t_vr.val, temp_color(s.vr_temp, board::limits().vr_ceil_c - 10, board::limits().vr_ceil_c), 0);
     lv_bar_set_value(s_t_vr.bar, (int) (100 * s.vr_temp / board::limits().vr_crit_c), LV_ANIM_ON);
     lv_label_set_text_fmt(s_t_vr.sub, "%.2fV", s.vout);
@@ -798,8 +800,8 @@ static void refresh_system()
         lv_label_set_text(s_sys_title, "SYSTEM");
         lv_label_set_text_fmt(s_sys_lines,
                               "#9aa8bd Web UI# http://%s\n#9aa8bd Wi-Fi# %s\n#9aa8bd Firmware# AxeForge %s\n"
-                              "#9aa8bd Chips# %d x BM1370\n#9aa8bd Free heap# %u kB",
-                              s.ip, s.ssid, esp_app_get_description()->version, s.chips_detected,
+                              "#9aa8bd Chips# %d x %s\n#9aa8bd Free heap# %u kB",
+                              s.ip, s.ssid, esp_app_get_description()->version, s.chips_detected, asic::MODEL,
                               (unsigned) (esp_get_free_heap_size() / 1024));
     }
     if (strcmp(qr, s_qr_text) != 0) {

@@ -21,6 +21,8 @@ static const char *TAG = "miner";
 
 #if AF_ASIC_BM1368
 #define JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
+#elif AF_ASIC_BM1366
+#define JOB_INTERVAL_MS 1500                   // NerdAxe reference cadence
 #else
 #define JOB_INTERVAL_MS 500
 #endif
@@ -30,8 +32,14 @@ static const char *TAG = "miner";
 #define STALL_HIGH 3.0f
 #define STALL_PERIODS 3
 #define NUM_SLOTS 128
+#if AF_ASIC_BM1366
+// one small chip: a lower ticket difficulty keeps results coming every few seconds
+#define ASIC_DIFF_MIN 64
+#define ASIC_DIFF_MAX 256
+#else
 #define ASIC_DIFF_MIN 512
 #define ASIC_DIFF_MAX 2048
+#endif
 #define COUNTER_PERIOD_MS 5000
 #define HISTORY_EVERY 6  // counter periods per chart point (30 s)
 

@@ -106,8 +106,8 @@ void pools_from_json(const char *json)
     cJSON_Delete(a);
 }
 
-#if CONFIG_AF_BOARD_SUPRAHEX
-// First boot after switching from AxeOS: take over its Wi-Fi, pools and
+#if CONFIG_AF_BOARD_SUPRAHEX || CONFIG_AF_BOARD_NERDAXE
+// First boot after switching from AxeOS / the NerdQAxe stock firmware: take over its Wi-Fi, pools and
 // clock settings (read-only, the "main" namespace is left untouched) so the
 // miner comes back on the same network instead of opening a setup AP.
 static bool import_axeos(Settings &s)
@@ -142,8 +142,9 @@ static bool import_axeos(Settings &s)
         s.pool_mode = PoolMode::Failover;  // AxeOS treats it as a fallback, not a split
     }
     char f[16] = "";
-    get_str(h, "asicfrequency_f", f, sizeof(f));
+    get_str(h, "asicfrequency_f", f, sizeof(f));  // AxeOS stores it as a string
     if (atof(f) > 0) s.freq_mhz = (uint16_t) atof(f);
+    else get_u16(h, "asicfrequency", s.freq_mhz);  // ESP-Miner-NerdQAxePlus: a number
     get_u16(h, "asicvoltage", s.core_mv);
     nvs_close(h);
     ESP_LOGW(TAG, "imported AxeOS settings: wifi '%s', pool %s:%u, %u MHz @ %u mV", s.wifi_ssid, p.url, p.port,
@@ -160,6 +161,12 @@ void load()
     strcpy(s.pools[0].url, "public-pool.io");
     s.pools[0].port = 21496;
     s.pools[0].enabled = true;
+#if CONFIG_AF_BOARD_NERDAXE
+    s.freq_mhz = 485;  // BM1366 stock point
+    s.core_mv = 1200;
+    s.display_type = 1;  // T-Display-S3
+    s.rotate_180 = true; // mounted the other way round than on the NerdQaxe++
+#endif
 #if CONFIG_AF_BOARD_SUPRAHEX
     s.freq_mhz = 490;  // BM1368 stock point
     s.core_mv = 1166;
@@ -169,7 +176,7 @@ void load()
 
     if (nvs_open("axeforge", NVS_READONLY, &h) != ESP_OK) {
         ESP_LOGW(TAG, "no saved settings, using defaults");
-#if CONFIG_AF_BOARD_SUPRAHEX
+#if CONFIG_AF_BOARD_SUPRAHEX || CONFIG_AF_BOARD_NERDAXE
         if (import_axeos(s)) save();
 #endif
         return;

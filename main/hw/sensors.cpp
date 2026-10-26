@@ -7,6 +7,93 @@
 
 static const char *TAG = "sensors";
 
+#if CONFIG_AF_BOARD_NERDAXE
+// ---------------------------------------------------------------- EMC2101 (NerdAxe)
+// One fan and the board temperature. The DS4432U sits at 0x48 on this board,
+// so the TMP1075 scan used elsewhere must never run here.
+#define EMC2101_ADDR 0x4C
+#define EMC2101_INTERNAL_TEMP 0x00
+#define EMC2101_CONFIG 0x03
+#define EMC2101_TACH_LSB 0x46
+#define EMC2101_TACH_MSB 0x47
+#define EMC2101_FAN_CONFIG 0x4A
+#define EMC2101_FAN_SETTING 0x4C  // 0..63
+#define EMC2101_CONFIG_VALUE 0x04  // enable the tach input
+#define EMC2101_FAN_CONFIG_VALUE 0x23
+
+static bool s_emc_ok = false;
+
+namespace fan {
+
+bool init()
+{
+    s_emc_ok = i2c_bus::write_byte(EMC2101_ADDR, EMC2101_CONFIG, EMC2101_CONFIG_VALUE) == ESP_OK &&
+               i2c_bus::write_byte(EMC2101_ADDR, EMC2101_FAN_CONFIG, EMC2101_FAN_CONFIG_VALUE) == ESP_OK;
+    if (!s_emc_ok) ESP_LOGE(TAG, "EMC2101 init failed");
+    return s_emc_ok;
+}
+
+void set_pct(int channel, float pct)
+{
+    if (channel != 0) return;  // single fan header
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    i2c_bus::write_byte(EMC2101_ADDR, EMC2101_FAN_SETTING, (uint8_t) (pct * 63.0f / 100.0f + 0.5f));
+}
+
+uint16_t rpm(int channel)
+{
+    if (channel != 0) return 0;
+    uint8_t lsb = 0, msb = 0;
+    if (i2c_bus::read(EMC2101_ADDR, EMC2101_TACH_LSB, &lsb, 1) != ESP_OK) return 0;
+    if (i2c_bus::read(EMC2101_ADDR, EMC2101_TACH_MSB, &msb, 1) != ESP_OK) return 0;
+    uint16_t raw = lsb | (msb << 8);
+    if (raw == 0 || raw == 0xffff) return 0;
+    uint32_t r = 5400000u / raw;
+    return r > 65535 ? 0 : (uint16_t) r;
+}
+
+bool check()
+{
+    uint8_t cfg = 0;
+    if (i2c_bus::read(EMC2101_ADDR, EMC2101_FAN_CONFIG, &cfg, 1) != ESP_OK) return true;
+    if (cfg == EMC2101_FAN_CONFIG_VALUE) return true;
+    ESP_LOGW(TAG, "fan controller config is %02x, it was reset - re-initialising", cfg);
+    init();
+    return false;
+}
+
+} // namespace fan
+
+namespace temp {
+
+int detect()
+{
+    uint8_t t;
+    bool ok = false;
+    for (int tries = 0; tries < 3 && !ok; tries++)
+        ok = i2c_bus::read(EMC2101_ADDR, EMC2101_INTERNAL_TEMP, &t, 1) == ESP_OK;
+    ESP_LOGI(TAG, "%d ASIC temperature sensors (EMC2101)", ok ? 1 : 0);
+    return ok ? 1 : 0;
+}
+
+int count() { return s_emc_ok ? 1 : detect(); }
+
+float asic_area(int index)
+{
+    if (index != 0) return NAN;
+    uint8_t t;
+    if (i2c_bus::read(EMC2101_ADDR, EMC2101_INTERNAL_TEMP, &t, 1) != ESP_OK) return NAN;
+    if (t == 0 || t > 127) return NAN;  // 0 C on a running miner, or a negative reading: garbage
+    return t;
+}
+
+float vr_board() { return NAN; }
+
+} // namespace temp
+
+#else  // NerdQaxe++ / Supra Hex
+
 // ---------------------------------------------------------------- EMC2302
 #if CONFIG_AF_BOARD_SUPRAHEX
 #define EMC_ADDR 0x2f  // EMC2302-2 variant
@@ -130,3 +217,5 @@ float vr_board() { return TMP_VR_INDEX < 0 ? NAN : tmp_read(TMP_VR_INDEX); }
 int count() { return s_num_asic_sensors; }
 
 } // namespace temp
+
+#endif // CONFIG_AF_BOARD_NERDAXE

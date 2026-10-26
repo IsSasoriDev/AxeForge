@@ -8,12 +8,14 @@ menu "AxeForge"
             pin that belongs to another board's regulator is never safe.
         config AF_BOARD_NERDQAXE
             bool "NerdQaxe++ (4x BM1370)"
+        config AF_BOARD_NERDAXE
+            bool "NerdAxe (1x BM1366, T-Display-S3)"
         config AF_BOARD_SUPRAHEX
             bool "Bitaxe Supra Hex 701/702 (6x BM1368)"
     endchoice
 
     menu "Big display (3.5in 480x320)"
-        depends on AF_BOARD_NERDQAXE
+        depends on AF_BOARD_NERDQAXE || AF_BOARD_NERDAXE
         choice AF_LCD_BUS
             prompt "Interface"
             default AF_LCD_BUS_I80
@@ -123,6 +125,7 @@ menu "AxeForge"
             int "Max ASIC frequency (MHz)"
             range 400 800
             default 625 if AF_BOARD_SUPRAHEX
+            default 600 if AF_BOARD_NERDAXE
             default 750
         config AF_MAX_CORE_MV
             int "Max core voltage (mV)"
@@ -149,6 +152,7 @@ menu "AxeForge"
         config AF_MAX_POWER_W
             int "Max input power (W)"
             default 120 if AF_BOARD_SUPRAHEX
+            default 15 if AF_BOARD_NERDAXE
             default 100
 
         comment "Rev7 boards (TPS546 regulator, detected at boot)"

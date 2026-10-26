@@ -25,7 +25,9 @@ static const char *TAG = "asic";
 #define CMD_WRITE_ALL (TYPE_CMD | GROUP_ALL | CMD_WRITE)
 #define CMD_READ_ALL (TYPE_CMD | GROUP_ALL | CMD_READ)
 
-#if AF_ASIC_BM1368
+#if AF_ASIC_BM1366
+static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x66, 0x00, 0x00};
+#elif AF_ASIC_BM1368
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x68, 0x00, 0x00};
 #else
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x70, 0x00, 0x00};
@@ -121,8 +123,8 @@ static uint8_t reverse_bits(uint8_t v)
     return r;
 }
 
-#if AF_ASIC_BM1368
-// Reference PLL search for the BM1368: closest frequency, then lowest VCO,
+#if AF_ASIC_BM1368 || AF_ASIC_BM1366
+// Reference PLL search for the BM1368 / BM1366: closest frequency, then lowest VCO,
 // then the smallest post divider product.
 static bool send_pll(float target)
 {
@@ -230,7 +232,29 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     else ESP_LOGE(TAG, "%d chips detected, expected %d", chips, expected_chips);
     if (!chips) return 0;
 
-#if AF_ASIC_BM1368
+#if AF_ASIC_BM1366
+    // BM1366 sequence from the Bitaxe / NerdQAxe reference firmware (S19XP dumps)
+    set_version_mask_all();
+    write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
+    write_all(0x18, 0xFF, 0x0F, 0xC1, 0x00);  // misc control
+    send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
+    s_addr_interval = 256 / next_pow2(chips);
+    for (int i = 0; i < chips; i++) send2(TYPE_CMD | CMD_SETADDRESS, i * s_addr_interval, 0x00);
+    write_all(0x3C, 0x80, 0x00, 0x85, 0x40);  // core register control
+    write_all(0x3C, 0x80, 0x00, 0x80, 0x20);
+    s_diff_mask = 0xffffffff;
+    set_difficulty_mask(difficulty);
+    write_all(0x54, 0x00, 0x00, 0x00, 0x03);  // analog mux
+    write_all(0x58, 0x02, 0x11, 0x11, 0x11);  // IO driver strength
+    for (int i = 0; i < chips; i++) {
+        uint8_t a = i * s_addr_interval;
+        write_one(a, 0xA8, 0x00, 0x07, 0x01, 0xF0);
+        write_one(a, 0x18, 0xF0, 0x00, 0xC1, 0x00);
+        write_one(a, 0x3C, 0x80, 0x00, 0x85, 0x40);
+        write_one(a, 0x3C, 0x80, 0x00, 0x80, 0x20);
+        write_one(a, 0x3C, 0x80, 0x00, 0x82, 0xAA);
+    }
+#elif AF_ASIC_BM1368
     // BM1368 sequence from the Bitaxe reference firmware (S21 register dumps)
     send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
     write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
@@ -286,7 +310,9 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
 
 #endif
     set_frequency(freq_mhz);
-#if AF_ASIC_BM1368
+#if AF_ASIC_BM1366
+    write_all(0x10, 0x00, 0x00, 0x15, 0x1C);  // hash counting (S19XP stock value)
+#elif AF_ASIC_BM1368
     write_all(0x10, 0x00, 0x00, 0x15, 0xA4);  // hash counting (S21 stock value)
 #else
     write_all(0x10, 0x00, 0x00, 0x1E, 0xB5);  // version rolling speed (stock value)
@@ -339,7 +365,11 @@ void set_difficulty_mask(uint32_t difficulty)
 
 uint8_t send_job(uint32_t counter, AsicJob &job)
 {
+#if AF_ASIC_BM1366
+    job.job_id = (counter * 8) & 0x7f;  // the BM1366 reports it back with the small-core id in the low 3 bits
+#else
     job.job_id = (counter * 24) & 0x7f;
+#endif
     job.num_midstates = 1;
     send(TYPE_JOB | CMD_WRITE, (const uint8_t *) &job, sizeof(job));
     return job.job_id;
@@ -369,7 +399,11 @@ bool receive(AsicResult &out, int timeout_ms)
         return true;
     }
     out.is_register = false;
+#if AF_ASIC_BM1366
+    out.job_slot = job_id & 0xf8;
+#else
     out.job_slot = (job_id & 0xf0) >> 1;
+#endif
     out.nonce = nonce;
     out.version_bits = (uint32_t) version << 13;
     uint32_t nh = __builtin_bswap32(nonce);

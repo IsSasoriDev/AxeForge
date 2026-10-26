@@ -8,6 +8,7 @@
 #include "ui/theme.h"  // after lvgl.h: routes colours through the active theme
 #include "sdkconfig.h"
 
+#include "asic/bm13xx.h"
 #include "core/board.h"
 #include "core/settings.h"
 #include "core/state.h"
@@ -381,7 +382,8 @@ static void refresh_dash()
     lv_arc_set_value(s_arc, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
     lv_label_set_text_fmt(s_dash_vals[0], "%.0f\xC2\xB0" "C", s.chip_temp_max);
     lv_obj_set_style_text_color(s_dash_vals[0], temp_col(s.chip_temp_max, CONFIG_AF_MAX_CHIP_TEMP - 6, CONFIG_AF_MAX_CHIP_TEMP), 0);
-    lv_label_set_text_fmt(s_dash_vals[1], "%.0f\xC2\xB0" "C", s.vr_temp);
+    if (AF_HAS_VR_SENSOR) lv_label_set_text_fmt(s_dash_vals[1], "%.0f\xC2\xB0" "C", s.vr_temp);
+    else lv_label_set_text(s_dash_vals[1], "--");
     float jth = s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0;
     lv_label_set_text_fmt(s_dash_vals[2], "%.0fW #9aa8bd %.1fJ/TH#", s.pin, jth);
     lv_label_set_text_fmt(s_dash_vals[3], "%u%% #9aa8bd %u#", s.fan_pct, s.fan_rpm[0]);
@@ -531,8 +533,8 @@ static void refresh_system()
                               s.ap_ssid);
     } else {
         snprintf(qr, sizeof(qr), "http://%s/", s.ip);
-        lv_label_set_text_fmt(s_sys, "#00e5ff SYSTEM#\n#9aa8bd Web UI#\nhttp://%s\n#9aa8bd Wi-Fi# %s\n#9aa8bd FW# AxeForge %s\n#9aa8bd Chips# %d x BM1370",
-                              s.ip, s.ssid, esp_app_get_description()->version, s.chips_detected);
+        lv_label_set_text_fmt(s_sys, "#00e5ff SYSTEM#\n#9aa8bd Web UI#\nhttp://%s\n#9aa8bd Wi-Fi# %s\n#9aa8bd FW# AxeForge %s\n#9aa8bd Chips# %d x %s",
+                              s.ip, s.ssid, esp_app_get_description()->version, s.chips_detected, asic::MODEL);
     }
     if (strcmp(qr, s_qr_text)) {
         strcpy(s_qr_text, qr);

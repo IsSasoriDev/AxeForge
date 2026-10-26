@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AxeForge Flasher</title>
-<meta name="description" content="Install AxeForge on a NerdQaxe++ straight from the browser over USB.">
+<meta name="description" content="Install AxeForge on a NerdQaxe++ or NerdAxe straight from the browser over USB.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070a10'/%3E%3Cpath d='M9 23 16 7l7 16h-4l-3-7-3 7z' fill='%23ff9f1c'/%3E%3C/svg%3E">
 <script type="module" src="https://unpkg.com/esp-web-tools@10.1.1/dist/web/install-button.js?module"></script>
 <style>
@@ -81,6 +81,19 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
     </esp-web-install-button>
   </section>
 
+  <section class="card board">
+    <div>
+      <h2>NerdAxe</h2>
+      <p>1× BM1366 on a LilyGo T-Display-S3.</p>
+      <div class="chips"><span class="chip">BM1366</span><span class="chip">1.9" T-Display-S3</span><span class="chip">5 V</span></div>
+    </div>
+    <esp-web-install-button manifest="manifest-nerdaxe.json">
+      <button slot="activate">Install AxeForge</button>
+      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
+      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
+    </esp-web-install-button>
+  </section>
+
   <div class="grid">
     <section class="card">
       <h3>How to install</h3>
@@ -96,7 +109,7 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
       <ul>
         <li>The flasher writes the firmware pieces only, so saved Wi-Fi and pool settings survive. Tick <b>Erase</b> for a clean start.</li>
         <li>The <code>axeforge-factory.bin</code> file on the Releases page is a full image: writing it at <code>0x0</code> resets all settings.</li>
-        <li>Later updates don't need this page: upload <code>axeforge.bin</code> under <i>System → Firmware</i> in the miner's web UI.</li>
+        <li>Later updates don't need this page: upload the board's <code>.bin</code> under <i>System → Firmware</i> in the miner's web UI (<code>axeforge.bin</code> for the NerdQaxe++, <code>axeforge-nerdaxe.bin</code> for the NerdAxe). A file for the wrong board is refused.</li>
         <li>To go back to stock, flash the stock factory image the same way, or with <code>esptool.py write_flash 0x0 &lt;file&gt;</code>.</li>
       </ul>
     </section>

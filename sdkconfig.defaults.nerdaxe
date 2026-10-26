@@ -1,0 +1,4 @@
+# NerdAxe build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_nerdaxe -D SDKCONFIG=build_nerdaxe/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.nerdaxe" build
+CONFIG_AF_BOARD_NERDAXE=y

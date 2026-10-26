@@ -4,7 +4,8 @@
 #include "core/board_config.h"
 
 // BM13xx chain driver over UART1 (TX=17, RX=18). The chip model is fixed per
-// board at compile time: BM1370 on the NerdQaxe++, BM1368 on the Supra Hex.
+// board at compile time: BM1370 on the NerdQaxe++, BM1366 on the NerdAxe,
+// BM1368 on the Supra Hex.
 // Both speak the same framing and job format; they differ in chip ID, PLL
 // range, init sequence and which register holds the hash counter.
 
@@ -33,7 +34,11 @@ struct AsicResult {
 
 namespace asic {
 
-#if AF_ASIC_BM1368
+#if AF_ASIC_BM1366
+constexpr const char *MODEL = "BM1366";
+constexpr int SMALL_CORES = 894;
+constexpr uint8_t REG_NONCE_COUNT = 0x8C;  // total hash counter, 2^32 hashes per count
+#elif AF_ASIC_BM1368
 constexpr const char *MODEL = "BM1368";
 constexpr int SMALL_CORES = 1276;
 constexpr uint8_t REG_NONCE_COUNT = 0x8C;  // total hash counter, 2^32 hashes per count

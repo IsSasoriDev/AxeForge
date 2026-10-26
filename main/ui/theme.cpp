@@ -47,9 +47,6 @@ static const Pair EMBER_MAP[] = {
     {0xc9d3e0, 0xc4c4cb},     {0x9fb4ff, 0xc4c4cb},
     {0x00e5ff, EMBER_ORANGE}, {0xff2bd6, EMBER_AMBER}, {0x3da5ff, EMBER_AMBER}, {0x8b5cff, EMBER_COOL},
     {0x2bff88, EMBER_OK},     {0xff9f1c, EMBER_WARN},  {0xffc83d, EMBER_WARN},  {0xff3b5c, EMBER_BAD},
-    // mempool fee scale: keep its meaning, warm the purple low end
-    {0x5b3fd9, 0x7a4a14},     {0x4a3fb0, 0x5a3610},     {0x3d7bff, 0x9a5a12},    {0x1fbfa0, 0xb8690f},
-    {0x8fd12b, 0xd97a0c},
 };
 
 static const Pair PAPER_MAP[] = {
@@ -63,7 +60,26 @@ static const Pair PAPER_MAP[] = {
     {0x000000, PAPER_BG},
 };
 
+// mempool.space's fee scale (defaultMempoolFeeColors at feeLevels in the
+// mempool/mempool frontend): Ember draws block cubes the way mempool.space does.
+static const uint16_t MEMPOOL_FEE_LEVELS[] = {0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 125, 150, 175, 200, 250, 300, 350, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000};
+static const uint32_t MEMPOOL_FEE_COLORS[] = {
+    0x007d3d, 0x557d00, 0x5d7d01, 0x637d02, 0x6d7d04, 0x757d05, 0x7d7d06, 0x867d08,
+    0x8c7d09, 0x957d0b, 0x9b7d0c, 0xa67d0e, 0xaa7d0f, 0xb27d10, 0xbb7d11, 0xbf7d12,
+    0xbf7815, 0xbf7319, 0xbe6c1e, 0xbe6820, 0xbd6125, 0xbd5c28, 0xbc552d, 0xbc4f30,
+    0xbc4a34, 0xbb4339, 0xbb3d3c, 0xbb373f, 0xba3243, 0xb92b48, 0xb9254b, 0xb8214d,
+    0xb71d4f, 0xb61951, 0xb41453, 0xb30e55, 0xb10857, 0xb00259, 0xae005b,
+};
+
 namespace theme {
+
+uint32_t mempool_fee_rgb(float fee)
+{
+    int i = 0;
+    for (int k = 0; k < (int) (sizeof(MEMPOOL_FEE_LEVELS) / sizeof(MEMPOOL_FEE_LEVELS[0])); k++)
+        if (fee >= MEMPOOL_FEE_LEVELS[k]) i = k;
+    return MEMPOOL_FEE_COLORS[i];
+}
 
 Id current()
 {

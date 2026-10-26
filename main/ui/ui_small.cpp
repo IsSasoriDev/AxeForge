@@ -434,6 +434,7 @@ static void refresh_clock()
 
 static lv_color_t fee_col(float f)
 {
+    if (theme::ember()) return lv_color_hex(theme::mempool_fee_rgb(f));
     if (f < 2) return lv_color_hex(0x5b3fd9);
     if (f < 5) return lv_color_hex(0x3d7bff);
     if (f < 10) return lv_color_hex(0x1fbfa0);
@@ -479,7 +480,7 @@ static void refresh_blocks()
                                   (unsigned long) m.next[0].txs);
         } else {
             const MempoolBlock &b = m.mined[i - 1];
-            c = m.valid ? lv_color_mix(fee_col(b.median_fee), lv_color_hex(0x4a3fb0), LV_OPA_50) : C_PANEL;
+            c = m.valid ? (theme::ember() ? fee_col(b.median_fee) : lv_color_mix(fee_col(b.median_fee), lv_color_hex(0x4a3fb0), LV_OPA_50)) : C_PANEL;
             lv_label_set_text_fmt(s_cube_lbl[i], "%lu\n%.10s\n%lu tx", (unsigned long) b.height, b.pool, (unsigned long) b.txs);
         }
         lv_obj_set_style_bg_color(s_cube[i], c, 0);

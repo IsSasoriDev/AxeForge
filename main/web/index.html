@@ -8,7 +8,7 @@
 <style>
 :root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#9aa8bd;
 --cyan:#00e5ff;--mag:#ff2bd6;--green:#2bff88;--orange:#ff9f1c;--red:#ff3b5c;--violet:#8b5cff;--r:14px;
---pend:#0b0f17;--g1:#00e5ff;--g2:#ff2bd6;--chart:#00e5ff;--track:#1c2635;--axis:#9aa8bd;--fee0:#5b3fd9;--fee1:#3d7bff;--fee2:#1fbfa0;--fee3:#8fd12b;--cube:#4a3fb0;--input:#070a10;--navbg:rgba(10,15,24,.85);--console:#03050a;--glow:#10213a}
+--pend:#0b0f17;--g1:#00e5ff;--g2:#ff2bd6;--chart:#00e5ff;--track:#1c2635;--axis:#9aa8bd;--input:#070a10;--navbg:rgba(10,15,24,.85);--console:#03050a;--glow:#10213a}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
 body{background:radial-gradient(1200px 600px at 80% -10%,var(--glow) 0,transparent 60%),linear-gradient(var(--bg),var(--bg2));
 color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -112,7 +112,7 @@ nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:
 /* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
 html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a1f;--pend:#131316;--line:#232328;--text:#ededef;--dim:#9a9aa3;
 --cyan:#f7931a;--mag:#ffb35c;--green:#3ecf8e;--orange:#e3b341;--red:#f0564a;--violet:#9aa4ff;--input:#0a0a0b;--navbg:rgba(10,10,11,.88);--console:#070708;--glow:#2a1906;
---g1:#f7931a;--g2:#ffb35c;--chart:#f7931a;--track:#232328;--axis:#9a9aa3;--fee0:#7a4a14;--fee1:#9a5a12;--fee2:#b8690f;--fee3:#d97a0c;--cube:#5a3610}
+--g1:#f7931a;--g2:#ffb35c;--chart:#f7931a;--track:#232328;--axis:#9a9aa3}
 html[data-theme=paper]{color-scheme:light;--bg:#f3f1ea;--bg2:#f3f1ea;--panel:#fbfaf5;--panel2:#ece9e0;--pend:#fbfaf5;--line:#1b1b1b;
 --text:#141414;--dim:#5e5e5a;--cyan:#141414;--mag:#141414;--green:#141414;--orange:#141414;--red:#b3261e;--violet:#141414;
 --input:#fffffc;--navbg:#f3f1ea;--console:#fbfaf5;--glow:transparent;--r:3px}
@@ -345,8 +345,11 @@ const sfx=d=>{const u=['','k','M','G','T','P','E'];let i=0;while(d>=1000&&i<6){d
 const dur=s=>{const d=s/86400|0,h=s%86400/3600|0,m=s%3600/60|0;return (d?d+'d ':'')+h+'h '+m+'m'};
 const pct=(v,m)=>Math.max(0,Math.min(100,100*v/m))+'%';
 const ago=t=>{const m=Math.max(0,(Date.now()/1000-t)/60|0);return m<60?m+' min ago':(m/60|0)+' h ago'};
-const cssv=(n,d)=>{try{return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||d}catch(e){return d}};
-const feeCol=f=>f<2?cssv('--fee0','#5b3fd9'):f<5?cssv('--fee1','#3d7bff'):f<10?cssv('--fee2','#1fbfa0'):f<20?cssv('--fee3','#8fd12b'):f<50?'#ffb21c':'#ff3b5c';
+// mempool.space's fee scale (defaultMempoolFeeColors at feeLevels, mempool/mempool frontend), used by Ember
+const MPL=[0,1,2,3,4,5,6,8,10,12,15,20,30,40,50,60,70,80,90,100,125,150,175,200,250,300,350,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000],MPC='007d3d,557d00,5d7d01,637d02,6d7d04,757d05,7d7d06,867d08,8c7d09,957d0b,9b7d0c,a67d0e,aa7d0f,b27d10,bb7d11,bf7d12,bf7815,bf7319,be6c1e,be6820,bd6125,bd5c28,bc552d,bc4f30,bc4a34,bb4339,bb3d3c,bb373f,ba3243,b92b48,b9254b,b8214d,b71d4f,b61951,b41453,b30e55,b10857,b00259,ae005b'.split(',');
+const mpCol=f=>{let i=0;for(let k=0;k<MPL.length;k++)if(f>=MPL[k])i=k;return '#'+MPC[i]};
+const ember=()=>document.documentElement.dataset.theme=='ember';
+const feeCol=f=>ember()?mpCol(f):f<2?'#5b3fd9':f<5?'#3d7bff':f<10?'#1fbfa0':f<20?'#8fd12b':f<50?'#ffb21c':'#ff3b5c';
 const PROTO=['Stratum V1','V1 + TLS','Stratum V2'],PSHORT=['V1','TLS','SV2'];
 function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p=t=>[cx+r*Math.cos(a0+sw*t),cy+r*Math.sin(a0+sw*t)];
  const [x0,y0]=p(0),[x1,y1]=p(1),[xf,yf]=p(Math.max(.001,Math.min(1,f)));
@@ -370,9 +373,9 @@ function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=
  <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
 function blocks(m){
  if(!m.valid){$('cubes').innerHTML=`<span class="meta">${esc(m.error||'Loading mempool…')}</span>`;return}
- const nx=m.next.slice(0,3).reverse().map((b,i)=>`<div class="cube"><div class="t">${['~30 min','~20 min','next ~10 min'][i+3-Math.min(3,m.next.length)]}</div><div class="f" style="background:linear-gradient(${feeCol(b.fee)},${feeCol(b.fee)}aa)">
+ const nx=m.next.slice(0,3).reverse().map((b,i)=>`<div class="cube"><div class="t">${['~30 min','~20 min','next ~10 min'][i+3-Math.min(3,m.next.length)]}</div><div class="f" style="background:${ember()?`linear-gradient(to right,${mpCol(b.min)},${mpCol(b.fee)},${mpCol(b.max)})`:`linear-gradient(${feeCol(b.fee)},${feeCol(b.fee)}aa)`}">
   <div><b>~${b.fee.toFixed(0)}</b> sat/vB</div><div>${b.min.toFixed(0)}–${b.max.toFixed(0)} sat/vB</div><div>${b.txs.toLocaleString()} txs</div></div></div>`).join('');
- const mn=m.mined.slice(0,5).map(b=>`<div class="cube"><div class="t">${ago(b.time)}</div><div class="f" style="background:linear-gradient(${cssv('--cube','#4a3fb0')},${feeCol(b.fee)}99)">
+ const mn=m.mined.slice(0,5).map(b=>`<div class="cube"><div class="t">${ago(b.time)}</div><div class="f" style="background:linear-gradient(${ember()?feeCol(b.fee):'#4a3fb0'},${feeCol(b.fee)}${ember()?'cc':'99'})">
   <div><b>${b.height}</b></div><div>~${b.fee.toFixed(1)} sat/vB<br>${b.txs.toLocaleString()} txs</div><div>${esc(b.pool)}</div></div></div>`).join('');
  $('cubes').innerHTML=nx+'<div class="sep"></div>'+mn;
  $('fees').textContent=`fees ${m.feeFast.toFixed(0)} / ${m.feeHour.toFixed(0)} / ${m.feeEco.toFixed(0)} sat/vB`}

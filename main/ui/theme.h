@@ -14,6 +14,8 @@ enum Id : uint8_t { FORGE = 0, PAPER = 1, EMBER = 2 };
 Id current();         // from settings, read once (a theme change reboots)
 bool paper();
 bool ember();
+// mempool.space fee colour for a fee rate (sat/vB); Ember draws blocks with it
+uint32_t mempool_fee_rgb(float fee);
 uint32_t map(uint32_t rgb);
 lv_color_t color(uint32_t rgb);
 void set_text(lv_obj_t *label, const char *text);

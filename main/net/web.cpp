@@ -17,6 +17,7 @@
 
 #include "core/board.h"
 #include "core/logbuf.h"
+#include "core/monitor.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "core/tuner.h"
@@ -166,6 +167,8 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "uptime", s.uptime_s);
     cJSON_AddStringToObject(r, "resetReason", s.reset_reason);
     cJSON_AddStringToObject(r, "restartedBy", web::previous_restart());
+    cJSON_AddStringToObject(r, "lastEmergency", monitor::last_emergency());
+    cJSON_AddNumberToObject(r, "emergencies", monitor::emergency_count());
 #if AF_HAS_LCD
     cJSON_AddStringToObject(r, "screen", display::small() ? "tdisplay" : "big");
 #else

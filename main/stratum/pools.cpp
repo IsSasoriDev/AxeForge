@@ -43,7 +43,9 @@ static const char *TAG = "pools";
 #define ID_SUBMIT_BASE 100
 #define SUGGEST_DIFF 1024
 #define DEFAULT_VERSION_MASK 0x1fffe000
-#define IDLE_RECONNECT_S 600
+// Pools send new work every 30-60 s, so three silent minutes means the pool has
+// stopped serving us; pools tend to write a silent miner off not long after.
+#define IDLE_RECONNECT_S 180
 #define HASHRATE_WINDOW_S 600
 
 struct Pool {

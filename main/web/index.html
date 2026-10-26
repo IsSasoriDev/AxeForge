@@ -74,7 +74,9 @@ input[type=range]{padding:0;height:6px;accent-color:var(--cyan);background:none;
 .wx{display:flex;align-items:center;gap:14px}.wx .t{font-size:34px;font-weight:800}
 /* blocks */
 .cubes{display:flex;gap:14px;align-items:flex-end;overflow-x:auto;padding:6px 2px 4px}
-.cube{flex:none;width:104px;text-align:center}.cube .t{font-size:11px;color:var(--dim);margin-bottom:6px}
+.cube{flex:none;width:104px;text-align:center}
+/* centred when the row fits, still scrolls from the first cube when it does not */
+.cubes>:first-child{margin-left:auto}.cubes>:last-child{margin-right:auto}.cube .t{font-size:11px;color:var(--dim);margin-bottom:6px}
 .cube .f{height:104px;border-radius:8px;padding:10px 6px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;box-shadow:6px -6px 0 rgba(255,255,255,.06);font-size:12px}
 .cube .f b{font-size:15px}.sep{flex:none;width:2px;height:120px;background:linear-gradient(var(--cyan),transparent);margin:0 4px;align-self:center}
 .hash{font:600 14px/1.6 ui-monospace,Consolas,monospace;word-break:break-all;color:var(--dim)}.hash em{font-style:normal;color:var(--cyan);text-shadow:0 0 8px var(--cyan)}
@@ -125,6 +127,9 @@ html[data-theme=paper] .card h3{color:var(--text);border-bottom:1px solid var(--
 html[data-theme=paper] .accent{display:none}
 html[data-theme=paper] nav{border-right:1.5px solid var(--line)}
 html[data-theme=paper] nav button.on{background:none;color:var(--text);border-left:3px solid var(--line);border-radius:0}
+html[data-theme=ember] .btn{color:#0a0a0b}
+html[data-theme=ember] .btn.alt{background:transparent;color:var(--cyan);border:1px solid var(--cyan)}
+html[data-theme=ember] .btn.warn{background:var(--red);color:#fff;border:0}
 html[data-theme=paper] .btn{background:var(--text);color:var(--bg)}
 html[data-theme=paper] .btn.alt{background:transparent;color:var(--text);border:1.5px solid var(--line)}
 html[data-theme=paper] .btn.warn{background:var(--red);color:#fff}

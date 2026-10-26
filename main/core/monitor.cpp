@@ -1,6 +1,7 @@
 #include "monitor.h"
 
 #include <stdio.h>
+#include "esp_attr.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -19,7 +20,12 @@ static const char *TAG = "monitor";
 #define COOLDOWN_HYST_C 20.0f
 #define RECOVERY_FREQ_DROP 50
 #define MAX_FAULT_RETRIES 3
+#define MAX_OVERHEAT_RETRIES 3
+#define RECOVERY_WAIT_S 30  // between recovery attempts, so a failing power-up is not hammered
 #define SENSOR_LOSS_S 3  // consecutive failed temperature reads before cutting power
+// Over-temperature and over-power cut-offs need this many consecutive readings:
+// a single corrupted sensor read must not shut the miner down.
+#define CRIT_CONFIRM_S 2
 // A fan driven at least this hard but turning slower than this, for this long, has
 // stalled. Only fans seen spinning since boot count: a fan that is not fitted reads
 // 0 rpm too, and must not keep a one-fan miner from running.
@@ -47,9 +53,26 @@ struct FanPI {
     }
 };
 
+// The last emergency, with the readings that caused it. Kept in RTC memory, so it
+// survives software restarts and crashes (not a power cut) and the next boot can
+// still say what happened.
+#define EMERGENCY_NOTE_MAGIC 0x454d4752
+static RTC_NOINIT_ATTR struct {
+    uint32_t magic;
+    uint32_t count;
+    char text[140];
+} s_note;
+
 static void emergency(SysStatus status, const char *why)
 {
     ESP_LOGE(TAG, "EMERGENCY: %s", why);
+    if (s_note.magic != EMERGENCY_NOTE_MAGIC) s_note.count = 0;
+    s_note.count++;
+    snprintf(s_note.text, sizeof(s_note.text), "%s | chip %.1fC, VR %.1fC, %.1f W, %.2f V in, %u MHz @ %u mV, up %lus",
+             why, g_state.chip_temp_max, g_state.vr_temp, g_state.pin, g_state.vin, board::freq_mhz(), board::core_mv(),
+             (unsigned long) g_state.uptime_s);
+    s_note.magic = EMERGENCY_NOTE_MAGIC;
+    ESP_LOGE(TAG, "readings: %s", s_note.text);
     miner::pause(true);
     board::shutdown();
     g_state.status = status;
@@ -61,7 +84,9 @@ static void monitor_task(void *)
     FanPI asic_pi, vr_pi;
     int tick = 0;
     int fault_retries = 0;
+    int overheat_retries = 0, recovery_wait = 0;
     int sensor_bad = 0;
+    int crit_chip = 0, crit_vr = 0, crit_power = 0;
     int stall[2] = {0, 0};
     char why[64];
 
@@ -137,18 +162,24 @@ static void monitor_task(void *)
                 emergency(SysStatus::Fault, why);
                 continue;
             }
-            if (g_state.chip_temp_max >= CONFIG_AF_CRIT_CHIP_TEMP) {
+            crit_chip = g_state.chip_temp_max >= CONFIG_AF_CRIT_CHIP_TEMP ? crit_chip + 1 : 0;
+            crit_vr = g_state.vr_temp >= lim.vr_crit_c ? crit_vr + 1 : 0;
+            crit_power = g_state.pin > lim.max_power_w * 1.15f ? crit_power + 1 : 0;
+            if (crit_chip >= CRIT_CONFIRM_S) {
                 snprintf(why, sizeof(why), "Chip %.0fC >= %dC", g_state.chip_temp_max, CONFIG_AF_CRIT_CHIP_TEMP);
+                crit_chip = crit_vr = crit_power = 0;
                 emergency(SysStatus::Overheat, why);
                 continue;
             }
-            if (g_state.vr_temp >= lim.vr_crit_c) {
+            if (crit_vr >= CRIT_CONFIRM_S) {
                 snprintf(why, sizeof(why), "VR %.0fC >= %.0fC", g_state.vr_temp, lim.vr_crit_c);
+                crit_chip = crit_vr = crit_power = 0;
                 emergency(SysStatus::Overheat, why);
                 continue;
             }
-            if (g_state.pin > lim.max_power_w * 1.15f) {
+            if (crit_power >= CRIT_CONFIRM_S) {
                 snprintf(why, sizeof(why), "Power %.0fW over limit", g_state.pin);
+                crit_chip = crit_vr = crit_power = 0;
                 emergency(SysStatus::Fault, why);
                 continue;
             }
@@ -164,21 +195,24 @@ static void monitor_task(void *)
                 else if (!wifi::connected()) g_state.status = SysStatus::Connecting;
                 else g_state.status = g_state.pool_connected ? SysStatus::Mining : SysStatus::Connecting;
             }
-        } else if (g_state.status == SysStatus::Overheat) {
+        } else if (g_state.status == SysStatus::Overheat && overheat_retries < MAX_OVERHEAT_RETRIES) {
             fan::set_pct(0, 100);
             fan::set_pct(1, 100);
             // wait until well below the trip point, then restart lower
             if (sensors_ok && g_state.chip_temp_max < CONFIG_AF_CRIT_CHIP_TEMP - COOLDOWN_HYST_C &&
-                g_state.vr_temp < lim.vr_crit_c - COOLDOWN_HYST_C) {
+                g_state.vr_temp < lim.vr_crit_c - COOLDOWN_HYST_C && ++recovery_wait >= RECOVERY_WAIT_S) {
+                recovery_wait = 0;
+                overheat_retries++;
                 uint16_t f = board::clamp_freq((cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz) - RECOVERY_FREQ_DROP);
                 uint16_t mv = cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
-                ESP_LOGW(TAG, "cooled down, restarting at %u MHz", f);
-                if (cfg.autotune) {
-                    cfg.tuned_freq = f;
-                    cfg.tuned_mv = mv;
-                    settings::save();
-                }
+                ESP_LOGW(TAG, "cooled down, restarting at %u MHz (%d/%d)", f, overheat_retries, MAX_OVERHEAT_RETRIES);
                 if (board::power_up(f, mv) == board::Error::None) {
+                    // only a point that actually came up becomes the new tuned point
+                    if (cfg.autotune) {
+                        cfg.tuned_freq = f;
+                        cfg.tuned_mv = mv;
+                        settings::save();
+                    }
                     g_state.status = SysStatus::Mining;
                     g_state.fault[0] = 0;
                     miner::pause(false);
@@ -203,5 +237,7 @@ static void monitor_task(void *)
 }
 
 namespace monitor {
+const char *last_emergency() { return s_note.magic == EMERGENCY_NOTE_MAGIC ? s_note.text : ""; }
+uint32_t emergency_count() { return s_note.magic == EMERGENCY_NOTE_MAGIC ? s_note.count : 0; }
 void start() { xTaskCreate(monitor_task, "monitor", 4096, NULL, 15, NULL); }
 }

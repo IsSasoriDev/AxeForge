@@ -297,7 +297,7 @@ static void refresh_widget(Widget &w)
         set_stat(w, v, sub);
         break;
     case WType::Power:
-        snprintf(v, sizeof(v), "%.0f W", s.pin);
+        snprintf(v, sizeof(v), "%.2f W", s.pin);
         snprintf(sub, sizeof(sub), "%.1fV in", s.vin);
         set_stat(w, v, sub);
         break;
@@ -315,8 +315,9 @@ static void refresh_widget(Widget &w)
         float per = s.expected_ghs / AF_NUM_ASICS;
         for (int i = 0; i < 4; i++) {
             lv_obj_t *b = w.parts[i];
-            lv_bar_set_value(b, per > 0 ? (int) (100 * s.chip_ghs[i] / per) : 0, LV_ANIM_ON);
-            lv_label_set_text_fmt((lv_obj_t *) lv_obj_get_user_data(b), "%.0f G", s.chip_ghs[i]);
+            float g = i < AF_NUM_ASICS ? s.chip_ghs[i] : 0;  // NerdAxe has one chip
+            lv_bar_set_value(b, per > 0 ? (int) (100 * g / per) : 0, LV_ANIM_ON);
+            lv_label_set_text_fmt((lv_obj_t *) lv_obj_get_user_data(b), "%.0f G", g);
         }
         break;
     }

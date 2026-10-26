@@ -722,7 +722,7 @@ static void refresh_dashboard()
     lv_bar_set_value(s_t_vr.bar, (int) (100 * s.vr_temp / board::limits().vr_crit_c), LV_ANIM_ON);
     lv_label_set_text_fmt(s_t_vr.sub, "%.2fV", s.vout);
 
-    lv_label_set_text_fmt(s_t_pwr.val, "%.0fW", s.pin);
+    lv_label_set_text_fmt(s_t_pwr.val, "%.2fW", s.pin);
     float jth = s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0;
     lv_label_set_text_fmt(s_t_pwr.sub, "%.1f J/TH", jth);
     lv_bar_set_value(s_t_pwr.bar, (int) (100 * s.pin / board::limits().max_power_w), LV_ANIM_ON);

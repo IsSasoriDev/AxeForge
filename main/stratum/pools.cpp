@@ -1,6 +1,7 @@
 #include "pools.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lwip/sockets.h"
+#include <time.h>
 
 // Part of tcp_transport, but only declared in its private header in IDF 5.3.
 extern "C" int esp_transport_get_socket(esp_transport_handle_t t);
@@ -27,12 +29,16 @@ extern "C" {
 #include "sv2_protocol.h"
 }
 
+#include "asic/bm13xx.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "mining/miner.h"
 #include "net/wifi.h"
 
 static const char *TAG = "pools";
+
+// Difficulty as shown in the UI and API: whole, rounded up.
+static uint32_t shown_diff(double d) { return d >= 4294967295.0 ? UINT32_MAX : (uint32_t) ceil(d); }
 
 #define V1_RX_BUF 8192
 #define SV2_RX_BUF 16384
@@ -43,7 +49,9 @@ static const char *TAG = "pools";
 #define ID_SUBMIT_BASE 100
 #define SUGGEST_DIFF 1024
 #define DEFAULT_VERSION_MASK 0x1fffe000
-#define IDLE_RECONNECT_S 600
+// Pools send new work every 30-60 s, so three silent minutes means the pool has
+// stopped serving us; pools tend to write a silent miner off not long after.
+#define IDLE_RECONNECT_S 180
 #define HASHRATE_WINDOW_S 600
 
 struct Pool {
@@ -63,12 +71,14 @@ struct Pool {
     char en1[67] = "";
     int en2_len = 4;
     uint32_t version_mask = DEFAULT_VERSION_MASK;
-    uint32_t diff = SUGGEST_DIFF;
+    double diff = SUGGEST_DIFF;  // pools may send fractional difficulties
     uint32_t submit_id = ID_SUBMIT_BASE;
     int64_t submit_t_us = 0;
 
     // SV2 channel
     uint32_t channel_id = 0;
+    uint32_t group_id = 0;
+    bool channel_closed = false;  // pool sent CloseChannel: reconnect
     uint32_t seq = 0;
     uint8_t ext_prefix[32] = {};
     uint8_t ext_prefix_len = 0;
@@ -121,7 +131,7 @@ static void publish(Pool &p, StratumJob &j, const char *coinb1_hex, const char *
     p.gen++;
     if (j.clean) p.clean = true;
     xSemaphoreGive(p.lock);
-    g_state.pools[p.idx].diff = p.diff;
+    g_state.pools[p.idx].diff = shown_diff(p.diff);
     if (j.clean) miner::kick();
 }
 
@@ -255,8 +265,9 @@ static void v1_message(Pool &p, const char *line)
         } else if (!strcmp(m, "mining.set_difficulty")) {
             cJSON *d = cJSON_GetArrayItem(params, 0);
             if (cJSON_IsNumber(d)) {
-                p.diff = d->valuedouble < 1 ? 1 : (uint32_t) d->valuedouble;
-                g_state.pools[p.idx].diff = p.diff;
+                // keep the fraction: truncating 1500.7 to 1500 submits shares the pool rejects
+                p.diff = d->valuedouble < 1 ? 1 : d->valuedouble;
+                g_state.pools[p.idx].diff = shown_diff(p.diff);
             }
         } else if (!strcmp(m, "mining.set_version_mask")) {
             cJSON *v = cJSON_GetArrayItem(params, 0);
@@ -444,8 +455,8 @@ static void v2_message(Pool &p, uint8_t type, const uint8_t *pl, int len)
     case SV2_MSG_SET_TARGET: {
         uint8_t target[32];
         if (sv2_parse_set_target(pl, len, &channel, target) == 0) {
-            p.diff = sv2_target_to_pdiff(target);
-            g_state.pools[p.idx].diff = p.diff;
+            p.diff = sv2_target_to_diff(target);
+            g_state.pools[p.idx].diff = shown_diff(p.diff);
         }
         break;
     }
@@ -464,9 +475,34 @@ static void v2_message(Pool &p, uint8_t type, const uint8_t *pl, int len)
         on_share_result(p, false, code);
         break;
     }
+    case SV2_MSG_CLOSE_CHANNEL: {
+        // The pool can end the channel and keep the connection open; without a
+        // channel there is no new work, so treat it as a disconnect.
+        char reason[64] = "";
+        if (sv2_parse_close_channel(pl, len, &channel, reason, sizeof(reason)) != 0) break;
+        if (channel != p.channel_id && (p.group_id == 0 || channel != p.group_id)) break;
+        ESP_LOGW(TAG, "[%d] pool closed SV2 channel %lu: %s", p.idx, (unsigned long) channel, reason);
+        set_status(p, "Channel closed by pool: %s", reason);
+        p.channel_closed = true;
+        break;
+    }
     default:
         break;
     }
+}
+
+// Hashrate announced in OpenExtendedMiningChannel; pools size the starting
+// difficulty from it. Before the first power-up there is no measured figure,
+// so work it out from the frequency the chips will be started at.
+static float nominal_hashrate()
+{
+    float ghs = g_state.expected_ghs;
+    if (ghs <= 0) {
+        const Settings &s = settings::get();
+        float mhz = s.tuned_freq ? s.tuned_freq : s.freq_mhz;
+        ghs = mhz * (float) asic::SMALL_CORES * AF_NUM_ASICS / 1000.0f;
+    }
+    return ghs * 1e9f;
 }
 
 static bool v2_recv(Pool &p, uint8_t *hdr, uint8_t *buf, int *len)
@@ -495,7 +531,7 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
     sv2_frame_header_t fh;
     const esp_app_desc_t *app = esp_app_get_description();
 
-    int n = sv2_build_setup_connection(buf, SV2_RX_BUF, cfg.url, cfg.port, "AxeForge", "BM1370", app->version, "",
+    int n = sv2_build_setup_connection(buf, SV2_RX_BUF, cfg.url, cfg.port, "AxeForge", asic::MODEL, app->version, "",
                                        SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING);
     if (n < 0 || !send_frame(p, buf, n) || !v2_recv(p, hdr, buf, &len)) goto out;
     sv2_parse_frame_header(hdr, &fh);
@@ -504,7 +540,11 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
         goto out;
     }
 
-    n = sv2_build_open_extended_mining_channel(buf, SV2_RX_BUF, 1, cfg.user, 5e12f, 6);
+    {
+        float hs = nominal_hashrate();
+        ESP_LOGI(TAG, "[%d] SV2 nominal hashrate %.0f GH/s", p.idx, hs / 1e9f);
+        n = sv2_build_open_extended_mining_channel(buf, SV2_RX_BUF, 1, cfg.user, hs, 6);
+    }
     if (n < 0 || !send_frame(p, buf, n) || !v2_recv(p, hdr, buf, &len)) goto out;
     sv2_parse_frame_header(hdr, &fh);
     if (fh.msg_type != SV2_MSG_OPEN_EXTENDED_MINING_CHANNEL_SUCCESS) {
@@ -519,25 +559,40 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
                                                     &p.ext_prefix_len, &group) != 0)
             goto out;
         p.ext_size = (uint8_t) ext_size;
-        p.diff = sv2_target_to_pdiff(target);
+        p.diff = sv2_target_to_diff(target);
         p.seq = 0;
+        p.group_id = group;
+        p.channel_closed = false;
     }
     p.version_mask = DEFAULT_VERSION_MASK;
     g_state.pools[p.idx].connected = true;
-    g_state.pools[p.idx].diff = p.diff;
+    g_state.pools[p.idx].diff = shown_diff(p.diff);
     set_status(p, have_key ? "Connected (SV2, verified)" : "Connected (SV2, encrypted)");
-    ESP_LOGI(TAG, "[%d] SV2 channel %lu open, diff %lu", p.idx, (unsigned long) p.channel_id, (unsigned long) p.diff);
+    ESP_LOGI(TAG, "[%d] SV2 channel %lu open, diff %.2f", p.idx, (unsigned long) p.channel_id, p.diff);
 
-    while (!p.restart) {
-        int ready = esp_transport_poll_read(p.t, 1000);
-        if (ready < 0) break;
-        if (ready == 0) continue;
-        if (!v2_recv(p, hdr, buf, &len)) {
-            set_status(p, "Connection closed");
-            break;
+    {
+        // Same rule as V1: a pool that has sent nothing for this long has stopped
+        // giving us work, even if the socket still looks open.
+        int64_t last_rx = esp_timer_get_time();
+        while (!p.restart && !p.channel_closed) {
+            int ready = esp_transport_poll_read(p.t, 1000);
+            if (ready < 0) break;
+            if (ready == 0) {
+                if (esp_timer_get_time() - last_rx > IDLE_RECONNECT_S * 1000000LL) {
+                    ESP_LOGW(TAG, "[%d] idle too long, reconnecting", p.idx);
+                    set_status(p, "Pool silent, reconnecting");
+                    break;
+                }
+                continue;
+            }
+            if (!v2_recv(p, hdr, buf, &len)) {
+                set_status(p, "Connection closed");
+                break;
+            }
+            last_rx = esp_timer_get_time();
+            sv2_parse_frame_header(hdr, &fh);
+            v2_message(p, fh.msg_type, buf, len);
         }
-        sv2_parse_frame_header(hdr, &fh);
-        v2_message(p, fh.msg_type, buf, len);
     }
 out:
     free(buf);
@@ -566,6 +621,12 @@ static void pool_task(void *arg)
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
+        // With certificate date checks on, TLS cannot succeed before the clock is set
+        if (cfg.proto == PoolProto::V1Tls && time(NULL) < 1704067200) {
+            set_status(p, "Waiting for the clock (NTP) to check the pool certificate");
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
         set_status(p, "Connecting...");
         p.proto = cfg.proto;
         p.diff = SUGGEST_DIFF;
@@ -579,6 +640,9 @@ static void pool_task(void *arg)
         xSemaphoreTake(p.lock, portMAX_DELAY);
         p.have_job = false;
         xSemaphoreGive(p.lock);
+        // results for this connection's jobs would be stale (or carry the old
+        // extranonce) on the next one
+        miner::forget_pool(p.idx);
         transport_close(p);
         if (!p.restart) {
             ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(backoff_s * 1000));
@@ -669,7 +733,7 @@ void submit(int i, const Work &w, uint32_t nonce, uint32_t version)
     snprintf(line, sizeof(line),
              "{\"id\":%lu,\"method\":\"mining.submit\",\"params\":[\"%s\",\"%s\",\"%s\",\"%08lx\",\"%08lx\",\"%08lx\"]}\n",
              (unsigned long) p.submit_id++, settings::get().pools[i].user, w.job_id, w.extranonce2,
-             (unsigned long) w.ntime, (unsigned long) nonce, (unsigned long) (version ^ w.version));
+             (unsigned long) w.ntime, (unsigned long) nonce, (unsigned long) (version & w.version_mask));
     send_line(p, line);
 }
 

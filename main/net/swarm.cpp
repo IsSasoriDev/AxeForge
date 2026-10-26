@@ -54,10 +54,28 @@ struct Lock {
 };
 }
 
+// Strict dotted quad. inet_aton also takes short and octal forms and ignores
+// anything after a space, which then breaks the URL built from it.
 static bool valid_ip(const char *ip)
 {
+    if (!ip || strlen(ip) > 15) return false;
+    int parts = 0, val = -1;
+    for (const char *p = ip;; p++) {
+        if (*p >= '0' && *p <= '9') {
+            if (val == 0) return false;  // leading zero: inet_aton would read it as octal
+            val = (val < 0 ? 0 : val * 10) + (*p - '0');
+            if (val > 255) return false;
+        } else if (*p == '.' || *p == 0) {
+            if (val < 0) return false;
+            parts++;
+            val = -1;
+            if (*p == 0) break;
+        } else {
+            return false;
+        }
+    }
     in_addr a;
-    return ip && strlen(ip) < 16 && inet_aton(ip, &a) && a.s_addr != 0;
+    return parts == 4 && inet_aton(ip, &a) && a.s_addr != 0;
 }
 
 // ------------------------------------------------------------------ storage
@@ -122,8 +140,8 @@ static void str(cJSON *o, const char *k, char *dst, size_t len)
     if (cJSON_IsString(v) && v->valuestring && v->valuestring[0]) snprintf(dst, len, "%s", v->valuestring);
 }
 
-// Fills `p` from whichever API the device speaks. False if it isn't a miner.
-static bool fetch(const char *ip, Peer &p)
+// AxeOS (Bitaxe, NerdQAxe stock) API. False if the device doesn't speak it.
+static bool fetch_axeos(const char *ip, Peer &p)
 {
     char url[48];
     snprintf(url, sizeof(url), "http://%s/api/system/info", ip);
@@ -154,10 +172,16 @@ static bool fetch(const char *ip, Peer &p)
         return true;
     }
     cJSON_Delete(j);
+    return false;
+}
 
+// AxeForge API. False if the device doesn't speak it.
+static bool fetch_axeforge(const char *ip, Peer &p)
+{
+    char url[48];
     snprintf(url, sizeof(url), "http://%s/api/status", ip);
-    body = http::get(url, MAX_BODY, HTTP_TIMEOUT_MS, true);
-    j = body ? cJSON_Parse(body) : nullptr;
+    char *body = http::get(url, MAX_BODY, HTTP_TIMEOUT_MS, true);
+    cJSON *j = body ? cJSON_Parse(body) : nullptr;
     free(body);
     if (j && cJSON_GetObjectItem(j, "hashrate") && cJSON_GetObjectItem(j, "board")) {
         strcpy(p.kind, "AxeForge");
@@ -181,19 +205,31 @@ static bool fetch(const char *ip, Peer &p)
     return false;
 }
 
+// Fills `p` from whichever API the device speaks. False if it isn't a miner.
+// A peer already known as AxeForge is asked on its own API first: probing it with
+// /api/system/info every poll left a 404 and two warnings in its log every 15 s.
+static bool fetch(const char *ip, Peer &p, const char *known_kind = "")
+{
+    if (!strcmp(known_kind, "AxeForge")) return fetch_axeforge(ip, p) || fetch_axeos(ip, p);
+    return fetch_axeos(ip, p) || fetch_axeforge(ip, p);
+}
+
 static void poll_all()
 {
-    char ips[MAX_PEERS][16];
+    char ips[MAX_PEERS][16], kinds[MAX_PEERS][12];
     int n;
     {
         Lock l;
         n = s_count;
-        for (int i = 0; i < n; i++) strcpy(ips[i], s_peers[i].ip);
+        for (int i = 0; i < n; i++) {
+            strcpy(ips[i], s_peers[i].ip);
+            strcpy(kinds[i], s_peers[i].kind);
+        }
     }
     for (int i = 0; i < n; i++) {
         Peer p = {};
         strcpy(p.ip, ips[i]);
-        bool ok = fetch(ips[i], p);
+        bool ok = fetch(ips[i], p, kinds[i]);
         Lock l;
         for (int k = 0; k < s_count; k++) {
             if (strcmp(s_peers[k].ip, ips[i]) != 0) continue;

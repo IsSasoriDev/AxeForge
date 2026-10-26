@@ -369,7 +369,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('fault').style.display=S.fault?'block':'none';$('fault').textContent='⚠ '+S.fault;
  $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
  $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
- $('pw').innerHTML=S.power.toFixed(0)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
+ $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
  $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=fanText(S);$('fnb').style.width=S.fanPct+'%';
  chips(S.chips);blocks(S.mempool);fanStatus();
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;tp.style.color=phaseCol[t.phase]||'var(--violet)';
@@ -427,7 +427,7 @@ async function loadSwarm(){try{SW=await (await fetch('/api/swarm')).json()}catch
  $('swt').innerHTML='<tr><th>Miner</th><th>Model</th><th class="r">Hashrate</th><th class="r">Temp</th><th class="r">Power</th><th class="r">Shares</th><th class="r">Best</th><th class="r">Uptime</th><th></th></tr>'+
   M.map(m=>{const x=hr(m.hashrate);return `<tr class="${m.online?'':'off'}"><td><span class="dot ${m.online?'ok':''}" style="display:inline-block;margin-right:8px"></span>`+
   (m.self?'<b>This miner</b>':`<a href="http://${esc(m.ip)}/" target="_blank" rel="noopener">${esc(m.name||m.ip)}</a>`)+`<div class="sub">${esc(m.ip)} · ${esc(m.kind)} ${esc(m.version)}</div></td>`+
-  `<td>${esc(m.model||'--')}</td><td class="r">${!m.online?'--':ok(m)?x[0]+' '+x[1]:'<span style="color:var(--red)" title="The miner reports an impossible value">invalid</span>'}</td><td class="r">${m.online?m.temp.toFixed(1)+'°C':'--'}</td><td class="r">${m.online?m.power.toFixed(0)+' W':'--'}</td>`+
+  `<td>${esc(m.model||'--')}</td><td class="r">${!m.online?'--':ok(m)?x[0]+' '+x[1]:'<span style="color:var(--red)" title="The miner reports an impossible value">invalid</span>'}</td><td class="r">${m.online?m.temp.toFixed(1)+'°C':'--'}</td><td class="r">${m.online?m.power.toFixed(2)+' W':'--'}</td>`+
   `<td class="r">${m.accepted} / ${m.rejected}</td><td class="r">${m.best?sfx(m.best):'--'}</td><td class="r">${m.online?up(m.uptime):(m.ago>0?'seen '+up(m.ago)+' ago':'not seen since boot')}</td>`+
   `<td class="r">${m.self?'':`<button class="btn alt sm" onclick="swDel('${esc(m.ip)}')">Remove</button>`}</td></tr>`}).join('')}
 async function swAdd(){const ip=$('swip').value.trim();if(!ip)return;await act('/api/swarm',JSON.stringify({add:ip}));$('swip').value='';setTimeout(loadSwarm,3000)}
@@ -499,7 +499,7 @@ async function loadLayout(){L=await (await fetch('/api/layout')).json();while(L.
 $('pal').innerHTML=Object.entries(WT).map(([k,v])=>`<button onclick="addW('${k}')">+ ${v[0]}</button>`).join('');
 document.querySelectorAll('#edseg button').forEach(b=>b.onclick=()=>{ep=+b.dataset.p;sel=-1;document.querySelectorAll('#edseg button').forEach(x=>x.classList.toggle('on',x==b));drawCanvas()});
 function sample(t){const s=S;if(!s.chips)return'';switch(t){case'hashrate':case'gauge':return hr(s.hashrate).join(' ');case'chiptemp':return s.chipTemp.toFixed(0)+'°C';case'vrtemp':return s.vrTemp.toFixed(0)+'°C';
- case'power':return s.power.toFixed(0)+' W';case'eff':return(s.power/(s.hashrate/1000||1)).toFixed(1)+' J/TH';case'fan':return s.fanPct+'%';case'clock':return new Date().toTimeString().slice(0,5);
+ case'power':return s.power.toFixed(2)+' W';case'eff':return(s.power/(s.hashrate/1000||1)).toFixed(1)+' J/TH';case'fan':return s.fanPct+'%';case'clock':return new Date().toTimeString().slice(0,5);
  case'date':return new Date().toDateString().slice(0,10);case'weather':return s.weather.valid?s.weather.temp.toFixed(0)+'° '+s.weather.text:'--';case'shares':return s.pool.accepted+' / '+s.pool.rejected;
  case'bestdiff':return sfx(s.pool.bestDiff);case'height':return s.template.height;case'netdiff':return sfx(s.pool.networkDiff);case'reward':return s.template.reward.toFixed(3)+' BTC';
  case'lasthash':return(s.lastHash||'').slice(0,20)+'…';case'nextblock':return'~'+(s.mempool.next[0]?.fee||0).toFixed(0)+' sat/vB';case'fees':return s.mempool.feeFast+' / '+s.mempool.feeEco;

@@ -17,6 +17,7 @@
 
 #include "core/board.h"
 #include "core/logbuf.h"
+#include "core/monitor.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "core/tuner.h"
@@ -166,6 +167,8 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "uptime", s.uptime_s);
     cJSON_AddStringToObject(r, "resetReason", s.reset_reason);
     cJSON_AddStringToObject(r, "restartedBy", web::previous_restart());
+    cJSON_AddStringToObject(r, "lastEmergency", monitor::last_emergency());
+    cJSON_AddNumberToObject(r, "emergencies", monitor::emergency_count());
 #if AF_HAS_LCD
     cJSON_AddStringToObject(r, "screen", display::small() ? "tdisplay" : "big");
 #else
@@ -340,6 +343,16 @@ static esp_err_t settings_get(httpd_req_t *req)
     return send_json(req, r);
 }
 
+// "http(s)://host[...]": the mempool client appends "/api/..." to this.
+static bool valid_base_url(const char *u)
+{
+    const char *h = !strncmp(u, "https://", 8) ? u + 8 : !strncmp(u, "http://", 7) ? u + 7 : nullptr;
+    if (!h || !*h || *h == '/' || *h == ':') return false;
+    for (const char *p = u; *p; p++)
+        if (*p <= ' ' || *p == '"' || *p == '<' || *p == '>' || *p == '\\') return false;
+    return true;
+}
+
 static bool copy_str(cJSON *root, const char *key, char *dst, size_t len)
 {
     cJSON *v = cJSON_GetObjectItem(root, key);
@@ -460,7 +473,13 @@ static esp_err_t settings_post(httpd_req_t *req)
     if (dt != c.display_type) reboot = true;  // the panel driver is chosen at boot
     c.display_type = (uint8_t) dt;
     bool mp_on = get_bool(j, "mempool", c.mempool_on);
+    char old_mp[sizeof(c.mempool_url)];
+    strcpy(old_mp, c.mempool_url);
     bool mp_changed = copy_str(j, "mpurl", c.mempool_url, sizeof(c.mempool_url)) || mp_on != c.mempool_on;
+    if (!valid_base_url(c.mempool_url)) {
+        ESP_LOGW(TAG, "mempool URL '%s' ignored: needs http:// or https:// and a host", c.mempool_url);
+        strcpy(c.mempool_url, old_mp);
+    }
     c.mempool_on = mp_on;
     // strip a trailing slash so "/api/..." can be appended
     size_t ml = strlen(c.mempool_url);

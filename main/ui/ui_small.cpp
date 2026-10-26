@@ -385,7 +385,7 @@ static void refresh_dash()
     if (AF_HAS_VR_SENSOR) lv_label_set_text_fmt(s_dash_vals[1], "%.0f\xC2\xB0" "C", s.vr_temp);
     else lv_label_set_text(s_dash_vals[1], "--");
     float jth = s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0;
-    lv_label_set_text_fmt(s_dash_vals[2], "%.0fW #9aa8bd %.1fJ/TH#", s.pin, jth);
+    lv_label_set_text_fmt(s_dash_vals[2], "%.2fW #9aa8bd %.0fJ/TH#", s.pin, jth);
     lv_label_set_text_fmt(s_dash_vals[3], "%u%% #9aa8bd %u#", s.fan_pct, s.fan_rpm[0]);
     const char *ph = s.tuner.phase == TunerPhase::Locked ? "#2bff88 LOCKED#"
                      : s.tuner.phase == TunerPhase::Off  ? "#9aa8bd MANUAL#"

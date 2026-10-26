@@ -191,13 +191,13 @@ static void render()
     case PAGE_MINER:
         fmt_hashrate(a, sizeof(a), s.hashrate_ghs);
         text(big, 0, 0, a, 1);
-        snprintf(b, sizeof(b), "%.0fC %.0fW %uM", s.chip_temp_max, s.pin, s.freq_mhz);
+        snprintf(b, sizeof(b), "%.0fC %.2fW %uM", s.chip_temp_max, s.pin, s.freq_mhz);
         text(sm, 0, 24, b, 1);
         break;
     case PAGE_POWER:
         snprintf(a, sizeof(a), "ASIC %.0fC VR %.0fC", s.chip_temp_max, s.vr_temp);
         text(sm, 0, 0, a);
-        snprintf(a, sizeof(a), "%.0fW  %.2fV in", s.pin, s.vin);
+        snprintf(a, sizeof(a), "%.2fW  %.2fV in", s.pin, s.vin);
         text(sm, 0, 8, a);
         snprintf(a, sizeof(a), "%umV %uMHz", s.core_mv, s.freq_mhz);
         text(sm, 0, 16, a);

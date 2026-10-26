@@ -1,4 +1,5 @@
 #include "miner.h"
+#include <math.h>
 
 #include <algorithm>
 
@@ -76,11 +77,13 @@ static void invalidate_pool(int pool)
     xSemaphoreGive(s_work_lock);
 }
 
-static uint32_t asic_difficulty(uint32_t pool_diff)
+// The chips only take a whole difficulty: round down, so nothing that could be a
+// share is filtered out on the chip.
+static uint32_t asic_difficulty(double pool_diff)
 {
     if (pool_diff < ASIC_DIFF_MIN) return ASIC_DIFF_MIN;
     if (pool_diff > ASIC_DIFF_MAX) return ASIC_DIFF_MAX;
-    return pool_diff;
+    return (uint32_t) pool_diff;
 }
 
 struct PoolSlot {
@@ -132,7 +135,8 @@ static void job_task(void *)
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
-        uint32_t min_diff = UINT32_MAX;
+        double min_diff = UINT32_MAX;
+        uint32_t roll_mask = 0xffffffff;  // only bits every pool in use allows
         for (int i = 0; i < AF_MAX_POOLS; i++) {
             PoolSlot &s = slots[i];
             StratumJob next;
@@ -145,7 +149,10 @@ static void job_task(void *)
                 s.have = true;
                 if (pools::take_clean_flag(i)) invalidate_pool(i);
             }
-            if (s.have && pools::ready(i) && s.info.difficulty < min_diff) min_diff = s.info.difficulty;
+            if (s.have && pools::ready(i)) {
+                if (s.info.difficulty < min_diff) min_diff = s.info.difficulty;
+                roll_mask &= s.info.version_mask;
+            }
         }
 
         int p = pick_pool(slots);
@@ -174,6 +181,7 @@ static void job_task(void *)
         work::build(s.tmpl, s.info.en1, s.en2++, s.info.en2_len, s.info.version_mask, s.info.difficulty, w, cj);
         w.pool = p;
         asic::set_difficulty_mask(asic_difficulty(min_diff));
+        asic::set_version_mask(roll_mask);
         uint8_t slot = asic::send_job(s_job_counter++, cj);
         xSemaphoreTake(s_work_lock, portMAX_DELAY);
         s_work[slot] = w;
@@ -188,7 +196,7 @@ static void job_task(void *)
             }
             sent_window = 0;
         }
-        g_state.pool_diff = s.info.difficulty;
+        g_state.pool_diff = (uint32_t) ceil(s.info.difficulty);
 
         // a new block wakes us early so stale work is replaced immediately
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(JOB_INTERVAL_MS));
@@ -268,7 +276,9 @@ static void result_task(void *)
         xSemaphoreGive(s_work_lock);
         if (!w.valid) continue;
 
-        uint32_t version = w.version | r.version_bits;
+        // the chip reports the new state of the rolled bits: substitute them, so a
+        // template with bits already set inside the mask is rebuilt correctly
+        uint32_t version = (w.version & ~w.version_mask) | (r.version_bits & w.version_mask);
         if (seen_before(r.job_slot, r.nonce, version)) {
             g_state.dup_results++;
             ESP_LOGW(TAG, "chip %d repeated nonce %08lx (job slot %u), dropped (%lu so far)", r.chip,
@@ -398,6 +408,11 @@ void kick()
     if (s_job_task) xTaskNotifyGive(s_job_task);
 }
 
+void forget_pool(int pool)
+{
+    if (s_work_lock) invalidate_pool(pool);
+}
+
 void reset_window()
 {
     portENTER_CRITICAL(&s_win_mux);
@@ -423,6 +438,18 @@ float window_stats(float *ghs, float *err_pct)
     *ghs = (float) total;
     *err_pct = (valid + errs) > 0 ? (float) (100.0 * errs / (valid + errs)) : 0;
     return (float) ((esp_timer_get_time() - start) / 1000000.0);
+}
+
+float window_worst_chip_err()
+{
+    double worst = 0;
+    portENTER_CRITICAL(&s_win_mux);
+    for (int i = 0; i < AF_NUM_ASICS; i++) {
+        double n = s_win_valid[i] + s_win_err[i];
+        if (n > 0 && 100.0 * s_win_err[i] / n > worst) worst = 100.0 * s_win_err[i] / n;
+    }
+    portEXIT_CRITICAL(&s_win_mux);
+    return (float) worst;
 }
 
 } // namespace miner

@@ -24,6 +24,7 @@ extern "C" {
 #define SV2_MSG_OPEN_EXTENDED_MINING_CHANNEL            0x13
 #define SV2_MSG_OPEN_EXTENDED_MINING_CHANNEL_SUCCESS    0x14
 #define SV2_MSG_NEW_MINING_JOB                          0x15
+#define SV2_MSG_CLOSE_CHANNEL                           0x18
 #define SV2_MSG_NEW_EXTENDED_MINING_JOB                 0x1f
 #define SV2_MSG_SUBMIT_SHARES_STANDARD                  0x1a
 #define SV2_MSG_SUBMIT_SHARES_EXTENDED                  0x1b
@@ -194,6 +195,11 @@ int sv2_parse_submit_shares_error(const uint8_t *payload, uint32_t len,
                                   uint32_t *channel_id, uint32_t *seq_num,
                                   char *error_code, size_t error_code_size);
 
+// Parse CloseChannel (0x18, spec 5.3.9): channel_id U32 + reason_code STR0_255.
+int sv2_parse_close_channel(const uint8_t *payload, uint32_t len,
+                            uint32_t *channel_id,
+                            char *reason_code, size_t reason_code_size);
+
 // --- Extended channel message builders/parsers ---
 
 int sv2_build_open_extended_mining_channel(uint8_t *buf, size_t buf_len,
@@ -222,6 +228,8 @@ void sv2_ext_job_free(sv2_ext_job_t *job);
 
 // Convert U256 LE target to pool difficulty (pdiff)
 uint32_t sv2_target_to_pdiff(const uint8_t target[32]);
+// Same, without rounding to a whole number (a target rarely maps to one).
+double sv2_target_to_diff(const uint8_t target[32]);
 
 #ifdef __cplusplus
 }

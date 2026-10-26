@@ -27,6 +27,7 @@ extern "C" {
 #include "sv2_protocol.h"
 }
 
+#include "asic/bm13xx.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "mining/miner.h"
@@ -469,6 +470,20 @@ static void v2_message(Pool &p, uint8_t type, const uint8_t *pl, int len)
     }
 }
 
+// Hashrate announced in OpenExtendedMiningChannel; pools size the starting
+// difficulty from it. Before the first power-up there is no measured figure,
+// so work it out from the frequency the chips will be started at.
+static float nominal_hashrate()
+{
+    float ghs = g_state.expected_ghs;
+    if (ghs <= 0) {
+        const Settings &s = settings::get();
+        float mhz = s.tuned_freq ? s.tuned_freq : s.freq_mhz;
+        ghs = mhz * (float) asic::SMALL_CORES * AF_NUM_ASICS / 1000.0f;
+    }
+    return ghs * 1e9f;
+}
+
 static bool v2_recv(Pool &p, uint8_t *hdr, uint8_t *buf, int *len)
 {
     return sv2_noise_recv(p.noise, p.t, hdr, buf, SV2_RX_BUF, len) == 0;
@@ -495,7 +510,7 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
     sv2_frame_header_t fh;
     const esp_app_desc_t *app = esp_app_get_description();
 
-    int n = sv2_build_setup_connection(buf, SV2_RX_BUF, cfg.url, cfg.port, "AxeForge", "BM1370", app->version, "",
+    int n = sv2_build_setup_connection(buf, SV2_RX_BUF, cfg.url, cfg.port, "AxeForge", asic::MODEL, app->version, "",
                                        SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING);
     if (n < 0 || !send_frame(p, buf, n) || !v2_recv(p, hdr, buf, &len)) goto out;
     sv2_parse_frame_header(hdr, &fh);
@@ -504,7 +519,11 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
         goto out;
     }
 
-    n = sv2_build_open_extended_mining_channel(buf, SV2_RX_BUF, 1, cfg.user, 5e12f, 6);
+    {
+        float hs = nominal_hashrate();
+        ESP_LOGI(TAG, "[%d] SV2 nominal hashrate %.0f GH/s", p.idx, hs / 1e9f);
+        n = sv2_build_open_extended_mining_channel(buf, SV2_RX_BUF, 1, cfg.user, hs, 6);
+    }
     if (n < 0 || !send_frame(p, buf, n) || !v2_recv(p, hdr, buf, &len)) goto out;
     sv2_parse_frame_header(hdr, &fh);
     if (fh.msg_type != SV2_MSG_OPEN_EXTENDED_MINING_CHANNEL_SUCCESS) {

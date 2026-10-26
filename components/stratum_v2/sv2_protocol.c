@@ -592,6 +592,14 @@ void sv2_ext_job_free(sv2_ext_job_t *job)
 
 // --- Helpers ---
 
+double sv2_target_to_diff(const uint8_t target[32])
+{
+    double target_d = s_le256todouble(target);
+    if (target_d == 0.0) return (double)UINT32_MAX;
+    double diff = s_truediffone / target_d;
+    return diff < 1.0 ? 1.0 : diff;
+}
+
 uint32_t sv2_target_to_pdiff(const uint8_t target[32])
 {
     double target_d = s_le256todouble(target);

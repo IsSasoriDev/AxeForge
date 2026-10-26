@@ -31,7 +31,7 @@ struct Work {
     uint32_t version_mask;
     uint32_t ntime;
     uint32_t nbits;
-    uint32_t pool_diff;
+    double pool_diff;
     uint8_t prev_hash[32];       // header order
     uint8_t merkle_root[32];     // header order
 };
@@ -44,7 +44,7 @@ void bin2hex(const uint8_t *bin, size_t len, char *hex);
 // Builds the coinbase, merkle root and both the verification Work and the
 // chip job. extranonce1 is hex.
 void build(const StratumJob &sj, const char *extranonce1, uint32_t en2, int en2_len, uint32_t version_mask,
-           uint32_t pool_diff, Work &w, AsicJob &chip_job);
+           double pool_diff, Work &w, AsicJob &chip_job);
 
 // Returns share difficulty of a found nonce (0 = invalid hash).
 // hash_out (optional) receives the 32-byte block hash in internal order.

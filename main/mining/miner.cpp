@@ -1,4 +1,5 @@
 #include "miner.h"
+#include <math.h>
 
 #include <algorithm>
 
@@ -76,11 +77,13 @@ static void invalidate_pool(int pool)
     xSemaphoreGive(s_work_lock);
 }
 
-static uint32_t asic_difficulty(uint32_t pool_diff)
+// The chips only take a whole difficulty: round down, so nothing that could be a
+// share is filtered out on the chip.
+static uint32_t asic_difficulty(double pool_diff)
 {
     if (pool_diff < ASIC_DIFF_MIN) return ASIC_DIFF_MIN;
     if (pool_diff > ASIC_DIFF_MAX) return ASIC_DIFF_MAX;
-    return pool_diff;
+    return (uint32_t) pool_diff;
 }
 
 struct PoolSlot {
@@ -132,7 +135,7 @@ static void job_task(void *)
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
-        uint32_t min_diff = UINT32_MAX;
+        double min_diff = UINT32_MAX;
         for (int i = 0; i < AF_MAX_POOLS; i++) {
             PoolSlot &s = slots[i];
             StratumJob next;
@@ -188,7 +191,7 @@ static void job_task(void *)
             }
             sent_window = 0;
         }
-        g_state.pool_diff = s.info.difficulty;
+        g_state.pool_diff = (uint32_t) ceil(s.info.difficulty);
 
         // a new block wakes us early so stale work is replaced immediately
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(JOB_INTERVAL_MS));

@@ -1,6 +1,7 @@
 #include "pools.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +35,9 @@ extern "C" {
 
 static const char *TAG = "pools";
 
+// Difficulty as shown in the UI and API: whole, rounded up.
+static uint32_t shown_diff(double d) { return d >= 4294967295.0 ? UINT32_MAX : (uint32_t) ceil(d); }
+
 #define V1_RX_BUF 8192
 #define SV2_RX_BUF 16384
 #define ID_CONFIGURE 1
@@ -63,7 +67,7 @@ struct Pool {
     char en1[67] = "";
     int en2_len = 4;
     uint32_t version_mask = DEFAULT_VERSION_MASK;
-    uint32_t diff = SUGGEST_DIFF;
+    double diff = SUGGEST_DIFF;  // pools may send fractional difficulties
     uint32_t submit_id = ID_SUBMIT_BASE;
     int64_t submit_t_us = 0;
 
@@ -121,7 +125,7 @@ static void publish(Pool &p, StratumJob &j, const char *coinb1_hex, const char *
     p.gen++;
     if (j.clean) p.clean = true;
     xSemaphoreGive(p.lock);
-    g_state.pools[p.idx].diff = p.diff;
+    g_state.pools[p.idx].diff = shown_diff(p.diff);
     if (j.clean) miner::kick();
 }
 
@@ -255,8 +259,9 @@ static void v1_message(Pool &p, const char *line)
         } else if (!strcmp(m, "mining.set_difficulty")) {
             cJSON *d = cJSON_GetArrayItem(params, 0);
             if (cJSON_IsNumber(d)) {
-                p.diff = d->valuedouble < 1 ? 1 : (uint32_t) d->valuedouble;
-                g_state.pools[p.idx].diff = p.diff;
+                // keep the fraction: truncating 1500.7 to 1500 submits shares the pool rejects
+                p.diff = d->valuedouble < 1 ? 1 : d->valuedouble;
+                g_state.pools[p.idx].diff = shown_diff(p.diff);
             }
         } else if (!strcmp(m, "mining.set_version_mask")) {
             cJSON *v = cJSON_GetArrayItem(params, 0);
@@ -444,8 +449,8 @@ static void v2_message(Pool &p, uint8_t type, const uint8_t *pl, int len)
     case SV2_MSG_SET_TARGET: {
         uint8_t target[32];
         if (sv2_parse_set_target(pl, len, &channel, target) == 0) {
-            p.diff = sv2_target_to_pdiff(target);
-            g_state.pools[p.idx].diff = p.diff;
+            p.diff = sv2_target_to_diff(target);
+            g_state.pools[p.idx].diff = shown_diff(p.diff);
         }
         break;
     }
@@ -519,14 +524,14 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
                                                     &p.ext_prefix_len, &group) != 0)
             goto out;
         p.ext_size = (uint8_t) ext_size;
-        p.diff = sv2_target_to_pdiff(target);
+        p.diff = sv2_target_to_diff(target);
         p.seq = 0;
     }
     p.version_mask = DEFAULT_VERSION_MASK;
     g_state.pools[p.idx].connected = true;
-    g_state.pools[p.idx].diff = p.diff;
+    g_state.pools[p.idx].diff = shown_diff(p.diff);
     set_status(p, have_key ? "Connected (SV2, verified)" : "Connected (SV2, encrypted)");
-    ESP_LOGI(TAG, "[%d] SV2 channel %lu open, diff %lu", p.idx, (unsigned long) p.channel_id, (unsigned long) p.diff);
+    ESP_LOGI(TAG, "[%d] SV2 channel %lu open, diff %.2f", p.idx, (unsigned long) p.channel_id, p.diff);
 
     while (!p.restart) {
         int ready = esp_transport_poll_read(p.t, 1000);

@@ -222,6 +222,8 @@ void sv2_ext_job_free(sv2_ext_job_t *job);
 
 // Convert U256 LE target to pool difficulty (pdiff)
 uint32_t sv2_target_to_pdiff(const uint8_t target[32]);
+// Same, without rounding to a whole number (a target rarely maps to one).
+double sv2_target_to_diff(const uint8_t target[32]);
 
 #ifdef __cplusplus
 }

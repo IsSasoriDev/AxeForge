@@ -11,7 +11,7 @@ struct JobInfo {
     char en1[67];          // extranonce1 hex (empty for SV2: folded into coinb1)
     int en2_len;
     uint32_t version_mask;
-    uint32_t difficulty;
+    double difficulty;     // the pool's share difficulty, fraction included
 };
 
 void start();

@@ -8,7 +8,7 @@
 <style>
 :root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#9aa8bd;
 --cyan:#00e5ff;--mag:#ff2bd6;--green:#2bff88;--orange:#ff9f1c;--red:#ff3b5c;--violet:#8b5cff;--r:14px;
---pend:#0b0f17;--input:#070a10;--navbg:rgba(10,15,24,.85);--console:#03050a;--glow:#10213a}
+--pend:#0b0f17;--g1:#00e5ff;--g2:#ff2bd6;--chart:#00e5ff;--track:#1c2635;--axis:#9aa8bd;--fee0:#5b3fd9;--fee1:#3d7bff;--fee2:#1fbfa0;--fee3:#8fd12b;--cube:#4a3fb0;--input:#070a10;--navbg:rgba(10,15,24,.85);--console:#03050a;--glow:#10213a}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
 body{background:radial-gradient(1200px 600px at 80% -10%,var(--glow) 0,transparent 60%),linear-gradient(var(--bg),var(--bg2));
 color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -110,6 +110,9 @@ nav .logo,nav .foot{display:none}nav button{flex-direction:column;gap:3px;font-s
 nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:1fr}main{padding-bottom:100px}}
 
 /* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
+html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a1f;--pend:#131316;--line:#232328;--text:#ededef;--dim:#9a9aa3;
+--cyan:#f7931a;--mag:#ffb35c;--green:#3ecf8e;--orange:#e3b341;--red:#f0564a;--violet:#9aa4ff;--input:#0a0a0b;--navbg:rgba(10,10,11,.88);--console:#070708;--glow:#2a1906;
+--g1:#f7931a;--g2:#ffb35c;--chart:#f7931a;--track:#232328;--axis:#9a9aa3;--fee0:#7a4a14;--fee1:#9a5a12;--fee2:#b8690f;--fee3:#d97a0c;--cube:#5a3610}
 html[data-theme=paper]{color-scheme:light;--bg:#f3f1ea;--bg2:#f3f1ea;--panel:#fbfaf5;--panel2:#ece9e0;--pend:#fbfaf5;--line:#1b1b1b;
 --text:#141414;--dim:#5e5e5a;--cyan:#141414;--mag:#141414;--green:#141414;--orange:#141414;--red:#b3261e;--violet:#141414;
 --input:#fffffc;--navbg:#f3f1ea;--console:#fbfaf5;--glow:transparent;--r:3px}
@@ -171,9 +174,9 @@ html[data-theme=paper] .pill{background:transparent}
 <section id="dash" class="on">
 <div class="hero">
  <div class="card gauge"><svg viewBox="0 0 220 220">
-  <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient>
+  <defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" style="stop-color:var(--g1)"/><stop offset="1" style="stop-color:var(--g2)"/></linearGradient>
   <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-  <path id="garcbg" fill="none" stroke="#1c2635" stroke-width="14" stroke-linecap="round"/>
+  <path id="garcbg" fill="none" style="stroke:var(--track)" stroke-width="14" stroke-linecap="round"/>
   <path id="garc" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" filter="url(#glow)"/>
   <text x="110" y="112" text-anchor="middle" class="v" id="hrv">--</text>
   <text x="110" y="138" text-anchor="middle" class="u" id="hru">TH/s</text>
@@ -275,7 +278,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <form data-f><div class="card"><h3>Screen settings</h3>
 <label style="margin-top:0">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
-<label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option></select>
+<label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option></select>
 <p class="note">Changing the theme reboots the miner so the screen is rebuilt with the new palette.</p>
 <label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <label>Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
@@ -342,7 +345,8 @@ const sfx=d=>{const u=['','k','M','G','T','P','E'];let i=0;while(d>=1000&&i<6){d
 const dur=s=>{const d=s/86400|0,h=s%86400/3600|0,m=s%3600/60|0;return (d?d+'d ':'')+h+'h '+m+'m'};
 const pct=(v,m)=>Math.max(0,Math.min(100,100*v/m))+'%';
 const ago=t=>{const m=Math.max(0,(Date.now()/1000-t)/60|0);return m<60?m+' min ago':(m/60|0)+' h ago'};
-const feeCol=f=>f<2?'#5b3fd9':f<5?'#3d7bff':f<10?'#1fbfa0':f<20?'#8fd12b':f<50?'#ffb21c':'#ff3b5c';
+const cssv=(n,d)=>{try{return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||d}catch(e){return d}};
+const feeCol=f=>f<2?cssv('--fee0','#5b3fd9'):f<5?cssv('--fee1','#3d7bff'):f<10?cssv('--fee2','#1fbfa0'):f<20?cssv('--fee3','#8fd12b'):f<50?'#ffb21c':'#ff3b5c';
 const PROTO=['Stratum V1','V1 + TLS','Stratum V2'],PSHORT=['V1','TLS','SV2'];
 function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p=t=>[cx+r*Math.cos(a0+sw*t),cy+r*Math.sin(a0+sw*t)];
  const [x0,y0]=p(0),[x1,y1]=p(1),[xf,yf]=p(Math.max(.001,Math.min(1,f)));
@@ -368,7 +372,7 @@ function blocks(m){
  if(!m.valid){$('cubes').innerHTML=`<span class="meta">${esc(m.error||'Loading mempool…')}</span>`;return}
  const nx=m.next.slice(0,3).reverse().map((b,i)=>`<div class="cube"><div class="t">${['~30 min','~20 min','next ~10 min'][i+3-Math.min(3,m.next.length)]}</div><div class="f" style="background:linear-gradient(${feeCol(b.fee)},${feeCol(b.fee)}aa)">
   <div><b>~${b.fee.toFixed(0)}</b> sat/vB</div><div>${b.min.toFixed(0)}–${b.max.toFixed(0)} sat/vB</div><div>${b.txs.toLocaleString()} txs</div></div></div>`).join('');
- const mn=m.mined.slice(0,5).map(b=>`<div class="cube"><div class="t">${ago(b.time)}</div><div class="f" style="background:linear-gradient(#4a3fb0,${feeCol(b.fee)}99)">
+ const mn=m.mined.slice(0,5).map(b=>`<div class="cube"><div class="t">${ago(b.time)}</div><div class="f" style="background:linear-gradient(${cssv('--cube','#4a3fb0')},${feeCol(b.fee)}99)">
   <div><b>${b.height}</b></div><div>~${b.fee.toFixed(1)} sat/vB<br>${b.txs.toLocaleString()} txs</div><div>${esc(b.pool)}</div></div></div>`).join('');
  $('cubes').innerHTML=nx+'<div class="sep"></div>'+mn;
  $('fees').textContent=`fees ${m.feeFast.toFixed(0)} / ${m.feeHour.toFixed(0)} / ${m.feeEco.toFixed(0)} sat/vB`}
@@ -412,22 +416,22 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  if(cur=='pools')poolLive()}
 async function chart(){let h;try{h=await (await fetch('/api/history')).json()}catch(e){return}
  const c=$('chart'),W=c.clientWidth||600,H=c.clientHeight||150,pts=h.map((v,i)=>[i/(h.length-1)*W,v]).filter(p=>p[1]>0);
- if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#9aa8bd" text-anchor="middle" font-size="12">Collecting data — first point after 30 s</text>`;return}
+ if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" style="fill:var(--axis)" text-anchor="middle" font-size="12">Collecting data — first point after 30 s</text>`;return}
  const mx=Math.max(...pts.map(p=>p[1]))*1.08,mn=Math.min(...pts.map(p=>p[1]))*.92,y=v=>H-6-(v-mn)/(mx-mn||1)*(H-16);
  const line=pts.map(p=>`${p[0].toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
  c.setAttribute('viewBox',`0 0 ${W} ${H}`);
- c.innerHTML=`<defs><linearGradient id="cf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00e5ff" stop-opacity=".35"/><stop offset="1" stop-color="#00e5ff" stop-opacity="0"/></linearGradient></defs>
- ${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" stroke="#1c2635"/>`).join('')}
+ c.innerHTML=`<defs><linearGradient id="cf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--chart)" stop-opacity=".35"/><stop offset="1" style="stop-color:var(--chart)" stop-opacity="0"/></linearGradient></defs>
+ ${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" style="stroke:var(--track)"/>`).join('')}
  <polygon points="${pts[0][0]},${H} ${line} ${pts[pts.length-1][0]},${H}" fill="url(#cf)"/>
- <polyline points="${line}" fill="none" stroke="#00e5ff" stroke-width="2.2" stroke-linejoin="round" filter="url(#glow)"/>
- <text x="${W-4}" y="12" fill="#9aa8bd" font-size="11" text-anchor="end">${hr(mx/1.08).join(' ')}</text>`}
+ <polyline points="${line}" fill="none" style="stroke:var(--chart)" stroke-width="2.2" stroke-linejoin="round" filter="url(#glow)"/>
+ <text x="${W-4}" y="12" style="fill:var(--axis)" font-size="11" text-anchor="end">${hr(mx/1.08).join(' ')}</text>`}
 
 /* ---------------- generic settings forms */
 function fanText(S){const f=(S.fans||[]).filter(x=>x.connected);
  return f.length?f.length+(f.length>1?' fans · ':' fan · ')+f.map(x=>x.rpm).join(' / ')+' rpm':'no fan detected'}
 function fanStatus(){(S.fans||[]).forEach((f,i)=>{const e=$('fan'+(i+1)+'st');if(e)e.textContent=f.connected?`connected · ${f.rpm} rpm at ${f.speedPerc}%`:'nothing connected'})}
-function setTheme(t){const n=t==1?'paper':'';document.documentElement.dataset.theme=n;try{localStorage.setItem('af-theme',n)}catch(e){}
- document.querySelector('meta[name=theme-color]').content=t==1?'#f3f1ea':'#070a10'}
+function setTheme(t){const n=t==1?'paper':t==2?'ember':'';document.documentElement.dataset.theme=n;try{localStorage.setItem('af-theme',n)}catch(e){}
+ document.querySelector('meta[name=theme-color]').content=t==1?'#f3f1ea':t==2?'#0a0a0b':'#070a10'}
 /* ---------------- swarm */
 let SW=null;
 async function loadSwarm(){try{SW=await (await fetch('/api/swarm')).json()}catch(e){return}

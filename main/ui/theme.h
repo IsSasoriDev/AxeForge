@@ -9,16 +9,17 @@
 
 namespace theme {
 
-enum Id : uint8_t { FORGE = 0, PAPER = 1 };
+enum Id : uint8_t { FORGE = 0, PAPER = 1, EMBER = 2 };
 
 Id current();         // from settings, read once (a theme change reboots)
 bool paper();
+bool ember();
 uint32_t map(uint32_t rgb);
 lv_color_t color(uint32_t rgb);
 void set_text(lv_obj_t *label, const char *text);
 void set_text_fmt(lv_obj_t *label, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 lv_coord_t shadow(lv_coord_t width);
-void apply_lvgl_theme(lv_disp_t *disp);  // light base theme for Paper
+void apply_lvgl_theme(lv_disp_t *disp);  // light base theme for Paper, orange accent for Ember
 
 } // namespace theme
 

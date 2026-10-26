@@ -54,10 +54,28 @@ struct Lock {
 };
 }
 
+// Strict dotted quad. inet_aton also takes short and octal forms and ignores
+// anything after a space, which then breaks the URL built from it.
 static bool valid_ip(const char *ip)
 {
+    if (!ip || strlen(ip) > 15) return false;
+    int parts = 0, val = -1;
+    for (const char *p = ip;; p++) {
+        if (*p >= '0' && *p <= '9') {
+            if (val == 0) return false;  // leading zero: inet_aton would read it as octal
+            val = (val < 0 ? 0 : val * 10) + (*p - '0');
+            if (val > 255) return false;
+        } else if (*p == '.' || *p == 0) {
+            if (val < 0) return false;
+            parts++;
+            val = -1;
+            if (*p == 0) break;
+        } else {
+            return false;
+        }
+    }
     in_addr a;
-    return ip && strlen(ip) < 16 && inet_aton(ip, &a) && a.s_addr != 0;
+    return parts == 4 && inet_aton(ip, &a) && a.s_addr != 0;
 }
 
 // ------------------------------------------------------------------ storage

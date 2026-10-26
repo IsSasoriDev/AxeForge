@@ -128,6 +128,7 @@ html[data-theme=paper] .accent{display:none}
 html[data-theme=paper] nav{border-right:1.5px solid var(--line)}
 html[data-theme=paper] nav button.on{background:none;color:var(--text);border-left:3px solid var(--line);border-radius:0}
 html[data-theme=ember] .btn{color:#0a0a0b}
+html[data-theme=ember] .card>.accent{background:var(--cyan)!important}
 html[data-theme=ember] .btn.alt{background:transparent;color:var(--cyan);border:1px solid var(--cyan)}
 html[data-theme=ember] .btn.warn{background:var(--red);color:#fff;border:0}
 html[data-theme=paper] .btn{background:var(--text);color:var(--bg)}
@@ -354,6 +355,16 @@ const ago=t=>{const m=Math.max(0,(Date.now()/1000-t)/60|0);return m<60?m+' min a
 const MPL=[0,1,2,3,4,5,6,8,10,12,15,20,30,40,50,60,70,80,90,100,125,150,175,200,250,300,350,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000],MPC='007d3d,557d00,5d7d01,637d02,6d7d04,757d05,7d7d06,867d08,8c7d09,957d0b,9b7d0c,a67d0e,aa7d0f,b27d10,bb7d11,bf7d12,bf7815,bf7319,be6c1e,be6820,bd6125,bd5c28,bc552d,bc4f30,bc4a34,bb4339,bb3d3c,bb373f,ba3243,b92b48,b9254b,b8214d,b71d4f,b61951,b41453,b30e55,b10857,b00259,ae005b'.split(',');
 const mpCol=f=>{let i=0;for(let k=0;k<MPL.length;k++)if(f>=MPL[k])i=k;return '#'+MPC[i]};
 const ember=()=>document.documentElement.dataset.theme=='ember';
+// Ember: orange says 'this is a tile', green/amber/red say 'is it OK'. Temperature and
+// power bars take a status colour against the miner's own limits; fan stays orange.
+// One temperature rule: amber where the fans are forced to 100% and the tuner stops
+// climbing (3 C under its ceiling), red at the ceiling, where a tuning step fails.
+const tempCol=(t,ceil)=>t>=ceil?'var(--red)':t>=ceil-3?'var(--orange)':'var(--green)';
+function emberBars(S,L){const st=(v,warn,bad)=>v>=bad?'var(--red)':v>=warn?'var(--orange)':'var(--green)';
+ $('ctb').style.background=tempCol(S.chipTemp,L.chipCeil||68);
+ $('vtb').style.background=tempCol(S.vrTemp,L.vrCeil||85);
+ $('pwb').style.background=st(S.power,(L.maxPower||100)*.95,(L.maxPower||100)*1.05);
+ $('fnb').style.background='var(--cyan)'}
 const feeCol=f=>ember()?mpCol(f):f<2?'#5b3fd9':f<5?'#3d7bff':f<10?'#1fbfa0':f<20?'#8fd12b':f<50?'#ffb21c':'#ff3b5c';
 const PROTO=['Stratum V1','V1 + TLS','Stratum V2'],PSHORT=['V1','TLS','SV2'];
 function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p=t=>[cx+r*Math.cos(a0+sw*t),cy+r*Math.sin(a0+sw*t)];
@@ -372,7 +383,7 @@ function payHtml(tm){
 function hashHtml(h){if(!h)return'';const z=(h.match(/^0*/)||[''])[0].length;return `<em>${h.slice(0,z)}</em>${h.slice(z)}`}
 
 function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/(c.length||4)||1;
- const ceil=cfg.limits?.chipCeil||68,tc=x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
+ const ceil=cfg.limits?.chipCeil||68,tc=ember()?tempCol(x.temp,ceil):x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
  return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor shared by several chips">shared sensor</span>'}</h3>
  <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%</div>
  <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
@@ -396,6 +407,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
  $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
  $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=fanText(S);$('fnb').style.width=S.fanPct+'%';
+ if(ember())emberBars(S,L);
  chips(S.chips);blocks(S.mempool);fanStatus();
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;tp.style.color=phaseCol[t.phase]||'var(--violet)';
  $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;

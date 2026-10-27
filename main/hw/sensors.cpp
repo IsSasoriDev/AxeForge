@@ -166,6 +166,10 @@ uint16_t rpm(int channel)
 // own temperature over PMBus.
 static const int ASIC_SENSOR_DEV[] = {2, 3};
 #define TMP_VR_INDEX -1
+#elif CONFIG_AF_BOARD_NEXUS
+// Nexus S1 (from its stock firmware): 0x48 near the chips, 0x49 at the VR
+static const int ASIC_SENSOR_DEV[] = {0};
+#define TMP_VR_INDEX 1
 #else
 // NerdQaxe++: 0x48, 0x4a, 0x4b near the chips, 0x49 on the back of the VR
 static const int ASIC_SENSOR_DEV[] = {0, 2, 3};

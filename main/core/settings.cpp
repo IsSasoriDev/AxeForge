@@ -187,6 +187,11 @@ void load()
     // two board sensors for six chips: keep real airflow over the unsensed ones
     s.fan_min_pct = 45;
 #endif
+#if CONFIG_AF_BOARD_NEXUS
+    s.freq_mhz = 450;  // the Nexus S1's stock point
+    s.core_mv = 950;
+    s.display_type = 1;  // T-Display-S3 panel
+#endif
 
     if (nvs_open("axeforge", NVS_READONLY, &h) != ESP_OK) {
         ESP_LOGW(TAG, "no saved settings, using defaults");

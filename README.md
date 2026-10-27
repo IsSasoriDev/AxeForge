@@ -18,12 +18,14 @@ Alternative firmware for the NerdQAxe family of Bitcoin miners and the Bitaxe Su
 | **NerdOctaxe-γ** | 8× BM1370 | TPS53647 4-phase, or TPS53667 6-phase from rev3.0 | 250 W / 300 W | `axeforge-nerdoctaxegamma.bin` | ⚠️ Not tested on hardware yet |
 | **NerdQX** | 4× BM1370 | TPS53647, 3-phase | 240 W | `axeforge-nerdqx.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Supra Hex** 701 / 702 | 6× BM1368 | TPS546, 3 stacked domains | 120 W | `axeforge-suprahex.bin` | ✅ Tested (702) |
+| **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | build from source | ⚠️ Experimental (one board tested) |
 
 - Each board has its own firmware file. A file for another board is refused, because the boards switch their core power on differently.
 - The NerdQaxe++ revision and the NerdOctaxe-γ regulator are detected at boot.
 - The NerdQX and NerdOctaxe-γ read the real die temperature of every chip. The other boards use temperature sensors on the PCB next to the chips.
 - A NerdQX without its die sensors is treated as an unknown board and stays at 495 MHz / 1150 mV.
 - The Supra Hex is installed through AxeOS, not the web flasher, and AxeOS stays on it (see [Bitaxe Supra Hex](#bitaxe-supra-hex)). Its screen is the 128×32 OLED.
+- The Nexus S1 is experimental. BitLuck publishes no source or schematics, so its pins and power sequence were read from the stock firmware. Its limits stay close to stock (500 MHz, 1000 mV, 170 W), and there is no release file yet: build it with `sdkconfig.defaults.nexus`.
 - If you run one of the untested boards, please open an issue with your log (*System → Log*), working or not.
 - Other Bitaxe models are not supported yet (see [Not supported](#not-supported-yet)).
 

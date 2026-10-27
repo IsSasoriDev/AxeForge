@@ -39,8 +39,11 @@ esp_err_t init()
     return i2c_driver_install(I2C_PORT, conf.mode, 0, 0, 0);
 }
 
+// Every call below fails cleanly if init() never ran (a board whose pin map is
+// not trusted yet leaves the bus off); taking a NULL mutex would assert.
 bool probe(uint8_t addr)
 {
+    if (!s_lock) return false;
     Lock l;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -53,12 +56,14 @@ bool probe(uint8_t addr)
 
 esp_err_t read(uint8_t addr, uint8_t reg, uint8_t *data, size_t len)
 {
+    if (!s_lock) return ESP_ERR_INVALID_STATE;
     Lock l;
     return i2c_master_write_read_device(I2C_PORT, addr, &reg, 1, data, len, I2C_TIMEOUT);
 }
 
 esp_err_t write(uint8_t addr, const uint8_t *data, size_t len)
 {
+    if (!s_lock) return ESP_ERR_INVALID_STATE;
     Lock l;
     return i2c_master_write_to_device(I2C_PORT, addr, data, len, I2C_TIMEOUT);
 }

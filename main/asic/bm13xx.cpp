@@ -29,6 +29,9 @@ static const char *TAG = "asic";
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x66, 0x00, 0x00};
 #elif AF_ASIC_BM1368
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x68, 0x00, 0x00};
+#elif AF_ASIC_BM1373
+// The BM1373 answers with the BM1372's ID (13 72); accept 13 73 as well.
+static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x72, 0x00, 0x00};
 #else
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x70, 0x00, 0x00};
 #endif
@@ -38,6 +41,9 @@ static float s_freq = 56.25f;
 static uint32_t s_diff_mask = 0xffffffff;
 static uint32_t s_version_mask = 0xffffffff;  // unknown: rewrite on next set_version_mask
 static uint8_t s_addr_interval = 64;
+#if AF_ASIC_BM1373
+static uint8_t s_nonce_interval = 64;  // chip number from a nonce; differs from the address stride here
+#endif
 
 // ------------------------------------------------------------------ CRC
 static uint8_t crc5(const uint8_t *data, int len)
@@ -228,14 +234,24 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     // speed in one step; on the Supra Hex that surge trips the regulator's
     // over-current shutdown on every fault retry.
     s_freq = 56.25f;
+#if AF_ASIC_BM1373
+    // shufps writes the version mask with the enable bit clear before counting
+    for (int i = 0; i < 4; i++) write_all(0xA4, 0x80, 0x00, 0xFF, 0xFF);
+#else
     for (int i = 0; i < 4; i++) set_version_mask_all();
+#endif
 
     // count chips: read reg 0 on everybody
     send2(CMD_READ_ALL, 0x00, 0x00);
     int chips = 0;
     uint8_t buf[11];
     while (uart_read_bytes(UART, buf, sizeof(buf), pdMS_TO_TICKS(1000)) == sizeof(buf)) {
-        if (memcmp(buf, CHIP_ID, sizeof(CHIP_ID)) == 0) chips++;
+#if AF_ASIC_BM1373
+        bool match = memcmp(buf, CHIP_ID, 3) == 0 && (buf[3] == 0x72 || buf[3] == 0x73);
+#else
+        bool match = memcmp(buf, CHIP_ID, sizeof(CHIP_ID)) == 0;
+#endif
+        if (match) chips++;
         else ESP_LOGW(TAG, "unexpected reply during chip count");
     }
     if (chips == expected_chips) ESP_LOGI(TAG, "%d %s chips detected", chips, MODEL);
@@ -289,6 +305,35 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     s_diff_mask = 0xffffffff;
     set_difficulty_mask(difficulty);
 
+#elif AF_ASIC_BM1373
+    // BM1373 sequence from shufps' NerdQAxe firmware (components/bm1397/bm1373.cpp),
+    // which the Nexus S1's stock firmware is built on. bitaxe's differs in places
+    // (3C clock delay 805A, broadcast A8, regs 0x19 and 0x0D); don't mix the two.
+    write_all(0xA4, 0x80, 0x00, 0xFF, 0xFF);
+    write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
+    write_all(0x18, 0xFF, 0x00, 0xC1, 0x00);  // misc control
+    send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
+
+    s_addr_interval = 16;  // both sources: a fixed stride of 16, not 256 / chips
+    s_nonce_interval = 256 / next_pow2(chips);
+    for (int i = 0; i < chips; i++) send2(TYPE_CMD | CMD_SETADDRESS, i * s_addr_interval, 0x00);
+
+    write_all(0x3C, 0x80, 0x00, 0x80, 0x0C);  // core register control
+    s_diff_mask = 0xffffffff;
+    set_difficulty_mask(difficulty);
+    write_all(0x58, 0x00, 0x01, 0x11, 0x11);  // IO driver strength
+    write_all(0x68, 0x5A, 0xA5, 0x5A, 0xA5);
+    // Single-chip writes go to chip * 4 although addresses were set at chip * 16:
+    // the Nexus stock firmware and bitaxe both do this (shufps uses chip * 16).
+    for (int i = 0; i < chips; i++) {
+        uint8_t a = i * 4;
+        write_one(a, 0xA8, 0x00, 0x07, 0x01, 0xF0);
+        write_one(a, 0x18, 0xFF, 0x00, 0xC1, 0x00);
+        write_one(a, 0x3C, 0x80, 0x00, 0x80, 0x0C);
+        write_one(a, 0x3C, 0x80, 0x00, 0x82, 0xAA);
+    }
+    write_all(0x54, 0x00, 0x00, 0x00, 0x02);  // analog mux
+
 #else
     set_version_mask_all();
     write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
@@ -324,6 +369,10 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0x10, 0x00, 0x00, 0x15, 0x1C);  // hash counting (S19XP stock value)
 #elif AF_ASIC_BM1368
     write_all(0x10, 0x00, 0x00, 0x15, 0xA4);  // hash counting (S21 stock value)
+#elif AF_ASIC_BM1373
+    // nonce space: bitaxe's S21 Pro stock value, which stops BM1372/1373 chips
+    // searching overlapping work (shufps inherits the BM1368's 0x15A4 by accident)
+    write_all(0x10, 0x00, 0x00, 0x1E, 0xB5);
 #elif defined(AF_VR_FREQ_HZ)
     {
         // reg = 65536 * 3000 Hz (15 MHz IO clock / 5000) / rolling frequency
@@ -434,7 +483,11 @@ bool receive(AsicResult &out, int timeout_ms)
     out.nonce = nonce;
     out.version_bits = (uint32_t) version << 13;
     uint32_t nh = __builtin_bswap32(nonce);
+#if AF_ASIC_BM1373
+    out.chip = s_nonce_interval ? ((nh >> 17) & 0xff) / s_nonce_interval : 0;  // bitaxe; shufps: (nh >> 24) & 3
+#else
     out.chip = s_addr_interval ? ((nh >> 17) & 0xff) / s_addr_interval : 0;
+#endif
     return true;
 }
 

@@ -29,6 +29,19 @@
 #define AF_HAS_LCD 0  // 128x32 SSD1306 OLED instead
 #define AF_JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
 #define AF_KEEP_STOCK_NVS 1
+#elif CONFIG_AF_BOARD_NEXUS
+// BitLuck Nexus S1, board version 1010. Pins read from the stock firmware
+// (nexus.v1.0.2); the layout is the NerdQaxe++'s apart from the power pins.
+#define AF_BOARD_NAME "Nexus S1"
+#define AF_BOARD_ID "nexus"
+#define AF_NUM_ASICS 4
+#define AF_ASIC_BM1373 1
+#define AF_PIN_I2C_SDA 44
+#define AF_PIN_I2C_SCL 43
+#define AF_HAS_LCD 1  // T-Display-S3 panel, same pins as the NerdQaxe++
+#define AF_ASIC_DIFF_MIN 1024  // about three BM1370s' worth of hashing per chip (shufps' Q1373 values)
+#define AF_ASIC_DIFF_MAX 4096
+#define AF_KEEP_STOCK_NVS 1
 #else
 // The NerdQaxe family: same ESP32 module, LCD, fans (EMC2302), board sensors
 // (TMP1075) and TPS536x7 regulator wiring; they differ in chips, phases and limits.

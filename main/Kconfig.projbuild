@@ -20,7 +20,10 @@ menu "AxeForge"
             bool "NerdAxe (1x BM1366, T-Display-S3)"
         config AF_BOARD_SUPRAHEX
             bool "Bitaxe Supra Hex 701/702 (6x BM1368)"
+        config AF_BOARD_NEXUS
+            bool "Nexus S1 (4x BM1373) - EXPERIMENTAL"
     endchoice
+
 
     menu "Big display (3.5in 480x320)"
         depends on !AF_BOARD_SUPRAHEX
@@ -136,15 +139,18 @@ menu "AxeForge"
             default 625 if AF_BOARD_SUPRAHEX || AF_BOARD_NERDQAXEPLUS || AF_BOARD_NERDOCTAXEPLUS
             default 600 if AF_BOARD_NERDAXE
             default 1000 if AF_BOARD_NERDQX
+            default 500 if AF_BOARD_NEXUS  # stock v1.0.2 stops at 450; 475 MHz / 975 mV ran clean
             default 750
         config AF_MAX_CORE_MV
             int "Max core voltage (mV)"
-            range 1100 1350
+            range 1000 1350
             default 1350 if AF_BOARD_NERDQX
+            default 1000 if AF_BOARD_NEXUS  # stock allows 1050, but that draws ~185 W, over the 170 W cap
             default 1300
         config AF_MIN_CORE_MV
             int "Min core voltage (mV)"
-            range 1000 1200
+            range 900 1200
+            default 900 if AF_BOARD_NEXUS
             default 1100
         config AF_MAX_CHIP_TEMP
             int "Tuner chip temperature ceiling (C)"
@@ -168,6 +174,7 @@ menu "AxeForge"
             default 130 if AF_BOARD_NERDOCTAXEPLUS
             default 250 if AF_BOARD_NERDOCTAXEGAMMA
             default 240 if AF_BOARD_NERDQX
+            default 170 if AF_BOARD_NEXUS  # stock draws ~148 W at 450 MHz; shufps' Q1373 allows 180
             default 100
 
         comment "Rev7 boards (TPS546 regulator, detected at boot)"

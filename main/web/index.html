@@ -111,6 +111,16 @@ background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),line
 nav{position:fixed;bottom:0;top:auto;height:auto;width:100%;display:flex;flex-direction:row;overflow-x:auto;padding:6px;border-right:0;border-top:1px solid var(--line);z-index:5}
 nav .logo,nav .foot{display:none}nav button{flex-direction:column;gap:3px;font-size:10px;padding:8px 10px;width:auto;flex:1;min-width:62px;justify-content:center}
 nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:1fr}main{padding-bottom:100px}}
+/* phones: all eight tabs fit across the bottom bar, and the Swarm table keeps to the
+   columns that matter so nothing important sits off-screen */
+@media(max-width:560px){
+nav{padding:4px 2px calc(4px + env(safe-area-inset-bottom))}
+nav button{min-width:0;flex:1 1 0;padding:6px 0;font-size:9px;white-space:nowrap}
+main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+.long{display:none}
+.card h3{flex-wrap:wrap}#logf{flex:1;min-width:0}
+#swt th:nth-child(2),#swt td:nth-child(2),#swt th:nth-child(n+6):not(:last-child),#swt td:nth-child(n+6):not(:last-child){display:none}
+#swt{font-size:13px}#swt td,#swt th{padding:8px 4px}#swt .sub{white-space:normal}}
 
 /* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
 html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a1f;--pend:#131316;--line:#232328;--text:#ededef;--dim:#9a9aa3;
@@ -168,7 +178,7 @@ html[data-theme=paper] .pill{background:transparent}
 <button data-t="tuning"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Tuning</button>
 <button data-t="swarm"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.8 7.2 6.3 15.8M13.2 7.2l4.5 8.6M7.5 18h9"/></svg>Swarm</button>
 <button data-t="display"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Display</button>
-<button data-t="clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Clock &amp; data</button>
+<button data-t="clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Clock<span class="long"> &amp; data</span></span></button>
 <button data-t="network"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M2 9a15 15 0 0120 0"/><circle cx="12" cy="19.5" r=".8"/></svg>Network</button>
 <button data-t="system"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>System</button>
 <div class="foot" id="navfoot"></div>
@@ -388,7 +398,7 @@ function hashHtml(h){if(!h)return'';const z=(h.match(/^0*/)||[''])[0].length;ret
 
 function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/(c.length||4)||1;
  const ceil=cfg.limits?.chipCeil||68,tc=ember()?tempCol(x.temp,ceil):x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
- return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor shared by several chips">shared sensor</span>'}</h3>
+ return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor shared by several chips">shared<span class="long"> sensor</span></span>'}</h3>
  <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%</div>
  <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
 function blocks(m){

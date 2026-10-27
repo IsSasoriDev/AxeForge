@@ -215,6 +215,7 @@ void load()
     get_u8(h, "fman1", s.fan_manual[1]);
     get_u8(h, "theme", s.theme);
     get_u8(h, "bright", s.brightness);
+    get_u8(h, "scroff", s.screen_off_min);
     get_u8(h, "disptype", s.display_type);
     get_str(h, "pages", s.pages, sizeof(s.pages));
     get_u8(h, "defpage", s.default_page);
@@ -257,6 +258,7 @@ void save()
     nvs_set_u8(h, "fman1", s.fan_manual[1]);
     nvs_set_u8(h, "theme", s.theme);
     nvs_set_u8(h, "bright", s.brightness);
+    nvs_set_u8(h, "scroff", s.screen_off_min);
     nvs_set_u8(h, "disptype", s.display_type);
     nvs_set_str(h, "pages", s.pages);
     nvs_set_u8(h, "defpage", s.default_page);

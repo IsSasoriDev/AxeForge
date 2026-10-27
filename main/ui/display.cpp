@@ -25,6 +25,7 @@
 #endif
 
 #include "core/settings.h"
+#include "core/state.h"
 #include "ui/ui.h"
 #include "ui/ui_small.h"
 
@@ -48,6 +49,46 @@ static int s_w = LCD_H_RES, s_h = LCD_V_RES;
 static lv_disp_drv_t s_disp_drv;
 static lv_disp_draw_buf_t s_draw_buf;
 static bool s_bl_pwm = false;
+
+// Screen-off timer: the backlight goes dark after settings.screen_off_min without
+// a button press or a settings change. A press while dark only wakes the screen;
+// a fault, overheating or a found block lights it again by itself.
+static int64_t s_last_input_ms = 0;
+static bool s_asleep = false;
+static uint32_t s_blocks_seen = 0;
+
+static void backlight(uint8_t pct)
+{
+    if (!s_bl_pwm) return;
+    if (pct > 100) pct = 100;
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, 1023 * pct / 100);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
+}
+
+static void screen_wake()
+{
+    s_asleep = false;
+    backlight(settings::get().brightness);
+}
+
+static void screen_idle_check()
+{
+    int64_t now = esp_timer_get_time() / 1000;
+    bool alarm = g_state.status == SysStatus::Fault || g_state.status == SysStatus::Overheat ||
+                 g_state.blocks_found != s_blocks_seen;
+    if (alarm) {
+        s_last_input_ms = now;
+        s_blocks_seen = g_state.blocks_found;
+        if (s_asleep) screen_wake();
+        return;
+    }
+    uint8_t min = settings::get().screen_off_min;
+    if (!s_asleep && min && now - s_last_input_ms > (int64_t) min * 60000) {
+        s_asleep = true;
+        backlight(0);
+        ESP_LOGI(TAG, "screen off after %u min idle", min);
+    }
+}
 static volatile int s_pending_rot = -1;
 static volatile bool s_snap_req = false;
 static lv_img_dsc_t *s_snap = nullptr;
@@ -239,11 +280,12 @@ static void buttons_init()
 }
 
 // Polled from the display task: short press = next/prev page,
-// long press on button 1 = toggle backlight.
+// long press on button 1 = toggle backlight. A press on a dark screen only wakes it.
 static void buttons_poll()
 {
     static int64_t down_at[2] = {0, 0};
     static bool long_fired[2] = {false, false};
+    static bool swallow[2] = {false, false};  // the press that woke the screen
     const gpio_num_t pins[2] = {PIN_BTN_1, PIN_BTN_2};
     int64_t now = esp_timer_get_time() / 1000;
     for (int i = 0; i < 2; i++) {
@@ -251,12 +293,15 @@ static void buttons_poll()
         if (down && !down_at[i]) {
             down_at[i] = now;
             long_fired[i] = false;
-        } else if (down && !long_fired[i] && now - down_at[i] > LONG_PRESS_MS) {
+            s_last_input_ms = now;
+            swallow[i] = s_asleep;
+            if (s_asleep) screen_wake();
+        } else if (down && !long_fired[i] && !swallow[i] && now - down_at[i] > LONG_PRESS_MS) {
             long_fired[i] = true;
             if (s_type == DisplayType::TDisplay) ui_small::on_long_press(i);
             else ui::on_long_press(i);
         } else if (!down && down_at[i]) {
-            if (!long_fired[i] && now - down_at[i] > 30) {
+            if (!long_fired[i] && !swallow[i] && now - down_at[i] > 30) {
                 if (s_type == DisplayType::TDisplay) ui_small::on_button(i);
                 else ui::on_button(i);
             }
@@ -315,6 +360,7 @@ static void display_task(void *)
             xSemaphoreGive(s_snap_done);
         }
         buttons_poll();
+        screen_idle_check();
         uint32_t wait = lv_timer_handler();
         if (wait > 20) wait = 20;
         if (wait < 5) wait = 5;
@@ -354,12 +400,13 @@ void free_snapshot(lv_img_dsc_t *img)
 
 void set_rotation(bool rotate_180) { s_pending_rot = rotate_180 ? 1 : 0; }
 
+// From outside (boot, a settings save, the long-press toggle): counts as activity,
+// and 0 means asleep so the next press wakes the screen.
 void set_brightness(uint8_t pct)
 {
-    if (!s_bl_pwm) return;
-    if (pct > 100) pct = 100;
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, 1023 * pct / 100);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
+    s_last_input_ms = esp_timer_get_time() / 1000;
+    s_asleep = pct == 0;
+    backlight(pct);
 }
 
 } // namespace display

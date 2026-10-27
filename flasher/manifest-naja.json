@@ -1,0 +1,16 @@
+{
+  "name": "AxeForge for Bitaxe Naja Duo",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "naja/bootloader.bin", "offset": 0 },
+        { "path": "naja/partition-table.bin", "offset": 32768 },
+        { "path": "naja/axeforge.bin", "offset": 65536 },
+        { "path": "naja/ota_data_initial.bin", "offset": 12648448 }
+      ]
+    }
+  ]
+}

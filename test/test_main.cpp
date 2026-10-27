@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <string>
+
+#include "core/json_util.h"
 #include "mining/payout.h"
 #include "mining/work.h"
 #include "sv2_protocol.h"
@@ -225,6 +228,67 @@ static void test_payout_coinbase()
     CHECK(none.payout == Payout::NotAddress && none.total_sats == 314033958ull);
 }
 
+// A pool controls every length in the coinbase. Lengths near 2^64 used to wrap
+// the bounds check and walk the offset backwards (a hang, and reads past the
+// buffer under a large output count). This must return quickly and stay in bounds.
+static void test_hostile_coinbase()
+{
+    StratumJob j = genesis_job();
+    j.coinb1 = (char *) "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff"
+                        "0c03e2d90e";  // 12-byte scriptSig: height push + extranonce1 + extranonce2
+    // sequence, then 0xffffffff outputs: one value, a script length of 2^64-16
+    j.coinb2 = (char *) "ffffffff" "feffffffff" "0000000000000000" "fff0ffffffffffffff" "00";
+    BlockTemplate t;
+    work::describe_template(j, "00000000", 4, t, "1BM1sAcrfV6d4zPKytzziu4McLQDsFC2Qc");
+    CHECK(t.valid);
+    CHECK(t.n_outputs == 0);
+    CHECK(t.payout == Payout::NotYou);
+
+    // a scriptSig length past the end of the coinbase
+    j.coinb1 = (char *) "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff"
+                        "ffffffffffffffffff";
+    j.coinb2 = (char *) "00";
+    BlockTemplate u;
+    work::describe_template(j, "", 0, u);
+    CHECK(u.valid && u.n_outputs == 0);
+}
+
+// A pool picks the extranonce2 size. A negative one used to size the coinbase
+// buffer too small (describe_template) and index Work::extranonce2 below its
+// start (build); ASan flags either.
+static void test_bad_extranonce2_size()
+{
+    StratumJob j = genesis_job();
+    Work w;
+    AsicJob cj;
+    for (int en2 : {-100, -1, 0, 17, 1000}) {
+        work::build(j, GENESIS_EN1, 0x2a, en2, 0x1fffe000, 1, w, cj);
+        size_t n = strlen(w.extranonce2);
+        CHECK(n >= 2 && n <= 32);
+        BlockTemplate t;
+        work::describe_template(j, GENESIS_EN1, en2, t);
+        CHECK(!t.valid || (en2 >= 0 && en2 <= 16));
+    }
+}
+
+// cJSON recurses per nesting level; json_parse refuses deep input before it does.
+static void test_json_depth()
+{
+    CHECK(json_depth("{\"a\":[1,{\"b\":2}]}", 16) == 3);
+    CHECK(json_depth("\"[[[[\"", 16) == 0);           // brackets inside a string
+    CHECK(json_depth("[\"\\\"[[[\"]", 16) == 1);       // escaped quote doesn't end the string
+    std::string deep(1000, '[');
+    CHECK(json_depth(deep.c_str(), 16) == 17);           // stops counting past the limit
+    CHECK(json_parse(deep.c_str()) == nullptr);
+    std::string ok16 = std::string(16, '[') + std::string(16, ']');
+    cJSON *j = json_parse(ok16.c_str());
+    CHECK(j != nullptr);
+    cJSON_Delete(j);
+    std::string bad17 = std::string(17, '[') + std::string(17, ']');
+    CHECK(json_parse(bad17.c_str()) == nullptr);
+    CHECK(json_parse(nullptr) == nullptr);
+}
+
 // ---------------------------------------------------------------- SV2
 static void le32(uint8_t *p, uint32_t v)
 {
@@ -289,6 +353,9 @@ int main()
     test_describe_template();
     test_payout_addresses();
     test_payout_coinbase();
+    test_hostile_coinbase();
+    test_bad_extranonce2_size();
+    test_json_depth();
     test_sv2_targets();
     test_sv2_frames();
     printf("%d checks, %d failed\n", s_checks, s_failed);

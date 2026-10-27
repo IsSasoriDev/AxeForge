@@ -170,7 +170,9 @@ static void job_task(void *)
         if (s.shown_gen != s.gen) {
             // decode each pool's template once per new job, not on every switch
             s.decoded = BlockTemplate();
-            work::describe_template(s.tmpl, s.info.en1, s.info.en2_len, s.decoded, settings::get().pools[p].user);
+            char user[sizeof(settings::get().pools[p].user)];
+            settings::pool_user(p, user, sizeof(user));
+            work::describe_template(s.tmpl, s.info.en1, s.info.en2_len, s.decoded, user);
             s.decoded.pool = p;
             s.shown_gen = s.gen;
             note_payout(p, s.decoded);

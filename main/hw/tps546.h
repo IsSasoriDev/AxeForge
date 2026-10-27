@@ -23,6 +23,10 @@ struct Profile {
 extern const Profile NERDQAXE_REV7;
 // Bitaxe Hex / Supra Hex: one TPS546, 3 domains of 2 chips
 extern const Profile BITAXE_HEX;
+// Bitaxe Gamma / Supra 402-403: one TPS546 on 5 V, one chip
+extern const Profile BITAXE_SINGLE;
+// Bitaxe Naja Duo: two stacked TPS546s on 12 V, 2 domains of 1 chip
+extern const Profile NAJA_DUO;
 
 bool detect();                     // IC_DEVICE_ID matches a TPS546D24A/S
 bool init(const Profile &profile); // run-time config (RAM only, never NVM), output left off

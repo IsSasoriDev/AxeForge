@@ -1,0 +1,5 @@
+# Bitaxe naja build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_naja -D SDKCONFIG=build_naja/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.naja" build
+CONFIG_AF_BOARD_NAJA=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-naja"

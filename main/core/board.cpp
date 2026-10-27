@@ -90,7 +90,7 @@ uint16_t max_mv() { return s_max_mv; }
 
 uint16_t clamp_freq(int mhz)
 {
-    if (mhz < 400) mhz = 400;
+    if (mhz < AF_MIN_FREQ_MHZ) mhz = AF_MIN_FREQ_MHZ;
     if (mhz > s_limits.max_freq_mhz) mhz = s_limits.max_freq_mhz;
     return (uint16_t) mhz;
 }
@@ -187,6 +187,16 @@ Error power_up(uint16_t freq, uint16_t mv)
             gpio_set_level(PIN_LDO_EN, 0);
             return Error::NoRegulator;
         }
+#if AF_DETECT_TPS53667
+        // phases and current limits come from the GPIO3 strap: a 6-phase setup on a
+        // 4-phase TPS53647 (or the reverse) would leave the regulator unprotected
+        if (tps53647::is_tps53667() != (s_phases == 6)) {
+            ESP_LOGE(TAG, "GPIO3 strap says %s but the regulator is a %s: not powering up",
+                     s_phases == 6 ? "TPS53667" : "TPS53647", tps53647::is_tps53667() ? "TPS53667" : "TPS53647");
+            gpio_set_level(PIN_LDO_EN, 0);
+            return Error::NoRegulator;
+        }
+#endif
         gpio_set_level(PIN_VR_EN, 1);
         tps53647::set_vout(init_mv / 1000.0f);
     }
@@ -280,21 +290,20 @@ void read_telemetry()
     bool ok = n > 0 || s_die_sensors > 0;
     float last = NAN;
     const float proxy_offset = s_rev7 ? REV7_DIE_TEMP_OFFSET : AF_PROXY_DIE_OFFSET;
-    // hottest board sensor: stands in for a chip whose die reading is missing
+    // each board sensor once per tick (the bus is shared with the TMP451 reader);
+    // the hottest stands in for a chip whose die reading is missing
+    float area[4];
     float board_max = NAN;
-    if (s_die_sensors > 0) {
-        for (int k = 0; k < n; k++) {
-            float t = temp::asic_area(k);
-            if (!isnan(t) && (isnan(board_max) || t > board_max)) board_max = t;
-        }
-        if (!isnan(board_max)) board_max += proxy_offset;
+    for (int k = 0; k < n && k < 4; k++) {
+        area[k] = temp::asic_area(k);
+        if (!isnan(area[k])) area[k] += proxy_offset;
+        if (!isnan(area[k]) && (isnan(board_max) || area[k] > board_max)) board_max = area[k];
     }
     for (int i = 0; i < AF_NUM_ASICS; i++) {
         float t = i < s_die_sensors ? tmp451::chip(i) : NAN;
         bool own = !isnan(t);
-        if (!own && i < n) {
-            t = temp::asic_area(i);
-            if (!isnan(t)) t += proxy_offset;
+        if (!own && i < n && i < 4) {
+            t = area[i];
             own = s_die_sensors == 0;  // a board sensor is only "own" on boards without die sensors
             last = t;
         } else if (!own) {
@@ -321,16 +330,19 @@ void read_telemetry()
     if (s_rev7) {
         // no input-side sensing on rev7: output power stands in for input power
         g_state.vin = tps546::vin();
-        g_state.vout = tps546::vout();
+        float v = tps546::vout();
+        if (!isnan(v)) g_state.vout = v;  // a failed read keeps the last value
         g_state.iout = tps546::iout();
-        g_state.pin = tps546::pout();
+        float p = tps546::pout();
+        if (!isnan(p)) g_state.pin = p;
         g_state.iin = g_state.vin > 1 ? g_state.pin / g_state.vin : 0;
         return;
     }
     g_state.vin = tps53647::vin();
     g_state.iin = tps53647::iin();
     g_state.pin = tps53647::pin();
-    g_state.vout = tps53647::vout();
+    float v = tps53647::vout();
+    if (!isnan(v)) g_state.vout = v;  // a failed read keeps the last value
     g_state.iout = tps53647::iout();
 }
 

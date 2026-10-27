@@ -433,7 +433,7 @@ static void refresh_widget(Widget &w)
                 lv_label_set_text_fmt(l, "next\n~%.0f s/vB", m.next[0].median_fee);
             } else {
                 const MempoolBlock &b = m.mined[i - 1];
-                lv_color_t col = m.valid ? lv_color_mix(fee_color(b.median_fee), lv_color_hex(0x4a3fb0), LV_OPA_50) : C_PANEL;
+                lv_color_t col = m.valid ? (theme::ember() ? fee_color(b.median_fee) : lv_color_mix(fee_color(b.median_fee), lv_color_hex(0x4a3fb0), LV_OPA_50)) : C_PANEL;
                 lv_obj_set_style_bg_color(c, col, 0);
                 lv_obj_set_style_bg_grad_color(c, lv_color_darken(col, LV_OPA_40), 0);
                 lv_label_set_text_fmt(l, "%lu\n%.10s", (unsigned long) b.height, b.pool);

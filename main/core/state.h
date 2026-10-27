@@ -92,7 +92,7 @@ enum class Payout : uint8_t {
 
 struct CoinbaseOut {
     uint64_t sats = 0;
-    char addr[64] = "";  // address, "OP_RETURN" or "" for a non-standard script
+    char addr[91] = "";  // address, "OP_RETURN" or "" for a non-standard script
     bool yours = false;
 };
 
@@ -116,7 +116,7 @@ struct BlockTemplate {
     Payout payout = Payout::Unknown;
     uint64_t payout_sats = 0;    // to your address
     uint64_t total_sats = 0;
-    char payout_addr[64] = "";   // your address, from the pool username
+    char payout_addr[91] = "";   // your address, from the pool username
 };
 
 struct MempoolBlock {
@@ -193,6 +193,7 @@ struct MinerState {
     // Network
     char ip[16] = "";
     char ssid[33] = "";
+    char hostname[33] = "";      // the name this miner gives DHCP
     int8_t rssi = 0;
     char ap_ssid[33] = "";
 

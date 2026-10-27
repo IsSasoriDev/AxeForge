@@ -10,6 +10,8 @@ constexpr float VOUT_MAX = 1.4f;
 
 bool detect();
 bool is_tps53667();  // valid after detect()
+// Read-only: input voltage and controller temperature, without configuring it.
+bool peek(float *vin, float *temp_c);
 bool init(int phases, int imax_a, float ifault_a);
 bool set_vout(float volts);  // 0 is ignored; use the EN pin to switch off
 void clear_faults();

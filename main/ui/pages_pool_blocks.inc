@@ -130,6 +130,7 @@ static lv_obj_t *s_now_h, *s_now_pool, *s_now_reward, *s_now_tag, *s_now_prev, *
 
 static lv_color_t fee_color(float fee)
 {
+    if (theme::ember()) return lv_color_hex(theme::mempool_fee_rgb(fee));
     if (fee < 2) return lv_color_hex(0x5b3fd9);
     if (fee < 5) return lv_color_hex(0x3d7bff);
     if (fee < 10) return lv_color_hex(0x1fbfa0);
@@ -246,7 +247,7 @@ static void refresh_blocks()
     for (int i = 0; i < 3; i++) {
         Cube &c = s_mined[i];
         const MempoolBlock &b = m.mined[i];
-        paint_cube(c, m.valid ? lv_color_mix(fee_color(b.median_fee), lv_color_hex(0x4a3fb0), LV_OPA_50) : C_PANEL);
+        paint_cube(c, m.valid ? (theme::ember() ? fee_color(b.median_fee) : lv_color_mix(fee_color(b.median_fee), lv_color_hex(0x4a3fb0), LV_OPA_50)) : C_PANEL);
         lv_label_set_text_fmt(c.l1, "%lu", (unsigned long) b.height);
         lv_label_set_text_fmt(c.l2, "~%.0f sat/vB", b.median_fee);
         lv_label_set_text(c.l3, b.pool);

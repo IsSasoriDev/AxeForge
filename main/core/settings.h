@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include <stdint.h>
 
 #define AF_MAX_POOLS 4
@@ -21,6 +22,7 @@ struct PoolCfg {
 struct Settings {
     char wifi_ssid[33] = "";
     char wifi_pass[65] = "";
+    char hostname[33] = "";       // empty: stock firmware's name, else axeforge-XXXX
 
     PoolCfg pools[AF_MAX_POOLS];
     PoolMode pool_mode = PoolMode::Split;
@@ -37,7 +39,7 @@ struct Settings {
     // per fan header: 0 = auto (temperature loop), 1 = manual duty
     uint8_t fan_mode[2] = {0, 0};
     uint8_t fan_manual[2] = {60, 60};
-    uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (minimal, e-ink style)
+    uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (minimal, e-ink style), 2 = Ember (dark, Bitcoin orange)
     uint8_t brightness = 100;
     uint8_t screen_off_min = 0;   // backlight off after this many idle minutes, 0 = never
 
@@ -66,4 +68,12 @@ Settings &get();
 // pools are stored as one JSON blob
 char *pools_to_json();  // caller frees
 void pools_from_json(const char *json);
+// A consistent copy of a pool's username (the web server may be rewriting it).
+void pool_user(int pool, char *out, size_t len);
+// 1-32 letters, digits and hyphens, not starting or ending with a hyphen
+bool valid_hostname(const char *h);
+// The worker part of a pool user ("address.worker" -> "worker"), or "".
+void worker_of(const char *user, char *out, size_t len);
+// This miner's worker name on the pool it is mining for.
+void own_worker(char *out, size_t len);
 }

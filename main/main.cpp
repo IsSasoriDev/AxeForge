@@ -2,11 +2,13 @@
 // Supra Hex (6x BM1368, 128x32 OLED). The board is chosen at build time.
 
 #include <stdio.h>
+#include <string.h>
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_app_desc.h"
 #include "esp_ota_ops.h"
 #include "esp_timer.h"
 #include "nvs.h"
@@ -34,10 +36,12 @@ static const char *TAG = "main";
 
 MinerState g_state;
 
-#if CONFIG_AF_BOARD_SUPRAHEX
-// Stock Bitaxe bootloaders have no app rollback, and AxeOS stays in the
-// factory slot. If AxeForge crashes on boot three times running, hand the
-// board back to AxeOS instead of looping until someone finds a USB cable.
+#if CONFIG_AF_BOARD_SUPRAHEX || AF_BITAXE_FAMILY
+// Stock Bitaxe bootloaders have no app rollback. Installed through AxeOS's own
+// update page, AxeOS stays in the factory slot: if AxeForge crashes on boot three
+// times running, hand the board back to it instead of looping until someone finds
+// a USB cable. After a full install the factory slot is AxeForge itself, and
+// there is nothing to fall back to.
 #define BOOT_FAIL_LIMIT 3
 #define BOOT_HEALTHY_S 120
 
@@ -45,7 +49,10 @@ static void fall_back_to_stock(const char *why)
 {
     const esp_partition_t *factory =
         esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
-    if (!factory || factory == esp_ota_get_running_partition()) {
+    esp_app_desc_t desc;
+    if (!factory || factory == esp_ota_get_running_partition() ||
+        (esp_ota_get_partition_description(factory, &desc) == ESP_OK &&
+         strcmp(desc.project_name, esp_app_get_description()->project_name) == 0)) {
         ESP_LOGE(TAG, "%s, and no stock firmware to fall back to", why);
         return;
     }
@@ -106,7 +113,7 @@ extern "C" void app_main(void)
     if (monitor::last_emergency()[0])
         ESP_LOGW(TAG, "last emergency (%lu since power-on): %s", (unsigned long) monitor::emergency_count(), monitor::last_emergency());
     esp_err_t err = nvs_flash_init();
-#if CONFIG_AF_BOARD_SUPRAHEX
+#if CONFIG_AF_BOARD_SUPRAHEX || AF_BITAXE_FAMILY
     // This NVS also holds AxeOS's settings and the board identity: never erase it.
     if (err != ESP_OK) fall_back_to_stock("settings storage unreadable");
     boot_guard(rr);

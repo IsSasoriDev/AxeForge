@@ -1,5 +1,5 @@
 file(GLOB_RECURSE SRCS "*.cpp" "*.c")
-if(CONFIG_AF_BOARD_SUPRAHEX)
+if(CONFIG_AF_BOARD_SUPRAHEX OR CONFIG_AF_BOARD_BITAXE_SUPRA OR CONFIG_AF_BOARD_BITAXE_GAMMA)
     # no LCD: the OLED module (ui/oled.cpp) stands in for the LVGL screen UI
     list(FILTER SRCS EXCLUDE REGEX ".*/ui/(display|ui|ui_small)\.cpp$")
     list(FILTER SRCS EXCLUDE REGEX ".*/ui/fonts/.*")

@@ -1,5 +1,6 @@
 #include "pools.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
@@ -34,8 +35,23 @@ extern "C" {
 #include "core/state.h"
 #include "mining/miner.h"
 #include "net/wifi.h"
+#include "core/json_util.h"  // depth-limited parse for untrusted JSON
 
 static const char *TAG = "pools";
+
+// Extranonce sizes are the pool's to choose, within what the coinbase builder
+// handles: extranonce2 1..16 bytes, extranonce1 up to 32 bytes of hex.
+#define EN2_MIN 1
+#define EN2_MAX 16
+
+static bool valid_en1(const char *s)
+{
+    size_t n = strlen(s);
+    if (n % 2 || n > 64) return false;
+    for (size_t i = 0; i < n; i++)
+        if (!isxdigit((unsigned char) s[i])) return false;
+    return true;
+}
 
 // Difficulty as shown in the UI and API: whole, rounded up.
 static uint32_t shown_diff(double d) { return d >= 4294967295.0 ? UINT32_MAX : (uint32_t) ceil(d); }
@@ -78,6 +94,7 @@ struct Pool {
     // SV2 channel
     uint32_t channel_id = 0;
     uint32_t group_id = 0;
+    bool bad_subscribe = false;  // the pool's extranonce reply was invalid: disconnect
     bool channel_closed = false;  // pool sent CloseChannel: reconnect
     uint32_t seq = 0;
     uint8_t ext_prefix[32] = {};
@@ -251,7 +268,7 @@ static void v1_notify(Pool &p, cJSON *params)
 
 static void v1_message(Pool &p, const char *line)
 {
-    cJSON *root = cJSON_Parse(line);
+    cJSON *root = json_parse(line);
     if (!root) return;
     cJSON *method = cJSON_GetObjectItem(root, "method");
     cJSON *params = cJSON_GetObjectItem(root, "params");
@@ -278,14 +295,23 @@ static void v1_message(Pool &p, const char *line)
         if (rid == ID_CONFIGURE && cJSON_IsObject(result)) {
             cJSON *mask = cJSON_GetObjectItem(result, "version-rolling.mask");
             if (cJSON_IsString(mask)) p.version_mask = strtoul(mask->valuestring, NULL, 16);
-        } else if (rid == ID_SUBSCRIBE && cJSON_IsArray(result)) {
+        } else if (rid == ID_SUBSCRIBE && cJSON_IsArray(result) && !p.en1[0]) {
+            // once per connection: a later "reply" would swap extranonce1 under work in flight
             cJSON *en1 = cJSON_GetArrayItem(result, 1);
             cJSON *en2 = cJSON_GetArrayItem(result, 2);
-            if (cJSON_IsString(en1) && cJSON_IsNumber(en2)) {
+            // a negative or oversized extranonce2 would make the coinbase builder
+            // write outside its buffers: refuse the pool rather than mine for it
+            if (cJSON_IsString(en1) && cJSON_IsNumber(en2) && valid_en1(en1->valuestring) &&
+                en2->valuedouble >= EN2_MIN && en2->valuedouble <= EN2_MAX) {
                 xSemaphoreTake(p.lock, portMAX_DELAY);
-                strncpy(p.en1, en1->valuestring, sizeof(p.en1) - 1);
+                snprintf(p.en1, sizeof(p.en1), "%s", en1->valuestring);
                 p.en2_len = en2->valueint;
                 xSemaphoreGive(p.lock);
+            } else {
+                ESP_LOGE(TAG, "[%d] pool sent an invalid extranonce (extranonce2 size must be %d-%d bytes)", p.idx,
+                         EN2_MIN, EN2_MAX);
+                set_status(p, "Pool sent an invalid extranonce");
+                p.bad_subscribe = true;  // the V1 loop drops the connection
             }
         } else if (rid == ID_AUTHORIZE) {
             if (!cJSON_IsTrue(result)) set_status(p, "Worker rejected - check address");
@@ -302,6 +328,11 @@ static void run_v1(Pool &p, const PoolCfg &cfg)
 {
     char line[512];
     const esp_app_desc_t *app = esp_app_get_description();
+    // a new connection's subscribe reply sets these; nothing from the last one carries over
+    xSemaphoreTake(p.lock, portMAX_DELAY);
+    p.en1[0] = 0;
+    p.en2_len = 4;
+    xSemaphoreGive(p.lock);
     snprintf(line, sizeof(line),
              "{\"id\":%d,\"method\":\"mining.configure\",\"params\":[[\"version-rolling\"],"
              "{\"version-rolling.mask\":\"ffffffff\"}]}\n"
@@ -319,7 +350,8 @@ static void run_v1(Pool &p, const PoolCfg &cfg)
     char *buf = (char *) malloc(V1_RX_BUF);
     int fill = 0;
     int64_t last_rx = esp_timer_get_time();
-    while (!p.restart) {
+    p.bad_subscribe = false;
+    while (!p.restart && !p.bad_subscribe) {
         // poll without the lock so submits are never blocked behind a read
         int ready = esp_transport_poll_read(p.t, 200);
         if (ready < 0) break;
@@ -447,6 +479,13 @@ static void v2_message(Pool &p, uint8_t type, const uint8_t *pl, int len)
     case SV2_MSG_SET_EXTRANONCE_PREFIX: {
         uint8_t pfx[32], plen;
         if (sv2_parse_set_extranonce_prefix(pl, len, &channel, pfx, &plen) == 0) {
+            // prefix + rolled bytes must still fit the 32-byte extranonce
+            if (plen + p.ext_size > 32) {
+                ESP_LOGE(TAG, "[%d] pool sent a %u-byte extranonce prefix, too long", p.idx, plen);
+                set_status(p, "Pool sent an invalid extranonce");
+                p.bad_subscribe = true;  // the SV2 loop drops the connection
+                break;
+            }
             memcpy(p.ext_prefix, pfx, plen);
             p.ext_prefix_len = plen;
         }
@@ -558,11 +597,19 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
         if (sv2_parse_open_extended_channel_success(buf, len, &req, &p.channel_id, target, &ext_size, p.ext_prefix,
                                                     &p.ext_prefix_len, &group) != 0)
             goto out;
+        // the miner rolls ext_size bytes after the prefix: 1..16, and both within 32
+        if (ext_size < EN2_MIN || ext_size > EN2_MAX || p.ext_prefix_len + ext_size > 32) {
+            ESP_LOGE(TAG, "[%d] pool sent an invalid extranonce size %u (prefix %u)", p.idx, ext_size,
+                     p.ext_prefix_len);
+            set_status(p, "Pool sent an invalid extranonce");
+            goto out;
+        }
         p.ext_size = (uint8_t) ext_size;
         p.diff = sv2_target_to_diff(target);
         p.seq = 0;
         p.group_id = group;
         p.channel_closed = false;
+        p.bad_subscribe = false;
     }
     p.version_mask = DEFAULT_VERSION_MASK;
     g_state.pools[p.idx].connected = true;
@@ -574,7 +621,7 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
         // Same rule as V1: a pool that has sent nothing for this long has stopped
         // giving us work, even if the socket still looks open.
         int64_t last_rx = esp_timer_get_time();
-        while (!p.restart && !p.channel_closed) {
+        while (!p.restart && !p.channel_closed && !p.bad_subscribe) {
             int ready = esp_transport_poll_read(p.t, 1000);
             if (ready < 0) break;
             if (ready == 0) {

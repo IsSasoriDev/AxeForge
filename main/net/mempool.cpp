@@ -13,6 +13,7 @@
 #include "core/state.h"
 #include "net/http_util.h"
 #include "net/wifi.h"
+#include "core/json_util.h"  // depth-limited parse for untrusted JSON
 
 static const char *TAG = "mempool";
 
@@ -33,7 +34,7 @@ static bool fetch_blocks(const char *base, MempoolState &m)
     snprintf(url, sizeof(url), "%s/api/v1/blocks", base);
     char *body = http::get(url, BLOCKS_MAX);
     if (!body) return false;
-    cJSON *a = cJSON_Parse(body);
+    cJSON *a = json_parse(body);
     free(body);
     if (!cJSON_IsArray(a)) {
         cJSON_Delete(a);
@@ -67,7 +68,7 @@ static bool fetch_projected(const char *base, MempoolState &m)
     snprintf(url, sizeof(url), "%s/api/v1/fees/mempool-blocks", base);
     char *body = http::get(url, 16 * 1024);
     if (!body) return false;
-    cJSON *a = cJSON_Parse(body);
+    cJSON *a = json_parse(body);
     free(body);
     if (!cJSON_IsArray(a)) {
         cJSON_Delete(a);
@@ -93,7 +94,7 @@ static bool fetch_projected(const char *base, MempoolState &m)
     snprintf(url, sizeof(url), "%s/api/v1/fees/recommended", base);
     body = http::get(url, 1024);
     if (body) {
-        cJSON *f = cJSON_Parse(body);
+        cJSON *f = json_parse(body);
         free(body);
         m.fee_fast = (float) num(f, "fastestFee");
         m.fee_hour = (float) num(f, "hourFee");

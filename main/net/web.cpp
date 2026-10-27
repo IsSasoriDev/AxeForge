@@ -34,6 +34,7 @@
 #include "ui/display.h"
 #include "esp_attr.h"
 #include "lwip/sockets.h"
+#include "core/json_util.h"  // depth-limited parse for untrusted JSON
 
 static const char *TAG = "web";
 
@@ -181,6 +182,10 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "rssi", rssi);
     cJSON_AddStringToObject(r, "ip", s.ip);
     cJSON_AddStringToObject(r, "ssid", s.ssid);
+    cJSON_AddStringToObject(r, "hostname", s.hostname);
+    char worker[33];
+    settings::own_worker(worker, sizeof(worker));
+    cJSON_AddStringToObject(r, "worker", worker);
     cJSON_AddStringToObject(r, "version", esp_app_get_description()->version);
     cJSON_AddNumberToObject(r, "freeHeap", esp_get_free_heap_size());
     cJSON_AddNumberToObject(r, "freeInternal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
@@ -329,6 +334,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     const Settings &c = settings::get();
     cJSON *r = cJSON_CreateObject();
     cJSON_AddStringToObject(r, "ssid", c.wifi_ssid);
+    cJSON_AddStringToObject(r, "hostname", c.hostname);
     cJSON_AddStringToObject(r, "pages", c.pages);
     cJSON_AddNumberToObject(r, "disptype", c.display_type);
     cJSON_AddBoolToObject(r, "mempool", c.mempool_on);
@@ -446,13 +452,26 @@ static esp_err_t settings_post(httpd_req_t *req)
     int len = httpd_req_recv(req, body, sizeof(body) - 1);
     if (len <= 0) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "empty");
     body[len] = 0;
-    cJSON *j = cJSON_Parse(body);
+    cJSON *j = json_parse(body);
     if (!j) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad json");
 
     Settings &c = settings::get();
     bool reboot = false;
     // network / pool: applied after a reboot
     reboot |= copy_str(j, "ssid", c.wifi_ssid, sizeof(c.wifi_ssid));
+    {
+        // empty means automatic; DHCP only learns a new name at boot
+        char old_host[sizeof(c.hostname)];
+        strcpy(old_host, c.hostname);
+        if (copy_str(j, "hostname", c.hostname, sizeof(c.hostname))) {
+            if (c.hostname[0] && !settings::valid_hostname(c.hostname)) {
+                ESP_LOGW(TAG, "hostname '%s' ignored: use letters, digits and hyphens", c.hostname);
+                strcpy(c.hostname, old_host);
+            } else {
+                reboot = true;
+            }
+        }
+    }
     cJSON *wp = cJSON_GetObjectItem(j, "wpass");
     if (cJSON_IsString(wp) && wp->valuestring[0]) reboot |= copy_str(j, "wpass", c.wifi_pass, sizeof(c.wifi_pass));
 
@@ -466,7 +485,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.fan_mode[1] = (uint8_t) get_int(j, "fmode1", c.fan_mode[1], 0, 1);
     c.fan_manual[0] = (uint8_t) get_int(j, "fman0", c.fan_manual[0], 20, 100);
     c.fan_manual[1] = (uint8_t) get_int(j, "fman1", c.fan_manual[1], 20, 100);
-    uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 1);
+    uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 2);
     if (theme != c.theme) {
         c.theme = theme;
         reboot = true;  // the screen UI is built with the theme's palette
@@ -638,7 +657,7 @@ static esp_err_t pools_get(httpd_req_t *req)
 {
     char *pools = settings::pools_to_json();
     cJSON *r = cJSON_CreateObject();
-    cJSON_AddItemToObject(r, "pools", cJSON_Parse(pools));
+    cJSON_AddItemToObject(r, "pools", json_parse(pools));
     free(pools);
     cJSON_AddStringToObject(r, "mode", settings::get().pool_mode == PoolMode::Failover ? "failover" : "split");
     return send_json(req, r);
@@ -648,7 +667,7 @@ static esp_err_t pools_post(httpd_req_t *req)
 {
     char *body = recv_body(req, 4096);
     if (!body) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "empty");
-    cJSON *j = cJSON_Parse(body);
+    cJSON *j = json_parse(body);
     free(body);
     if (!j) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad json");
     cJSON *list = cJSON_GetObjectItem(j, "pools");
@@ -726,7 +745,7 @@ static esp_err_t screen_get(httpd_req_t *req)
 static esp_err_t page_post(httpd_req_t *req)
 {
     char *body = recv_body(req, 128);
-    cJSON *j = body ? cJSON_Parse(body) : nullptr;
+    cJSON *j = body ? json_parse(body) : nullptr;
     free(body);
     cJSON *dir = cJSON_GetObjectItem(j, "dir"), *kind = cJSON_GetObjectItem(j, "kind");
     if (cJSON_IsNumber(dir)) ui::request_page(dir->valueint > 0 ? 1 : -1);
@@ -754,7 +773,7 @@ static esp_err_t swarm_get(httpd_req_t *req)
 static esp_err_t swarm_post(httpd_req_t *req)
 {
     char *body = recv_body(req, 256);
-    cJSON *j = body ? cJSON_Parse(body) : nullptr;
+    cJSON *j = body ? json_parse(body) : nullptr;
     free(body);
     if (!j) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad request");
     const char *msg = "Nothing to do.";

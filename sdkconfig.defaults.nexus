@@ -1,0 +1,5 @@
+# Nexus S1 build (EXPERIMENTAL: one board tested, see main/core/board_nexus.cpp).
+# Used on top of sdkconfig.defaults:
+#   idf.py -B build_nexus -D SDKCONFIG=build_nexus/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.nexus" build
+CONFIG_AF_BOARD_NEXUS=y

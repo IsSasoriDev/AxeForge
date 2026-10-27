@@ -29,15 +29,25 @@ static const char *TAG = "asic";
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x66, 0x00, 0x00};
 #elif AF_ASIC_BM1368
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x68, 0x00, 0x00};
+#elif AF_ASIC_BM1373
+// answers as 0x1372 or 0x1373; bitaxe reads a 9-byte reply, the Nexus sends 11:
+// the chip count scans the byte stream instead of reading fixed frames
+static const uint8_t CHIP_ID[4] = {0xaa, 0x55, 0x13, 0x72};
+#define CHIP_ID_ALT 0x73
 #else
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x70, 0x00, 0x00};
 #endif
+#define CHIP_ID_FRAME 11
 
 static SemaphoreHandle_t s_tx_lock;
 static float s_freq = 56.25f;
 static uint32_t s_diff_mask = 0xffffffff;
 static uint32_t s_version_mask = 0xffffffff;  // unknown: rewrite on next set_version_mask
-static uint8_t s_addr_interval = 64;
+static uint8_t s_addr_interval = 64;   // chip address step: SETADDRESS, writes, register replies
+static uint8_t s_nonce_interval = 64;  // chip number in a nonce = nonce bits 17-24 / this
+#if AF_ASIC_BM1373
+static uint8_t s_cmd_interval = 4;     // the BM1373 addresses single-chip writes at 1/4 of its step
+#endif
 
 // ------------------------------------------------------------------ CRC
 static uint8_t crc5(const uint8_t *data, int len)
@@ -227,22 +237,112 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     // clock they ran at before a power cut would jump them from ~56 MHz to full
     // speed in one step; on the Supra Hex that surge trips the regulator's
     // over-current shutdown on every fault retry.
+#if AF_ASIC_BM1373 && AF_BM1373_SHUFPS_INIT
+    s_freq = 56.25f;
+    // shufps writes the version mask with the enable bit clear before counting
+    for (int i = 0; i < 4; i++) write_all(0xA4, 0x80, 0x00, 0xFF, 0xFF);
+#elif AF_ASIC_BM1373
+    s_freq = 50.0f;  // the BM1373's reset clock (bitaxe)
+#else
     s_freq = 56.25f;
     for (int i = 0; i < 4; i++) set_version_mask_all();
+#endif
 
     // count chips: read reg 0 on everybody
     send2(CMD_READ_ALL, 0x00, 0x00);
     int chips = 0;
-    uint8_t buf[11];
+#ifdef CHIP_ID_ALT
+    {
+        // everything the chain sends until it goes quiet, then count the ID pattern
+        uint8_t rx[256];
+        int got = 0, r;
+        while (got < (int) sizeof(rx) && (r = uart_read_bytes(UART, rx + got, sizeof(rx) - got, pdMS_TO_TICKS(1000))) > 0)
+            got += r;
+        for (int i = 0; i + 4 <= got; i++)
+            if (memcmp(rx + i, CHIP_ID, 3) == 0 && (rx[i + 3] == CHIP_ID[3] || rx[i + 3] == CHIP_ID_ALT)) chips++;
+    }
+#else
+    uint8_t buf[CHIP_ID_FRAME];
     while (uart_read_bytes(UART, buf, sizeof(buf), pdMS_TO_TICKS(1000)) == sizeof(buf)) {
         if (memcmp(buf, CHIP_ID, sizeof(CHIP_ID)) == 0) chips++;
         else ESP_LOGW(TAG, "unexpected reply during chip count");
     }
+#endif
     if (chips == expected_chips) ESP_LOGI(TAG, "%d %s chips detected", chips, MODEL);
     else ESP_LOGE(TAG, "%d chips detected, expected %d", chips, expected_chips);
     if (!chips) return 0;
 
-#if AF_ASIC_BM1366
+#if AF_ASIC_BM1373 && AF_BM1373_SHUFPS_INIT
+    // BM1373 sequence from shufps' NerdQAxe firmware (components/bm1397/bm1373.cpp),
+    // which the Nexus S1's stock firmware is built on. bitaxe's differs in places
+    // (3C clock delay 805A, broadcast A8, regs 0x19 and 0x0D); don't mix the two.
+    // Contributed by cbyam and run on a Nexus S1.
+    write_all(0xA4, 0x80, 0x00, 0xFF, 0xFF);
+    write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
+    write_all(0x18, 0xFF, 0x00, 0xC1, 0x00);  // misc control
+    send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
+
+    s_addr_interval = 16;  // both sources: a fixed stride of 16, not 256 / chips
+    s_cmd_interval = 4;    // single-chip writes at chip * 4 (stock firmware and bitaxe)
+    s_nonce_interval = 256 / next_pow2(chips);
+    for (int i = 0; i < chips; i++) send2(TYPE_CMD | CMD_SETADDRESS, i * s_addr_interval, 0x00);
+
+    write_all(0x3C, 0x80, 0x00, 0x80, 0x0C);  // core register control
+    s_diff_mask = 0xffffffff;
+    set_difficulty_mask(difficulty);
+    write_all(0x58, 0x00, 0x01, 0x11, 0x11);  // IO driver strength
+    write_all(0x68, 0x5A, 0xA5, 0x5A, 0xA5);
+    for (int i = 0; i < chips; i++) {
+        uint8_t a = i * s_cmd_interval;
+        write_one(a, 0xA8, 0x00, 0x07, 0x01, 0xF0);
+        write_one(a, 0x18, 0xFF, 0x00, 0xC1, 0x00);
+        write_one(a, 0x3C, 0x80, 0x00, 0x80, 0x0C);
+        write_one(a, 0x3C, 0x80, 0x00, 0x82, 0xAA);
+    }
+    write_all(0x54, 0x00, 0x00, 0x00, 0x02);  // analog mux
+#elif AF_ASIC_BM1373
+    // BM1373 (BM1372 family) sequence from the Bitaxe reference firmware: chain
+    // inactive, addresses 0x10 apart, then IO, UART at 3 Mbaud, soft reset and the
+    // staged core setup. The UART switch happens here, not in switch_to_fast_baud().
+    send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    s_addr_interval = 0x10;
+    s_cmd_interval = 0x10 >> 2;
+    s_nonce_interval = 256 / chips;
+    for (int i = 0; i < chips; i++) send2(TYPE_CMD | CMD_SETADDRESS, i * s_addr_interval, 0x00);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0x3C, 0x80, 0x00, 0x8D, 0x04);  // core reg 0x0D: nonce bin overflow off
+    write_all(0x58, 0x00, 0x01, 0x11, 0x11);  // IO driver strength
+    // the last chip of every voltage domain drives the next domain's input harder
+    for (int d = 0; d < AF_VOLTAGE_DOMAINS; d++) {
+        int last = ((d + 1) * chips) / AF_VOLTAGE_DOMAINS - 1;
+        if (last >= (d * chips) / AF_VOLTAGE_DOMAINS)
+            write_one((uint8_t) (last * s_cmd_interval), 0x58, 0x00, 0x01, 0xF1, 0x11);
+    }
+    write_all(0x68, 0x5A, 0xA5, 0x5A, 0xA5);  // ring oscillator pads off
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0xC4, 0x00, 0x00, 0x00, 0x00);  // auto work config
+    write_all(0x28, 0x80, 0x00, 0x00, 0x00);  // fast UART: 3 Mbaud
+    uart_wait_tx_done(UART, pdMS_TO_TICKS(100));
+    uart_set_baudrate(UART, 3000000);
+    uart_flush(UART);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0xA8, 0xF0, 0x07, 0x01, 0xF0);  // soft reset
+    vTaskDelay(pdMS_TO_TICKS(20));
+    write_all(0x18, 0xFF, 0x00, 0xC1, 0x00);  // misc control: RNO enable
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0x19, 0x00, 0x00, 0x00, 0x00);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0x3C, 0x80, 0x00, 0x8B, 0x00);  // core reg 0x0B: clock select
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0x3C, 0x80, 0x00, 0x80, 0x5A);  // core reg 0x00: clock delay
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0x3C, 0x80, 0x00, 0x82, 0xAA);  // core reg 0x02: cores on
+    vTaskDelay(pdMS_TO_TICKS(10));
+    write_all(0x54, 0x00, 0x00, 0x00, 0x02);  // analog mux: temperature diode
+    s_diff_mask = 0xffffffff;
+    set_difficulty_mask(difficulty);
+#elif AF_ASIC_BM1366
     // BM1366 sequence from the Bitaxe / NerdQAxe reference firmware (S19XP dumps)
     set_version_mask_all();
     write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
@@ -319,8 +419,13 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0x3C, 0x80, 0x00, 0x8D, 0xEE);
 
 #endif
+#if !AF_ASIC_BM1373
+    s_nonce_interval = s_addr_interval;
+#endif
     set_frequency(freq_mhz);
-#if AF_ASIC_BM1366
+#if AF_ASIC_BM1373
+    write_all(0x10, 0x00, 0x00, 0x1E, 0xB5);  // nonce space (S21 Pro stock value; the generic one overlaps)
+#elif AF_ASIC_BM1366
     write_all(0x10, 0x00, 0x00, 0x15, 0x1C);  // hash counting (S19XP stock value)
 #elif AF_ASIC_BM1368
     write_all(0x10, 0x00, 0x00, 0x15, 0xA4);  // hash counting (S21 stock value)
@@ -339,6 +444,9 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
 
 void switch_to_fast_baud()
 {
+#if AF_ASIC_BM1373 && !AF_BM1373_SHUFPS_INIT
+    return;  // bitaxe's sequence: already at 3 Mbaud since init
+#endif
     write_all(0x28, 0x11, 0x30, 0x02, 0x00);  // 1 Mbaud
     vTaskDelay(pdMS_TO_TICKS(500));
     uart_set_baudrate(UART, 1000000);
@@ -434,7 +542,7 @@ bool receive(AsicResult &out, int timeout_ms)
     out.nonce = nonce;
     out.version_bits = (uint32_t) version << 13;
     uint32_t nh = __builtin_bswap32(nonce);
-    out.chip = s_addr_interval ? ((nh >> 17) & 0xff) / s_addr_interval : 0;
+    out.chip = s_nonce_interval ? ((nh >> 17) & 0xff) / s_nonce_interval : 0;
     return true;
 }
 

@@ -1,16 +1,23 @@
 #include "settings.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "cJSON.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 #include "core/board_config.h"
+#include "core/json_util.h"  // depth-limited parse for untrusted JSON
+#include "core/state.h"
 
 static const char *TAG = "settings";
 static Settings s_settings;
+// Guards the pool usernames, which the web server rewrites while the job task
+// reads them for the payout check. Held only for the copy itself.
+static portMUX_TYPE s_user_mux = portMUX_INITIALIZER_UNLOCKED;
 
 static void get_str(nvs_handle_t h, const char *key, char *dst, size_t len)
 {
@@ -61,6 +68,15 @@ namespace settings {
 
 Settings &get() { return s_settings; }
 
+void pool_user(int pool, char *out, size_t len)
+{
+    if (!len) return;
+    portENTER_CRITICAL(&s_user_mux);
+    strncpy(out, s_settings.pools[pool].user, len - 1);
+    portEXIT_CRITICAL(&s_user_mux);
+    out[len - 1] = 0;
+}
+
 char *pools_to_json()
 {
     cJSON *a = cJSON_CreateArray();
@@ -83,7 +99,7 @@ char *pools_to_json()
 
 void pools_from_json(const char *json)
 {
-    cJSON *a = cJSON_Parse(json);
+    cJSON *a = json_parse(json);
     if (!cJSON_IsArray(a)) {
         cJSON_Delete(a);
         return;
@@ -96,7 +112,12 @@ void pools_from_json(const char *json)
         if ((v = cJSON_GetObjectItem(o, "enabled"))) p.enabled = cJSON_IsTrue(v);
         copy_json_str(o, "url", p.url, sizeof(p.url));
         if (cJSON_IsNumber(v = cJSON_GetObjectItem(o, "port"))) p.port = (uint16_t) v->valueint;
-        copy_json_str(o, "user", p.user, sizeof(p.user));
+        char user[sizeof(p.user)];
+        strcpy(user, p.user);
+        copy_json_str(o, "user", user, sizeof(user));
+        portENTER_CRITICAL(&s_user_mux);
+        memcpy(p.user, user, sizeof(user));
+        portEXIT_CRITICAL(&s_user_mux);
         copy_json_str(o, "pass", p.pass, sizeof(p.pass));
         if (cJSON_IsNumber(v = cJSON_GetObjectItem(o, "proto")) && v->valueint >= 0 && v->valueint <= 2)
             p.proto = (PoolProto) v->valueint;
@@ -181,11 +202,29 @@ void load()
     s.core_mv = 1200;
     s.rotate_180 = true;
 #endif
+#if CONFIG_AF_BOARD_BITAXE_SUPRA
+    s.freq_mhz = 490;  // reference firmware defaults
+    s.core_mv = 1166;
+#endif
+#if CONFIG_AF_BOARD_BITAXE_GAMMA
+    s.freq_mhz = 525;
+    s.core_mv = 1150;
+#endif
+#if CONFIG_AF_BOARD_NAJA
+    s.freq_mhz = 327;
+    s.core_mv = 1000;
+    s.display_type = 1;  // ST7789 320x170, the T-Display-S3 screen
+#endif
 #if CONFIG_AF_BOARD_SUPRAHEX
     s.freq_mhz = 490;  // BM1368 stock point
     s.core_mv = 1166;
     // two board sensors for six chips: keep real airflow over the unsensed ones
     s.fan_min_pct = 45;
+#endif
+#if CONFIG_AF_BOARD_NEXUS
+    s.freq_mhz = 450;  // the Nexus S1's stock point
+    s.core_mv = 950;
+    s.display_type = 1;  // T-Display-S3 panel
 #endif
 
     if (nvs_open("axeforge", NVS_READONLY, &h) != ESP_OK) {
@@ -197,6 +236,7 @@ void load()
     }
     get_str(h, "ssid", s.wifi_ssid, sizeof(s.wifi_ssid));
     get_str(h, "wpass", s.wifi_pass, sizeof(s.wifi_pass));
+    get_str(h, "host", s.hostname, sizeof(s.hostname));
 
     size_t len = 0;
     if (nvs_get_str(h, "pools", NULL, &len) == ESP_OK && len > 1) {
@@ -255,6 +295,7 @@ void save()
     const Settings &s = s_settings;
     nvs_set_str(h, "ssid", s.wifi_ssid);
     nvs_set_str(h, "wpass", s.wifi_pass);
+    nvs_set_str(h, "host", s.hostname);
     char *pools = pools_to_json();
     nvs_set_str(h, "pools", pools);
     free(pools);
@@ -287,6 +328,35 @@ void save()
     nvs_set_str(h, "mpurl", s.mempool_url);
     nvs_commit(h);
     nvs_close(h);
+}
+
+bool valid_hostname(const char *h)
+{
+    size_t n = strlen(h);
+    if (n < 1 || n > 32 || h[0] == '-' || h[n - 1] == '-') return false;
+    for (size_t i = 0; i < n; i++) {
+        char c = h[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-')) return false;
+    }
+    return true;
+}
+
+void worker_of(const char *user, char *out, size_t len)
+{
+    const char *dot = strchr(user, '.');
+    snprintf(out, len, "%s", dot ? dot + 1 : "");
+}
+
+void own_worker(char *out, size_t len)
+{
+    const Settings &s = s_settings;
+    int pick = -1;
+    for (int i = 0; i < AF_MAX_POOLS && pick < 0; i++)
+        if (s.pools[i].enabled && g_state.pools[i].connected) pick = i;
+    for (int i = 0; i < AF_MAX_POOLS && pick < 0; i++)
+        if (s.pools[i].enabled && s.pools[i].user[0]) pick = i;
+    if (pick < 0) out[0] = 0;
+    else worker_of(s.pools[pick].user, out, len);
 }
 
 } // namespace settings

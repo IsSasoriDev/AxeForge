@@ -62,7 +62,7 @@ uint16_t max_mv() { return CONFIG_AF_MAX_CORE_MV; }
 
 uint16_t clamp_freq(int mhz)
 {
-    if (mhz < 400) mhz = 400;
+    if (mhz < AF_MIN_FREQ_MHZ) mhz = AF_MIN_FREQ_MHZ;
     if (mhz > s_limits.max_freq_mhz) mhz = s_limits.max_freq_mhz;
     return (uint16_t) mhz;
 }
@@ -211,9 +211,11 @@ void read_telemetry()
     g_state.vr_temp = g_state.vr_temp_ok ? vr : 0;
     if (!s_powered) return;
     g_state.vin = tps546::vin();
-    g_state.vout = tps546::vout();
+    float v = tps546::vout();
+    if (!isnan(v)) g_state.vout = v;  // a failed read keeps the last value
     g_state.iout = tps546::iout();
-    g_state.pin = tps546::pout() + POWER_OFFSET_W;
+    float p = tps546::pout();
+    if (!isnan(p)) g_state.pin = p + POWER_OFFSET_W;
     g_state.iin = g_state.vin > 1 ? g_state.pin / g_state.vin : 0;
 }
 

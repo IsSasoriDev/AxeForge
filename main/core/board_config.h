@@ -28,7 +28,66 @@
 #define AF_PIN_I2C_SCL 48
 #define AF_HAS_LCD 0  // 128x32 SSD1306 OLED instead
 #define AF_JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
+#define AF_VOLTAGE_DOMAINS 3
 #define AF_KEEP_STOCK_NVS 1
+#elif CONFIG_AF_BOARD_BITAXE_SUPRA || CONFIG_AF_BOARD_BITAXE_GAMMA || CONFIG_AF_BOARD_NAJA
+// Single-regulator Bitaxes (board_bitaxe.cpp): a TPS546, or on the Supra 400/401
+// the 5 V DS4432U path, found at boot. One EMC2101/EMC2103 for fan and diodes.
+#define AF_BITAXE_FAMILY 1
+#define AF_KEEP_STOCK_NVS 1  // flashed over AxeOS: take over its Wi-Fi, pools and board settings
+#if CONFIG_AF_BOARD_BITAXE_SUPRA
+#define AF_BOARD_NAME "Bitaxe Supra"
+#define AF_BOARD_ID "supra"
+#define AF_NUM_ASICS 1
+#define AF_ASIC_BM1368 1
+#define AF_PIN_I2C_SDA 47
+#define AF_PIN_I2C_SCL 48
+#define AF_HAS_LCD 0  // 128x32 SSD1306 OLED
+#define AF_ASIC_DIFF_MIN 128
+#define AF_ASIC_DIFF_MAX 512
+#elif CONFIG_AF_BOARD_BITAXE_GAMMA
+#define AF_BOARD_NAME "Bitaxe Gamma"
+#define AF_BOARD_ID "gamma"
+#define AF_NUM_ASICS 1
+#define AF_ASIC_BM1370 1
+#define AF_PIN_I2C_SDA 47
+#define AF_PIN_I2C_SCL 48
+#define AF_HAS_LCD 0  // 128x32 SSD1306 OLED
+#define AF_EMC_IDEALITY 0x24  // BM1370 diode model (reference firmware)
+#define AF_EMC_BETA 0x00
+#define AF_ASIC_DIFF_MIN 256
+#define AF_ASIC_DIFF_MAX 1024
+#else
+#define AF_BOARD_NAME "Bitaxe Naja Duo"
+#define AF_BOARD_ID "naja"
+#define AF_NUM_ASICS 2
+#define AF_ASIC_BM1373 1
+#define AF_VOLTAGE_DOMAINS 2  // the two chips are stacked
+#define AF_PIN_I2C_SDA 44     // "color" board: T-Display-style LCD, I2C moved to 44/43
+#define AF_PIN_I2C_SCL 43
+#define AF_HAS_LCD 1          // ST7789 320x170, driven as the T-Display-S3 screen
+#define AF_ASIC_EN_ACTIVE_HIGH 1
+#define AF_EMC_IDEALITY 0x17
+#define AF_EMC_BETA 0x10
+#define AF_MIN_FREQ_MHZ 250   // the BM1373 runs around 330 MHz
+#endif
+#elif CONFIG_AF_BOARD_NEXUS
+// BitLuck Nexus S1, board version 1010. Pins read from the stock firmware
+// (nexus.v1.0.2); the layout is the NerdQaxe++'s apart from the power pins.
+#define AF_BOARD_NAME "Nexus S1"
+#define AF_BOARD_ID "nexus"
+#define AF_NUM_ASICS 4
+#define AF_ASIC_BM1373 1
+#define AF_PIN_I2C_SDA 44
+#define AF_PIN_I2C_SCL 43
+#define AF_HAS_LCD 1  // T-Display-S3 panel, same pins as the NerdQaxe++
+#define AF_BM1373_SHUFPS_INIT 1  // init as the stock firmware does (shufps); the Naja uses bitaxe's
+#define AF_ASIC_DIFF_MIN 1024  // about three BM1370s' worth of hashing per chip (shufps' Q1373 values)
+#define AF_ASIC_DIFF_MAX 4096
+#define AF_KEEP_STOCK_NVS 1
+// its VR area runs ~67 C at stock clocks (the stock firmware's fans hold it there at
+// ~68%); a 65 C target kept fan 2 pinned at 100%
+#define AF_VR_FAN_TARGET_C 72.0f
 #else
 // The NerdQaxe family: same ESP32 module, LCD, fans (EMC2302), board sensors
 // (TMP1075) and TPS536x7 regulator wiring; they differ in chips, phases and limits.
@@ -115,6 +174,9 @@
 #ifndef AF_HAS_VR_SENSOR
 #define AF_HAS_VR_SENSOR 1
 #endif
+#ifndef AF_VR_FAN_TARGET_C
+#define AF_VR_FAN_TARGET_C 65.0f  // the VR fan's PI target
+#endif
 #ifndef AF_JOB_INTERVAL_MS
 #define AF_JOB_INTERVAL_MS 500
 #endif
@@ -127,6 +189,12 @@
 #endif
 #ifndef AF_PROXY_DIE_OFFSET
 #define AF_PROXY_DIE_OFFSET 0.0f
+#endif
+#ifndef AF_VOLTAGE_DOMAINS
+#define AF_VOLTAGE_DOMAINS 1
+#endif
+#ifndef AF_MIN_FREQ_MHZ
+#define AF_MIN_FREQ_MHZ 400  // lowest clock the tuner and recoveries go to
 #endif
 
 // All boards share these

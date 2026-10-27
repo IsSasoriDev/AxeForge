@@ -1,5 +1,6 @@
 #include "monitor.h"
 
+#include <math.h>
 #include <stdio.h>
 #include "esp_attr.h"
 #include "esp_log.h"
@@ -8,6 +9,7 @@
 #include "sdkconfig.h"
 
 #include "core/board.h"
+#include "core/board_config.h"
 #include "core/settings.h"
 #include "core/tuner.h"
 #include "core/state.h"
@@ -17,7 +19,7 @@
 
 static const char *TAG = "monitor";
 
-#define VR_FAN_TARGET_C 65.0f
+#define VR_FAN_TARGET_C AF_VR_FAN_TARGET_C  // per board, 65 C unless board_config.h says otherwise
 #define COOLDOWN_HYST_C 20.0f
 #define RECOVERY_FREQ_DROP 50
 #define MAX_FAULT_RETRIES 3
@@ -70,6 +72,9 @@ static RTC_NOINIT_ATTR struct {
 
 static void emergency(SysStatus status, const char *why)
 {
+    // whatever else was pending belongs to the power-up being cut now
+    g_state.chip_stall = 0;
+    g_state.no_hash = false;
     ESP_LOGE(TAG, "EMERGENCY: %s", why);
     if (s_note.magic != EMERGENCY_NOTE_MAGIC) s_note.count = 0;
     s_note.count++;
@@ -154,7 +159,9 @@ static void monitor_task(void *)
                 continue;
             }
             float set_v = board::core_mv() / 1000.0f;
-            vout_low = ++powered_s > VOUT_SETTLE_S && set_v > 0 && g_state.vout < 0.5f * set_v ? vout_low + 1 : 0;
+            // a failed read is NAN and doesn't count either way (a busy bus is not a lost rail)
+            if (!isnan(g_state.vout))
+                vout_low = ++powered_s > VOUT_SETTLE_S && set_v > 0 && g_state.vout < 0.5f * set_v ? vout_low + 1 : 0;
             if (vout_low >= VOUT_LOST_S) {
                 snprintf(why, sizeof(why), "Core voltage lost (%.2f V of %.2f V)", g_state.vout, set_v);
                 vout_low = 0;

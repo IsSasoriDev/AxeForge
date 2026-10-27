@@ -20,10 +20,19 @@ menu "AxeForge"
             bool "NerdAxe (1x BM1366, T-Display-S3)"
         config AF_BOARD_SUPRAHEX
             bool "Bitaxe Supra Hex 701/702 (6x BM1368)"
+        config AF_BOARD_BITAXE_SUPRA
+            bool "Bitaxe Supra 400-403 (1x BM1368)"
+        config AF_BOARD_BITAXE_GAMMA
+            bool "Bitaxe Gamma 600-603 (1x BM1370)"
+        config AF_BOARD_NAJA
+            bool "Bitaxe Naja Duo 1201 (2x BM1373)"
+        config AF_BOARD_NEXUS
+            bool "Nexus S1 (4x BM1373) - EXPERIMENTAL"
     endchoice
 
+
     menu "Big display (3.5in 480x320)"
-        depends on !AF_BOARD_SUPRAHEX
+        depends on !AF_BOARD_SUPRAHEX && !AF_BOARD_BITAXE_SUPRA && !AF_BOARD_BITAXE_GAMMA
         choice AF_LCD_BUS
             prompt "Interface"
             default AF_LCD_BUS_I80
@@ -134,17 +143,24 @@ menu "AxeForge"
             int "Max ASIC frequency (MHz)"
             range 400 1250
             default 625 if AF_BOARD_SUPRAHEX || AF_BOARD_NERDQAXEPLUS || AF_BOARD_NERDOCTAXEPLUS
-            default 600 if AF_BOARD_NERDAXE
+            default 600 if AF_BOARD_NERDAXE || AF_BOARD_BITAXE_SUPRA
             default 1000 if AF_BOARD_NERDQX
+            default 800 if AF_BOARD_BITAXE_GAMMA
+            default 450 if AF_BOARD_NAJA
+            default 500 if AF_BOARD_NEXUS  # stock v1.0.2 stops at 450; 475 MHz / 975 mV ran clean
             default 750
         config AF_MAX_CORE_MV
             int "Max core voltage (mV)"
-            range 1100 1350
+            range 1000 1350
             default 1350 if AF_BOARD_NERDQX
+            default 1250 if AF_BOARD_NAJA
+            default 1000 if AF_BOARD_NEXUS  # stock allows 1050, but that draws ~185 W, over the 170 W cap
             default 1300
         config AF_MIN_CORE_MV
             int "Min core voltage (mV)"
-            range 1000 1200
+            range 900 1200
+            default 900 if AF_BOARD_NEXUS
+            default 1000 if AF_BOARD_BITAXE_GAMMA || AF_BOARD_NAJA
             default 1100
         config AF_MAX_CHIP_TEMP
             int "Tuner chip temperature ceiling (C)"
@@ -164,10 +180,13 @@ menu "AxeForge"
             int "Max input power (W)"
             default 120 if AF_BOARD_SUPRAHEX
             default 15 if AF_BOARD_NERDAXE
+            default 40 if AF_BOARD_BITAXE_SUPRA || AF_BOARD_BITAXE_GAMMA
+            default 60 if AF_BOARD_NAJA
             default 70 if AF_BOARD_NERDQAXEPLUS
             default 130 if AF_BOARD_NERDOCTAXEPLUS
             default 250 if AF_BOARD_NERDOCTAXEGAMMA
             default 240 if AF_BOARD_NERDQX
+            default 170 if AF_BOARD_NEXUS  # stock draws ~148 W at 450 MHz; shufps' Q1373 allows 180
             default 100
 
         comment "Rev7 boards (TPS546 regulator, detected at boot)"

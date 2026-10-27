@@ -10,9 +10,6 @@
 #include <math.h>
 
 #include "driver/gpio.h"
-#include "esp_adc/adc_cali.h"
-#include "esp_adc/adc_cali_scheme.h"
-#include "esp_adc/adc_oneshot.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -20,6 +17,7 @@
 
 #include "asic/bm13xx.h"
 #include "core/state.h"
+#include "hw/ds4432u.h"
 #include "hw/i2c_bus.h"
 #include "hw/sensors.h"
 
@@ -29,22 +27,6 @@ static const char *TAG = "board";
 #define PIN_ASIC_RST ((gpio_num_t) AF_PIN_ASIC_RST)
 #define BUCK_ON 0
 #define BUCK_OFF 1
-
-#define DS4432U_ADDR 0x48
-#define DS4432U_OUT0 0xF8
-#define INA260_ADDR 0x40
-#define INA260_CURRENT 0x01
-#define INA260_VOLTAGE 0x02
-#define INA260_POWER 0x03
-
-// DS4432U + TPS40305 transfer function (Bitaxe/NerdAxe resistor values)
-#define TPS40305_VFB 0.6f
-#define DAC_IFS 0.000098921f  // (Vrfs / Rfs) * 127/16 with Vrfs 0.997 V, Rfs 80 k
-#define FB_RA 4750.0f
-#define FB_RB 3320.0f
-#define VNOM 1.451f  // output with the DAC at 0
-#define VMAX 2.39f
-#define VMIN 0.046f
 
 #define START_DIFFICULTY 256
 // EMC2101 internal sensor sits next to the chip; the die runs ~5 C hotter
@@ -57,70 +39,12 @@ static const board::Limits s_limits = {CONFIG_AF_MAX_FREQ_MHZ, CONFIG_AF_MAX_POW
                                        CONFIG_AF_CRIT_VR_TEMP};
 static SemaphoreHandle_t s_lock;
 static uint16_t s_mv = 0, s_freq = 0;
-static adc_oneshot_unit_handle_t s_adc;
-static adc_cali_handle_t s_cali;
-static bool s_cali_ok = false;
 
 namespace {
 struct Guard {
     Guard() { xSemaphoreTakeRecursive(s_lock, portMAX_DELAY); }
     ~Guard() { xSemaphoreGiveRecursive(s_lock); }
 };
-}
-
-// Register code for the DS4432U that puts the TPS40305 at `vout`; 0 if out of range.
-static uint8_t dac_code(float vout)
-{
-    if (vout > VMAX || vout < VMIN) return 0;
-    float change = fabsf((((TPS40305_VFB / FB_RB) - ((vout - TPS40305_VFB) / FB_RA)) / DAC_IFS) * 127.0f);
-    uint8_t reg = (uint8_t) ceilf(change);
-    if (vout < VNOM) reg |= 0x80;  // sink current: below the nominal output
-    return reg;
-}
-
-static bool set_vout(float volts)
-{
-    uint8_t code = dac_code(volts);
-    if (!code) {
-        ESP_LOGE(TAG, "refusing core voltage %.3f V", volts);
-        return false;
-    }
-    ESP_LOGI(TAG, "core -> %.3f V (DAC 0x%02x)", volts, code);
-    return i2c_bus::write_byte(DS4432U_ADDR, DS4432U_OUT0, code) == ESP_OK;
-}
-
-static bool ina_read(uint8_t reg, float scale, bool is_signed, float &out)
-{
-    uint8_t b[2];
-    if (i2c_bus::read(INA260_ADDR, reg, b, 2) != ESP_OK) return false;
-    uint16_t raw = (b[0] << 8) | b[1];
-    out = (is_signed ? (float) (int16_t) raw : (float) raw) * scale;
-    return true;
-}
-
-static void adc_init()
-{
-    adc_oneshot_unit_init_cfg_t u = {};
-    u.unit_id = ADC_UNIT_1;
-    if (adc_oneshot_new_unit(&u, &s_adc) != ESP_OK) return;
-    adc_oneshot_chan_cfg_t c = {};
-    c.atten = ADC_ATTEN_DB_12;
-    c.bitwidth = ADC_BITWIDTH_DEFAULT;
-    adc_oneshot_config_channel(s_adc, ADC_CHANNEL_1, &c);
-    adc_cali_curve_fitting_config_t cc = {};
-    cc.unit_id = ADC_UNIT_1;
-    cc.chan = ADC_CHANNEL_1;
-    cc.atten = ADC_ATTEN_DB_12;
-    cc.bitwidth = ADC_BITWIDTH_DEFAULT;
-    s_cali_ok = adc_cali_create_scheme_curve_fitting(&cc, &s_cali) == ESP_OK;
-}
-
-static float vcore_measured()
-{
-    int raw = 0, mv = 0;
-    if (!s_adc || adc_oneshot_read(s_adc, ADC_CHANNEL_1, &raw) != ESP_OK) return 0;
-    if (s_cali_ok && adc_cali_raw_to_voltage(s_cali, raw, &mv) == ESP_OK) return mv / 1000.0f;
-    return 0;
 }
 
 namespace board {
@@ -139,7 +63,7 @@ uint16_t max_mv() { return CONFIG_AF_MAX_CORE_MV; }
 
 uint16_t clamp_freq(int mhz)
 {
-    if (mhz < 400) mhz = 400;
+    if (mhz < AF_MIN_FREQ_MHZ) mhz = AF_MIN_FREQ_MHZ;
     if (mhz > s_limits.max_freq_mhz) mhz = s_limits.max_freq_mhz;
     return (uint16_t) mhz;
 }
@@ -159,11 +83,10 @@ Error init_hardware()
     fan::init();
     fan::set_pct(0, 100);
     temp::detect();
-    adc_init();
+    ds4432u::init();
     asic::uart_init();
 
-    uint8_t probe;
-    if (i2c_bus::read(DS4432U_ADDR, DS4432U_OUT0, &probe, 1) != ESP_OK) return Error::NoRegulator;
+    if (!ds4432u::present()) return Error::NoRegulator;
     g_state.board_rev7 = false;
     if (temp::count() == 0) return Error::NoTempSensor;
     return Error::None;
@@ -185,7 +108,7 @@ Error power_up(uint16_t freq, uint16_t mv)
     gpio_set_level(PIN_ASIC_RST, 0);
     vTaskDelay(pdMS_TO_TICKS(250));
 
-    if (!set_vout(mv / 1000.0f)) return Error::NoRegulator;
+    if (!ds4432u::set_vout(mv / 1000.0f)) return Error::NoRegulator;
     gpio_set_level(PIN_PWR_EN, BUCK_ON);
     s_mv = mv;
     g_state.core_mv = mv;
@@ -228,7 +151,7 @@ bool set_core_mv(uint16_t mv)
     Guard g;
     if (!s_powered) return false;
     mv = clamp_mv(mv);
-    if (!set_vout(mv / 1000.0f)) return false;
+    if (!ds4432u::set_vout(mv / 1000.0f)) return false;
     s_mv = mv;
     g_state.core_mv = mv;
     return true;
@@ -266,11 +189,12 @@ void read_telemetry()
     g_state.fan_rpm[1] = 0;
 
     float v, i, p;
-    if (ina_read(INA260_VOLTAGE, 1.25e-3f, false, v)) g_state.vin = v;
+    if (ds4432u::vin(v)) g_state.vin = v;
     if (!s_powered) return;
-    if (ina_read(INA260_CURRENT, 1.25e-3f, true, i)) g_state.iin = i;
-    if (ina_read(INA260_POWER, 10e-3f, false, p)) g_state.pin = p;
-    g_state.vout = vcore_measured();
+    if (ds4432u::iin(i)) g_state.iin = i;
+    if (ds4432u::pin(p)) g_state.pin = p;
+    // NAN when the ADC can't tell: the voltage-lost check skips it then
+    g_state.vout = ds4432u::vcore();
     g_state.iout = 0;
 }
 

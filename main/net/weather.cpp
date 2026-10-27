@@ -14,6 +14,7 @@
 #include "core/state.h"
 #include "net/http_util.h"
 #include "net/wifi.h"
+#include "core/json_util.h"  // depth-limited parse for untrusted JSON
 
 static const char *TAG = "weather";
 
@@ -62,7 +63,7 @@ static bool geocode(Settings &cfg)
     char *body = http_get(url);
     if (!body) return false;
     bool ok = false;
-    cJSON *j = cJSON_Parse(body);
+    cJSON *j = json_parse(body);
     cJSON *r = cJSON_GetArrayItem(cJSON_GetObjectItem(j, "results"), 0);
     if (r && cJSON_IsNumber(cJSON_GetObjectItem(r, "latitude"))) {
         cfg.lat = (float) cJSON_GetObjectItem(r, "latitude")->valuedouble;
@@ -93,7 +94,7 @@ static bool fetch(const Settings &cfg)
         snprintf(g_state.weather.error, sizeof(g_state.weather.error), "Weather service unreachable");
         return false;
     }
-    cJSON *j = cJSON_Parse(body);
+    cJSON *j = json_parse(body);
     free(body);
     cJSON *cur = cJSON_GetObjectItem(j, "current");
     cJSON *daily = cJSON_GetObjectItem(j, "daily");

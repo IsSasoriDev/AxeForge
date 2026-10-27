@@ -42,6 +42,13 @@ constexpr uint8_t REG_NONCE_COUNT = 0x8C;  // total hash counter, 2^32 hashes pe
 constexpr const char *MODEL = "BM1368";
 constexpr int SMALL_CORES = 1276;
 constexpr uint8_t REG_NONCE_COUNT = 0x8C;  // total hash counter, 2^32 hashes per count
+#elif AF_ASIC_BM1373
+constexpr const char *MODEL = "BM1373";
+// 6912 is what the Nexus S1's stock firmware reports; its measured hashrate at
+// 450 MHz works out to 6880-6900 (bitaxe's 6725 is 2.4% low).
+constexpr int SMALL_CORES = 6912;
+// 0x90 gives the right per-chip rates on a Nexus S1 (bitaxe reads 0x8C)
+constexpr uint8_t REG_NONCE_COUNT = 0x90;
 #else
 constexpr const char *MODEL = "BM1370";
 constexpr int SMALL_CORES = 2040;

@@ -1,0 +1,16 @@
+{
+  "name": "AxeForge for Bitaxe Gamma",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "gamma/bootloader.bin", "offset": 0 },
+        { "path": "gamma/partition-table.bin", "offset": 32768 },
+        { "path": "gamma/axeforge.bin", "offset": 65536 },
+        { "path": "gamma/ota_data_initial.bin", "offset": 12648448 }
+      ]
+    }
+  ]
+}

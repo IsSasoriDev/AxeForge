@@ -38,6 +38,14 @@ struct Result {
 static volatile bool s_restart = false;
 static volatile uint16_t s_hold = 0;  // clock cap after a fault retry, 0 = none
 
+// The clock actually run for a requested one, after any fault hold. Everything the
+// tuner records goes through this, so it never saves a point it didn't measure.
+static uint16_t held(uint16_t f)
+{
+    uint16_t h = s_hold;
+    return h && f > h ? h : f;
+}
+
 static const char *verdict_text(Verdict v)
 {
     switch (v) {
@@ -62,8 +70,7 @@ static bool should_abort() { return s_restart || !settings::get().autotune || !b
 // frequency down before voltage down.
 static bool apply(uint16_t freq, uint16_t mv)
 {
-    if (s_hold && freq > s_hold) freq = s_hold;
-    freq = board::clamp_freq(freq);
+    freq = board::clamp_freq(held(freq));
     mv = board::clamp_mv(mv);
     g_state.tuner.trial_freq = freq;
     g_state.tuner.trial_mv = mv;
@@ -130,6 +137,7 @@ static Result measure(int warmup_s, int window_s, float max_err, float max_chip_
 
 static void lock_point(uint16_t freq, uint16_t mv, float ghs)
 {
+    freq = held(freq);
     Settings &cfg = settings::get();
     cfg.tuned_freq = freq;
     cfg.tuned_mv = mv;
@@ -169,8 +177,11 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
             bool near_thermal = r.tmax > CONFIG_AF_MAX_CHIP_TEMP - THERMAL_MARGIN_C ||
                                 r.vrmax > board::limits().vr_ceil_c - THERMAL_MARGIN_C;
             bool near_power = r.pmax > board::limits().max_power_w * 0.95f;
-            if (near_thermal || near_power || f + FREQ_STEP > board::limits().max_freq_mhz) {
-                note(near_power ? "Power ceiling reached" : near_thermal ? "Thermal ceiling reached" : "Max freq reached");
+            bool at_hold = held(f + FREQ_STEP) != f + FREQ_STEP;
+            if (near_thermal || near_power || at_hold || f + FREQ_STEP > board::limits().max_freq_mhz) {
+                note(near_power ? "Power ceiling reached" : near_thermal ? "Thermal ceiling reached"
+                                : at_hold                ? "Held after a fault"
+                                                         : "Max freq reached");
                 return true;
             }
             f += FREQ_STEP;
@@ -282,7 +293,7 @@ static void tuner_task(void *)
             lock_point(best_f, best_mv, best_ghs);
         } else {
             apply(cfg.tuned_freq, cfg.tuned_mv);
-            best_f = cfg.tuned_freq;
+            best_f = held(cfg.tuned_freq);
             best_mv = cfg.tuned_mv;
         }
 

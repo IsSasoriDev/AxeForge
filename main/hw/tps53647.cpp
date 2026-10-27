@@ -96,6 +96,16 @@ bool detect()
 
 bool is_tps53667() { return s_67; }
 
+bool peek(float *vin, float *temp_c)
+{
+    uint16_t v = 0, t = 0;
+    if (i2c_bus::read_word_le(ADDR, READ_VIN, &v) != ESP_OK) return false;
+    if (i2c_bus::read_word_le(ADDR, READ_TEMPERATURE_1, &t) != ESP_OK) return false;
+    *vin = slinear11_to_float(v);
+    *temp_c = slinear11_to_float(t);
+    return true;
+}
+
 bool init(int phases, int imax_a, float ifault_a)
 {
     if (!detect()) {
@@ -163,7 +173,7 @@ float vout()
 {
     if (!s_initialized) return 0.0f;
     uint16_t v = 0;
-    if (i2c_bus::read_word_le(ADDR, MFR_04_VOUT, &v) != ESP_OK) return 0.0f;
+    if (i2c_bus::read_word_le(ADDR, MFR_04_VOUT, &v) != ESP_OK) return NAN;  // unknown, not 0 V
     return (float) v / 512.0f;  // ULINEAR16, exponent -9
 }
 

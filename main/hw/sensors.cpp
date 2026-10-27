@@ -7,12 +7,18 @@
 
 static const char *TAG = "sensors";
 
-#if CONFIG_AF_BOARD_NERDAXE
-// ---------------------------------------------------------------- EMC2101 (NerdAxe)
-// One fan and the board temperature. The DS4432U sits at 0x48 on this board,
-// so the TMP1075 scan used elsewhere must never run here.
+#if CONFIG_AF_BOARD_NERDAXE || CONFIG_AF_BOARD_BITAXE_SUPRA || CONFIG_AF_BOARD_BITAXE_GAMMA
+// ---------------------------------------------------------------- EMC2101 (NerdAxe, Supra, Gamma)
+// One fan, the board temperature and the chip's diode. A DS4432U can sit at 0x48
+// on these boards, so the TMP1075 scan used elsewhere must never run here.
 #define EMC2101_ADDR 0x4C
 #define EMC2101_INTERNAL_TEMP 0x00
+#define EMC2101_EXTERNAL_MSB 0x01
+#define EMC2101_EXTERNAL_LSB 0x10
+#define EMC2101_IDEALITY 0x17
+#define EMC2101_BETA 0x18
+#define EMC2101_DIODE_OPEN 0x3F8   // 11-bit readings the part uses for a missing or
+#define EMC2101_DIODE_SHORT 0x3FF  // shorted diode
 #define EMC2101_CONFIG 0x03
 #define EMC2101_TACH_LSB 0x46
 #define EMC2101_TACH_MSB 0x47
@@ -29,6 +35,11 @@ bool init()
 {
     s_emc_ok = i2c_bus::write_byte(EMC2101_ADDR, EMC2101_CONFIG, EMC2101_CONFIG_VALUE) == ESP_OK &&
                i2c_bus::write_byte(EMC2101_ADDR, EMC2101_FAN_CONFIG, EMC2101_FAN_CONFIG_VALUE) == ESP_OK;
+#ifdef AF_EMC_IDEALITY
+    // diode model of the chip (reference firmware values)
+    s_emc_ok &= i2c_bus::write_byte(EMC2101_ADDR, EMC2101_IDEALITY, AF_EMC_IDEALITY) == ESP_OK;
+    s_emc_ok &= i2c_bus::write_byte(EMC2101_ADDR, EMC2101_BETA, AF_EMC_BETA) == ESP_OK;
+#endif
     if (!s_emc_ok) ESP_LOGE(TAG, "EMC2101 init failed");
     return s_emc_ok;
 }
@@ -90,9 +101,141 @@ float asic_area(int index)
 
 float vr_board() { return NAN; }
 
+float chip_diode(int index)
+{
+    if (index != 0) return NAN;
+    uint8_t msb = 0, lsb = 0;
+    if (i2c_bus::read(EMC2101_ADDR, EMC2101_EXTERNAL_MSB, &msb, 1) != ESP_OK) return NAN;
+    if (i2c_bus::read(EMC2101_ADDR, EMC2101_EXTERNAL_LSB, &lsb, 1) != ESP_OK) return NAN;
+    int16_t raw = (int16_t) (((msb << 8) | lsb) >> 5);  // 11-bit, 1/8 C
+    if (raw == EMC2101_DIODE_OPEN || raw == EMC2101_DIODE_SHORT) return NAN;
+    if (raw & 0x400) raw |= (int16_t) 0xF800;
+    float t = raw / 8.0f;
+    return t > -10 && t < 150 ? t : NAN;
+}
+
 } // namespace temp
 
-#else  // NerdQaxe++ / Supra Hex
+#elif CONFIG_AF_BOARD_NAJA
+// ---------------------------------------------------------------- EMC2103 (Naja Duo)
+// One fan, the board temperature and one diode per BM1373.
+#define EMC2103_ADDR 0x2E
+#define EMC2103_INTERNAL_MSB 0x00
+#define EMC2103_EXT1_MSB 0x02
+#define EMC2103_EXT1_LSB 0x03
+#define EMC2103_EXT2_MSB 0x04
+#define EMC2103_EXT2_LSB 0x05
+#define EMC2103_DIODE_FAULT 0x8000
+#define EMC2103_IDEALITY1 0x11
+#define EMC2103_IDEALITY2 0x12
+#define EMC2103_BETA1 0x14
+#define EMC2103_BETA2 0x15
+#define EMC2103_CONFIG1 0x20
+#define EMC2103_PWM_CONFIG 0x2A
+#define EMC2103_FAN_SETTING 0x40  // 0..255
+#define EMC2103_TACH_MSB 0x4E
+#define EMC2103_TACH_LSB 0x4F
+// The BM1373 diodes read high and stretched; the second one sits warmer still
+// (reference firmware calibration for the Naja Duo).
+static const float DIODE_SCALE = 0.9613546f;
+static const float DIODE_OFFSET[2] = {-5.0858026f, -5.0858026f - 10.7f};
+
+static bool s_emc_ok = false;
+
+namespace fan {
+
+bool init()
+{
+    s_emc_ok = i2c_bus::write_byte(EMC2103_ADDR, EMC2103_CONFIG1, 0x00) == ESP_OK &&
+               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_PWM_CONFIG, 0x00) == ESP_OK &&
+               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_IDEALITY1, AF_EMC_IDEALITY) == ESP_OK &&
+               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_IDEALITY2, AF_EMC_IDEALITY) == ESP_OK &&
+               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_BETA1, AF_EMC_BETA) == ESP_OK &&
+               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_BETA2, AF_EMC_BETA) == ESP_OK;
+    if (!s_emc_ok) ESP_LOGE(TAG, "EMC2103 init failed");
+    return s_emc_ok;
+}
+
+void set_pct(int channel, float pct)
+{
+    if (channel != 0) return;  // single fan header
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    i2c_bus::write_byte(EMC2103_ADDR, EMC2103_FAN_SETTING, (uint8_t) (pct * 2.55f + 0.5f));
+}
+
+uint16_t rpm(int channel)
+{
+    if (channel != 0) return 0;
+    uint8_t lsb = 0, msb = 0;
+    if (i2c_bus::read(EMC2103_ADDR, EMC2103_TACH_LSB, &lsb, 1) != ESP_OK) return 0;
+    if (i2c_bus::read(EMC2103_ADDR, EMC2103_TACH_MSB, &msb, 1) != ESP_OK) return 0;
+    uint16_t raw = (uint16_t) ((lsb | (msb << 8)) >> 3);
+    if (raw == 0 || raw >= 0x1fff) return 0;
+    uint32_t r = 7864320u / raw;  // 2 edges per rev, default multiplier
+    return r > 65535 || r == 82 ? 0 : (uint16_t) r;  // 82 rpm: the stalled-tach reading
+}
+
+bool check()
+{
+    uint8_t v = 0;
+    if (i2c_bus::read(EMC2103_ADDR, EMC2103_IDEALITY1, &v, 1) != ESP_OK) return true;
+    if (v == AF_EMC_IDEALITY) return true;
+    ESP_LOGW(TAG, "fan controller config is %02x, it was reset - re-initialising", v);
+    init();
+    return false;
+}
+
+} // namespace fan
+
+static float diode(int i, uint8_t msb_reg, uint8_t lsb_reg)
+{
+    uint8_t msb = 0, lsb = 0;
+    if (i2c_bus::read(EMC2103_ADDR, msb_reg, &msb, 1) != ESP_OK) return NAN;
+    if (i2c_bus::read(EMC2103_ADDR, lsb_reg, &lsb, 1) != ESP_OK) return NAN;
+    uint16_t word = (msb << 8) | lsb;
+    if (word == EMC2103_DIODE_FAULT) return NAN;
+    int16_t raw = (int16_t) (word >> 5);
+    if (raw & 0x400) raw |= (int16_t) 0xF800;
+    float t = raw / 8.0f * DIODE_SCALE + DIODE_OFFSET[i];
+    return t > -10 && t < 150 ? t : NAN;
+}
+
+namespace temp {
+
+int detect()
+{
+    uint8_t t;
+    bool ok = false;
+    for (int tries = 0; tries < 3 && !ok; tries++)
+        ok = i2c_bus::read(EMC2103_ADDR, EMC2103_INTERNAL_MSB, &t, 1) == ESP_OK;
+    ESP_LOGI(TAG, "%d board temperature sensors (EMC2103)", ok ? 1 : 0);
+    return ok ? 1 : 0;
+}
+
+int count() { return s_emc_ok ? 1 : detect(); }
+
+float asic_area(int index)
+{
+    if (index != 0) return NAN;
+    uint8_t t;
+    if (i2c_bus::read(EMC2103_ADDR, EMC2103_INTERNAL_MSB, &t, 1) != ESP_OK) return NAN;
+    if (t == 0 || t > 127) return NAN;
+    return t;
+}
+
+float vr_board() { return NAN; }
+
+float chip_diode(int index)
+{
+    if (index == 0) return diode(0, EMC2103_EXT1_MSB, EMC2103_EXT1_LSB);
+    if (index == 1) return diode(1, EMC2103_EXT2_MSB, EMC2103_EXT2_LSB);
+    return NAN;
+}
+
+} // namespace temp
+
+#else  // NerdQaxe family / Supra Hex
 
 // ---------------------------------------------------------------- EMC2302
 #if CONFIG_AF_BOARD_SUPRAHEX
@@ -166,6 +309,10 @@ uint16_t rpm(int channel)
 // own temperature over PMBus.
 static const int ASIC_SENSOR_DEV[] = {2, 3};
 #define TMP_VR_INDEX -1
+#elif CONFIG_AF_BOARD_NEXUS
+// Nexus S1 (from its stock firmware): 0x48 near the chips, 0x49 at the VR
+static const int ASIC_SENSOR_DEV[] = {0};
+#define TMP_VR_INDEX 1
 #else
 // NerdQaxe++: 0x48, 0x4a, 0x4b near the chips, 0x49 on the back of the VR
 static const int ASIC_SENSOR_DEV[] = {0, 2, 3};
@@ -214,8 +361,10 @@ float asic_area(int index)
 
 float vr_board() { return TMP_VR_INDEX < 0 ? NAN : tmp_read(TMP_VR_INDEX); }
 
+float chip_diode(int) { return NAN; }  // die temperature comes from the TMP451 mux here
+
 int count() { return s_num_asic_sensors; }
 
 } // namespace temp
 
-#endif // CONFIG_AF_BOARD_NERDAXE
+#endif

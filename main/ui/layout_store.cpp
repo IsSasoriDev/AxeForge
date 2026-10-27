@@ -7,6 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "nvs.h"
+#include "core/json_util.h"  // depth-limited parse for untrusted JSON
 
 static const char *TAG = "layout";
 
@@ -28,7 +29,7 @@ static volatile bool s_dirty = false;
 // Clamp every widget into the grid; reject anything that isn't the expected shape.
 static char *normalize(const char *in)
 {
-    cJSON *root = cJSON_Parse(in);
+    cJSON *root = json_parse(in);
     cJSON *pages = cJSON_GetObjectItem(root, "pages");
     if (!cJSON_IsArray(pages)) {
         cJSON_Delete(root);

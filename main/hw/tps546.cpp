@@ -81,6 +81,12 @@ const Profile NERDQAXE_REV7 = {"rev7 stack", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.12
 // from the Bitaxe reference firmware (VIN 11.5/11.0 V, 2.5..4.5 V out, 25/30 A)
 const Profile BITAXE_HEX = {"hex", 3, 11.5f, 11.0f, 11.0f, 14.0f, 0.125f, 2.5f / 3, 4.5f / 3,
                             25.0f, 30.0f, 1.16f, 0x1F, false, 0xFFFF};
+// reference TPS546_CONFIG_DEFAULT: VIN 4.8/4.5 V (no UV warning), 1..2 V out, 25/30 A
+const Profile BITAXE_SINGLE = {"single", 1, 4.8f, 4.5f, 0.0f, 6.5f, 0.25f, 1.0f, 2.0f,
+                               25.0f, 30.0f, 1.16f, 0x1F, false, 0xFFFF};
+// reference TPS546_CONFIG_NAJA_DUO: VIN 11/10.5 V, 1.8..3.0 V out, 61/68 A, two-phase stack
+const Profile NAJA_DUO = {"naja duo", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.8f / 2, 3.0f / 2,
+                          61.0f, 68.0f, 1.10f, 0x1F, true, 0xFFFF};
 }
 
 static const tps546::Profile *s_prof = &tps546::NERDQAXE_REV7;
@@ -289,7 +295,7 @@ float vout()
 {
     if (!s_initialized) return 0.0f;
     uint16_t v = 0;
-    if (i2c_bus::read_word_le(ADDR, READ_VOUT, &v) != ESP_OK) return 0.0f;
+    if (i2c_bus::read_word_le(ADDR, READ_VOUT, &v) != ESP_OK) return NAN;  // unknown, not 0 V
     return ulinear16_to_float(v) / s_prof->domains;
 }
 

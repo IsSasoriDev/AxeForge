@@ -2,8 +2,8 @@
 // boards without an LCD: a 512-byte framebuffer, text drawn straight from the
 // LVGL font tables, refreshed once a second. BOOT button: short press = next
 // page, long press = screen off/on.
-#include "sdkconfig.h"
-#if CONFIG_AF_BOARD_SUPRAHEX
+#include "core/board_config.h"
+#if !AF_HAS_LCD
 
 #include <stdio.h>
 #include <string.h>
@@ -320,4 +320,4 @@ int current_page() { return s_page; }
 char current_kind() { return 'o'; }
 }
 
-#endif // CONFIG_AF_BOARD_SUPRAHEX
+#endif // !AF_HAS_LCD

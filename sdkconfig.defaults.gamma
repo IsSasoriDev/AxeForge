@@ -1,0 +1,7 @@
+# Bitaxe gamma build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_gamma -D SDKCONFIG=build_gamma/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.gamma" build
+CONFIG_AF_BOARD_BITAXE_GAMMA=y
+# small bitmap font for the 128x32 OLED
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-gamma"

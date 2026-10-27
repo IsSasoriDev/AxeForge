@@ -10,6 +10,7 @@
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "nvs.h"
 
 #include "core/settings.h"
 #include "core/state.h"
@@ -22,6 +23,32 @@ static int s_retries = 0;
 static esp_timer_handle_t s_reconnect_timer;
 
 static void reconnect_cb(void *) { esp_wifi_connect(); }
+
+// The name given to DHCP (and shown by Swarm): ours if set, else the one the
+// stock firmware saved (so a flashed miner keeps its old name), else one made
+// from the MAC.
+static void pick_hostname()
+{
+    const char *mine = settings::get().hostname;
+    char stock[33] = "";
+    nvs_handle_t h;
+    if (!mine[0] && nvs_open("main", NVS_READONLY, &h) == ESP_OK) {
+        size_t len = sizeof(stock);
+        if (nvs_get_str(h, "hostname", stock, &len) != ESP_OK) stock[0] = 0;
+        nvs_close(h);
+        char *dot = strchr(stock, '.');  // stock firmware saves it as "name.local"
+        if (dot) *dot = 0;
+    }
+    if (mine[0] && settings::valid_hostname(mine)) {
+        snprintf(g_state.hostname, sizeof(g_state.hostname), "%s", mine);
+    } else if (settings::valid_hostname(stock)) {
+        snprintf(g_state.hostname, sizeof(g_state.hostname), "%s", stock);
+    } else {
+        uint8_t mac[6];
+        esp_read_mac(mac, ESP_MAC_WIFI_STA);
+        snprintf(g_state.hostname, sizeof(g_state.hostname), "axeforge-%02x%02x", mac[4], mac[5]);
+    }
+}
 
 static void start_setup_ap()
 {
@@ -79,8 +106,11 @@ void start()
     esp_timer_create(&targs, &s_reconnect_timer);
     esp_netif_init();
     esp_event_loop_create_default();
-    esp_netif_create_default_wifi_sta();
+    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
     esp_netif_create_default_wifi_ap();
+    pick_hostname();
+    esp_netif_set_hostname(sta_netif, g_state.hostname);
+    ESP_LOGI(TAG, "hostname %s", g_state.hostname);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     esp_wifi_init(&cfg);

@@ -77,7 +77,9 @@ void build(const StratumJob &sj, const char *extranonce1, uint32_t en2, int en2_
            double pool_diff, Work &w, AsicJob &cj)
 {
     // extranonce2: big-endian hex of the counter, padded to en2_len bytes
+    // (pools.cpp only accepts 1..16; never index the buffer with anything else)
     if (en2_len > 16) en2_len = 16;
+    if (en2_len < 1) en2_len = 1;
     snprintf(w.extranonce2, sizeof(w.extranonce2), "%0*lx", en2_len * 2, (unsigned long) en2);
     w.extranonce2[en2_len * 2] = 0;
 
@@ -187,6 +189,7 @@ void describe_template(const StratumJob &sj, const char *en1, int en2_len, Block
     bin2hex(ph, 32, t.prev_hash);
 
     // rebuild the coinbase with a zero extranonce2 and walk its outputs
+    if (en2_len < 0 || en2_len > 16) return;  // pools.cpp refuses these; never size a buffer from one
     size_t l1 = strlen(sj.coinb1) / 2, le1 = strlen(en1) / 2, l2 = strlen(sj.coinb2) / 2;
     size_t len = l1 + le1 + en2_len + l2;
     uint8_t *cb = (uint8_t *) calloc(1, len);
@@ -199,8 +202,11 @@ void describe_template(const StratumJob &sj, const char *en1, int en2_len, Block
     read_varint(cb, len, o);               // input count (1)
     o += 36;                               // prevout
     uint64_t slen = read_varint(cb, len, o);
+    // lengths come from the pool: check against what's left (an offset plus a
+    // 64-bit length can wrap past any `> len` test)
+    if (o > len || slen > len - o) slen = o <= len ? len - o : 0;
     size_t script = o;
-    o += slen + 4;                         // script + sequence
+    o += (size_t) slen + 4;                // script + sequence
     // printable coinbase text, skipping the height push
     // keep only runs of 4+ printable characters so random bytes don't leak in
     int tl = 0;
@@ -235,7 +241,7 @@ void describe_template(const StratumJob &sj, const char *en1, int en2_len, Block
         o += 8;
         sats += v;
         uint64_t sl = read_varint(cb, len, o);
-        if (o + sl > len) break;
+        if (o > len || sl > len - o) break;
         bool yours = mine_len && sl == mine_len && memcmp(cb + o, mine, sl) == 0;
         if (yours) to_me += v;
         if (t.n_outputs < AF_SHOWN_OUTPUTS) {

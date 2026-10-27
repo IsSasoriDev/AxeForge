@@ -1,7 +1,10 @@
 #pragma once
 #include <stdint.h>
 
-// EMC2302 dual fan controller (0x2E) and TMP1075 temperature sensors (0x48+).
+// Fans and temperature sensors, per board (see sensors.cpp):
+//  - NerdQaxe family and Supra Hex: EMC2302 dual fan controller, TMP1075 board sensors
+//  - NerdAxe, Bitaxe Supra and Gamma: EMC2101 (one fan, board sensor, chip diode)
+//  - Bitaxe Naja Duo: EMC2103 (one fan, board sensor, two chip diodes)
 namespace fan {
 bool init();
 void set_pct(int channel, float pct);  // 0..100
@@ -18,4 +21,8 @@ int count();
 // Board sensor under ASIC area `index`, in C. NAN on error.
 float asic_area(int index);
 float vr_board();  // NAN on error
+// The chip's own temperature diode, read by the fan controller (Bitaxe boards).
+// NAN on boards without one, on a read error, or while the chip has no power
+// (an unpowered diode reads open).
+float chip_diode(int index);
 }

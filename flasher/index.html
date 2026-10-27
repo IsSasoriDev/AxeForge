@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AxeForge Flasher</title>
-<meta name="description" content="Install AxeForge on a NerdQaxe++ or NerdAxe straight from the browser over USB.">
+<meta name="description" content="Install AxeForge on a NerdQaxe++, NerdQAxe+, NerdOctaxe, NerdQX or NerdAxe straight from the browser over USB, or on a Bitaxe Supra Hex through AxeOS.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070a10'/%3E%3Cpath d='M9 23 16 7l7 16h-4l-3-7-3 7z' fill='%23ff9f1c'/%3E%3C/svg%3E">
 <script type="module" src="https://unpkg.com/esp-web-tools@10.1.1/dist/web/install-button.js?module"></script>
 <style>
@@ -94,6 +94,71 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
     </esp-web-install-button>
   </section>
 
+  <section class="card board">
+    <div>
+      <h2>NerdQAxe+</h2>
+      <p>4× BM1368. Same board design as the NerdQaxe++, older chips.</p>
+      <div class="chips"><span class="chip">BM1368</span><span class="chip">2-phase TPS53647</span><span class="chip">Not tested on hardware yet</span></div>
+    </div>
+    <esp-web-install-button manifest="manifest-nerdqaxeplus.json">
+      <button slot="activate">Install AxeForge</button>
+      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
+      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
+    </esp-web-install-button>
+  </section>
+
+  <section class="card board">
+    <div>
+      <h2>NerdOctaxe+</h2>
+      <p>8× BM1368.</p>
+      <div class="chips"><span class="chip">BM1368</span><span class="chip">3-phase TPS53647</span><span class="chip">Not tested on hardware yet</span></div>
+    </div>
+    <esp-web-install-button manifest="manifest-nerdoctaxeplus.json">
+      <button slot="activate">Install AxeForge</button>
+      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
+      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
+    </esp-web-install-button>
+  </section>
+
+  <section class="card board">
+    <div>
+      <h2>NerdOctaxe-γ</h2>
+      <p>8× BM1370. The regulator (TPS53647 or, from rev3.0, TPS53667) and the per-chip die sensors are detected at boot.</p>
+      <div class="chips"><span class="chip">BM1370</span><span class="chip">die temperature per chip</span><span class="chip">Not tested on hardware yet</span></div>
+    </div>
+    <esp-web-install-button manifest="manifest-nerdoctaxegamma.json">
+      <button slot="activate">Install AxeForge</button>
+      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
+      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
+    </esp-web-install-button>
+  </section>
+
+  <section class="card board">
+    <div>
+      <h2>NerdQX</h2>
+      <p>4× BM1370 with a die temperature sensor on every chip.</p>
+      <div class="chips"><span class="chip">BM1370</span><span class="chip">die temperature per chip</span><span class="chip">Not tested on hardware yet</span></div>
+    </div>
+    <esp-web-install-button manifest="manifest-nerdqx.json">
+      <button slot="activate">Install AxeForge</button>
+      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
+      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
+    </esp-web-install-button>
+  </section>
+
+  <section class="card board">
+    <div>
+      <h2>Bitaxe Supra Hex</h2>
+      <p>6× BM1368. Installed through AxeOS itself, not from this page, so AxeOS stays on the miner as a fallback.</p>
+      <div class="chips"><span class="chip">701 / 702</span><span class="chip">128×32 OLED</span><span class="chip">Back to AxeOS any time</span></div>
+      <ol class="note">
+        <li>Download <code>axeforge-suprahex.bin</code> from the <a href="https://github.com/IsSasoriDev/AxeForge/releases/latest">latest release</a> and rename it to <code>esp-miner.bin</code> (AxeOS only accepts that name).</li>
+        <li>In AxeOS, open <b>Update</b>, upload it under <i>Firmware</i> and wait for the reboot.</li>
+        <li>To go back, upload a stock <code>esp-miner.bin</code> under <i>System → Firmware</i> in AxeForge.</li>
+      </ol>
+    </div>
+  </section>
+
   <div class="grid">
     <section class="card">
       <h3>How to install</h3>
@@ -109,7 +174,7 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
       <ul>
         <li>The flasher writes the firmware pieces only, so saved Wi-Fi and pool settings survive. Tick <b>Erase</b> for a clean start.</li>
         <li>The <code>axeforge-factory.bin</code> file on the Releases page is a full image: writing it at <code>0x0</code> resets all settings.</li>
-        <li>Later updates don't need this page: upload the board's <code>.bin</code> under <i>System → Firmware</i> in the miner's web UI (<code>axeforge.bin</code> for the NerdQaxe++, <code>axeforge-nerdaxe.bin</code> for the NerdAxe). A file for the wrong board is refused.</li>
+        <li>Later updates don't need this page: upload the board's <code>.bin</code> under <i>System → Firmware</i> in the miner's web UI (<code>axeforge.bin</code> for the NerdQaxe++, <code>axeforge-&lt;board&gt;.bin</code> for the others, for example <code>axeforge-nerdaxe.bin</code>). A file for the wrong board is refused.</li>
         <li>To go back to stock, flash the stock factory image the same way, or with <code>esptool.py write_flash 0x0 &lt;file&gt;</code>.</li>
       </ul>
     </section>

@@ -262,7 +262,18 @@ static void refresh_blocks()
         fmt_diff(work::nbits_to_difficulty(t.nbits), nd, sizeof(nd));
         lv_label_set_text_fmt(s_now_reward, "#2bff88 %.4f BTC#  #9aa8bd ~%u txs  diff %s#", t.reward_btc,
                               1u << (t.branches > 15 ? 15 : t.branches), nd);
-        lv_label_set_text(s_now_tag, t.tag[0] ? t.tag : "");
+        // pool tag, then the solo payout check: green when a block pays you, red when it doesn't
+        char tg[96];
+        const char *sep = t.tag[0] ? "  -  " : "";  // the screen font has no middle dot
+        if (t.payout == Payout::PaysYou)
+            snprintf(tg, sizeof(tg), "%s%spays you %.0f%%", t.tag, sep,
+                     t.total_sats ? 100.0 * t.payout_sats / t.total_sats : 0.0);
+        else if (t.payout == Payout::NotYou)
+            snprintf(tg, sizeof(tg), "%s%sNOT your address", t.tag, sep);
+        else
+            snprintf(tg, sizeof(tg), "%s", t.tag);
+        lv_label_set_text(s_now_tag, tg);
+        lv_obj_set_style_text_color(s_now_tag, t.payout == Payout::NotYou ? C_RED : t.payout == Payout::PaysYou ? C_GREEN : C_MAGENTA, 0);
         lv_label_set_text_fmt(s_now_prev, "prev ...%s", t.prev_hash + 40);
     }
 

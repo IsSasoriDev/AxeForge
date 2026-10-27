@@ -267,14 +267,14 @@ static void oled_task(void *)
                 panel_power(s_on);
             }
         } else if (held_ms) {
-            if (!long_done) s_page_delta++;
+            if (!long_done) s_page_delta = s_page_delta + 1;
             held_ms = 0;
             long_done = false;
         }
         int rot = settings::get().page_rotate_s;
         if (rot && (since_rotate += 50) >= rot * 1000) {
             since_rotate = 0;
-            s_page_delta++;
+            s_page_delta = s_page_delta + 1;
         }
         if (s_page_delta) {
             s_page = ((s_page + s_page_delta) % PAGE_COUNT + PAGE_COUNT) % PAGE_COUNT;
@@ -311,7 +311,7 @@ void free_snapshot(lv_img_dsc_t *) {}
 
 namespace ui {
 void build() {}
-void on_button(int) { s_page_delta++; }
+void on_button(int) { s_page_delta = s_page_delta + 1; }
 void on_long_press(int) {}
 void request_page(int delta) { s_page_delta += delta; }
 void request_kind(char) {}

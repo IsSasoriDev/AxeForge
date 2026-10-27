@@ -7,7 +7,7 @@
 // hard limits from Kconfig are enforced in exactly one place.
 namespace board {
 
-enum class Error { None, NoRegulator, NoTempSensor, NoChips, PsuFault, OverCurrent, VoutFault, VrOverTemp };
+enum class Error { None, NoRegulator, NoTempSensor, NoChips, ChipMissing, PsuFault, OverCurrent, VoutFault, VrOverTemp };
 
 // Limits that depend on the board revision (chip temperature limits do not).
 struct Limits {
@@ -30,6 +30,7 @@ uint16_t freq_mhz();
 bool is_powered();
 
 uint16_t clamp_mv(int mv);
+uint16_t max_mv();  // the Kconfig limit, or lower where the board needs it (NerdQX without die sensors)
 uint16_t clamp_freq(int mhz);
 
 void read_telemetry();                   // fills g_state power/thermal fields

@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include "sdkconfig.h"
 
+#include "asic/bm13xx.h"
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
@@ -130,11 +131,14 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "vrTemp", s.vr_temp);
     cJSON_AddBoolToObject(r, "vrSensor", AF_HAS_VR_SENSOR);
     cJSON_AddBoolToObject(r, "tempOk", s.temp_ok && s.vr_temp_ok);
-#if CONFIG_AF_BOARD_SUPRAHEX || CONFIG_AF_BOARD_NERDAXE
-    cJSON_AddStringToObject(r, "board", AF_BOARD_NAME);
-#else
+#if CONFIG_AF_BOARD_NERDQAXE
     cJSON_AddStringToObject(r, "board", s.board_rev7 ? "rev7 (TPS546)" : "rev5.1/6 (TPS53647)");
+#else
+    cJSON_AddStringToObject(r, "board", AF_BOARD_NAME);
 #endif
+    cJSON_AddStringToObject(r, "asicModel", asic::MODEL);
+    cJSON_AddNumberToObject(r, "asicCount", AF_NUM_ASICS);
+    cJSON_AddNumberToObject(r, "smallCores", asic::SMALL_CORES);
     cJSON_AddNumberToObject(r, "power", s.pin);
     cJSON_AddNumberToObject(r, "vin", s.vin);
     cJSON_AddNumberToObject(r, "vout", s.vout);
@@ -212,6 +216,8 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(o, "workPct", ps.work_pct);
         cJSON_AddNumberToObject(o, "jobs", ps.jobs);
         cJSON_AddNumberToObject(o, "pingMs", ps.ping_ms);
+        cJSON_AddNumberToObject(o, "payout", ps.payout);
+        cJSON_AddNumberToObject(o, "payoutPct", ps.payout_pct);
         cJSON_AddStringToObject(o, "status", ps.status);
         cJSON_AddItemToArray(pl, o);
     }
@@ -226,6 +232,19 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(tm, "branches", bt.branches);
     cJSON_AddStringToObject(tm, "tag", bt.tag);
     cJSON_AddNumberToObject(tm, "ntime", bt.ntime);
+    // solo payout check: 0 unknown, 1 username isn't an address, 2 pays you, 3 doesn't
+    cJSON_AddNumberToObject(tm, "payout", (int) bt.payout);
+    cJSON_AddStringToObject(tm, "payoutAddr", bt.payout_addr);
+    cJSON_AddNumberToObject(tm, "payoutSats", (double) bt.payout_sats);
+    cJSON_AddNumberToObject(tm, "totalSats", (double) bt.total_sats);
+    cJSON *outs = cJSON_AddArrayToObject(tm, "outputs");
+    for (int i = 0; i < bt.n_outputs; i++) {
+        cJSON *o = cJSON_CreateObject();
+        cJSON_AddStringToObject(o, "addr", bt.outputs[i].addr);
+        cJSON_AddNumberToObject(o, "sats", (double) bt.outputs[i].sats);
+        cJSON_AddBoolToObject(o, "yours", bt.outputs[i].yours);
+        cJSON_AddItemToArray(outs, o);
+    }
     cJSON_AddStringToObject(r, "lastHash", s.last_hash);
     cJSON_AddNumberToObject(r, "lastHashDiff", s.last_hash_diff);
     cJSON_AddNumberToObject(r, "hashesChecked", s.hashes_checked);
@@ -325,6 +344,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "fman1", c.fan_manual[1]);
     cJSON_AddNumberToObject(r, "theme", c.theme);
     cJSON_AddNumberToObject(r, "bright", c.brightness);
+    cJSON_AddNumberToObject(r, "scroff", c.screen_off_min);
     cJSON_AddNumberToObject(r, "defpage", c.default_page);
     cJSON_AddNumberToObject(r, "rotate", c.page_rotate_s);
     cJSON_AddBoolToObject(r, "rot180", c.rotate_180);
@@ -334,7 +354,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON *lim = cJSON_AddObjectToObject(r, "limits");
     cJSON_AddNumberToObject(lim, "maxFreq", board::limits().max_freq_mhz);
     cJSON_AddNumberToObject(lim, "minMv", CONFIG_AF_MIN_CORE_MV);
-    cJSON_AddNumberToObject(lim, "maxMv", CONFIG_AF_MAX_CORE_MV);
+    cJSON_AddNumberToObject(lim, "maxMv", board::max_mv());
     cJSON_AddNumberToObject(lim, "chipCeil", CONFIG_AF_MAX_CHIP_TEMP);
     cJSON_AddNumberToObject(lim, "chipCrit", CONFIG_AF_CRIT_CHIP_TEMP);
     cJSON_AddNumberToObject(lim, "vrCeil", board::limits().vr_ceil_c);
@@ -454,6 +474,7 @@ static esp_err_t settings_post(httpd_req_t *req)
 
     // display: applied immediately
     c.brightness = (uint8_t) get_int(j, "bright", c.brightness, 5, 100);
+    c.screen_off_min = (uint8_t) get_int(j, "scroff", c.screen_off_min, 0, 240);
     c.default_page = (uint8_t) get_int(j, "defpage", c.default_page, 0, 4);
     c.page_rotate_s = (uint8_t) get_int(j, "rotate", c.page_rotate_s, 0, 255);
     bool rot = get_bool(j, "rot180", c.rotate_180);

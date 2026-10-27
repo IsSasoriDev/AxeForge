@@ -1,36 +1,58 @@
 # AxeForge
 
-New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev5.1 and rev6, TPS546 on rev7) and the **NerdAxe** (1× BM1366) driving a **3.5" 480×320 display** (8-bit parallel or SPI, ST7796S or ILI9488). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize.
+Alternative firmware for the NerdQAxe family of Bitcoin miners and the Bitaxe Supra Hex (see [Supported boards](#supported-boards)). It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize, on the stock LilyGo T-Display-S3 or a 3.5" 480×320 display.
 
-> **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable).
+> **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable). If that page is down, see [Flashing without the web flasher](#flashing-without-the-web-flasher).
 
-> ⚠️ **Young firmware.** It runs on real NerdQaxe++ rev6 boards, and contributors run it on rev7. Rev5.1 uses the same regulator and code path as rev6. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Stratum V2 has been tested up to the encrypted handshake and connection setup, but not share submission. Keep a backup of your stock flash so you can go back.
+> ⚠️ **Young firmware.** The NerdQaxe++, the NerdAxe and the Supra Hex run it every day; the newer boards in the table below have not been tested on hardware yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Keep a backup of your stock flash so you can go back.
+
+## Supported boards
+
+| Board | Chips | Regulator | Power limit | Firmware file | Status |
+|---|---|---|---|---|---|
+| **NerdQaxe++** rev5.1 / rev6 | 4× BM1370 | TPS53647, 3-phase | 100 W | `axeforge.bin` | ✅ Tested (rev6; rev5.1 runs the same code) |
+| **NerdQaxe++** rev7 | 4× BM1370 | TPS546 stack | 120 W | `axeforge.bin` | ✅ Tested by contributors |
+| **NerdAxe** | 1× BM1366 | DS4432U + TPS40305 | 15 W | `axeforge-nerdaxe.bin` | ✅ Tested |
+| **NerdQAxe+** | 4× BM1368 | TPS53647, 2-phase | 70 W | `axeforge-nerdqaxeplus.bin` | ⚠️ Not tested on hardware yet |
+| **NerdOctaxe+** | 8× BM1368 | TPS53647, 3-phase | 130 W | `axeforge-nerdoctaxeplus.bin` | ⚠️ Not tested on hardware yet |
+| **NerdOctaxe-γ** | 8× BM1370 | TPS53647 4-phase, or TPS53667 6-phase from rev3.0 | 250 W / 300 W | `axeforge-nerdoctaxegamma.bin` | ⚠️ Not tested on hardware yet |
+| **NerdQX** | 4× BM1370 | TPS53647, 3-phase | 240 W | `axeforge-nerdqx.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Supra Hex** 701 / 702 | 6× BM1368 | TPS546, 3 stacked domains | 120 W | `axeforge-suprahex.bin` | ✅ Tested (702) |
+
+- Each board has its own firmware file. A file for another board is refused, because the boards switch their core power on differently.
+- The NerdQaxe++ revision and the NerdOctaxe-γ regulator are detected at boot.
+- The NerdQX and NerdOctaxe-γ read the real die temperature of every chip. The other boards use temperature sensors on the PCB next to the chips.
+- A NerdQX without its die sensors is treated as an unknown board and stays at 495 MHz / 1150 mV.
+- The Supra Hex is installed through AxeOS, not the web flasher, and AxeOS stays on it (see [Bitaxe Supra Hex](#bitaxe-supra-hex)). Its screen is the 128×32 OLED.
+- If you run one of the untested boards, please open an issue with your log (*System → Log*), working or not.
+- Other Bitaxe models are not supported yet (see [Not supported](#not-supported-yet)).
 
 ## What it does
 
-- **Mining:** version rolling, 500 ms job rotation, every nonce re-hashed on the ESP32 before it's submitted, and per-chip hashrate and hardware-error counters read from the BM1370s. A result the chain reports twice is dropped instead of being submitted again.
+- **Mining:** version rolling (within the mask the pool allows), a new job for the chips every 0.5–1.5 s depending on the chip, every nonce re-hashed on the ESP32 before it's submitted, and per-chip hashrate and hardware-error counters read from the chips. A result the chain reports twice is dropped instead of being submitted again.
 - **Up to 4 pools**, each one using any of these protocols:
   - **Stratum V1**
   - **V1 over TLS**: the certificate is checked against the built-in CA bundle.
-  - **Stratum V2**: Noise-NX encrypted, extended channel. You can add the pool's authority key to verify its identity.
+  - **Stratum V2**: Noise-NX encrypted, extended channel. You can add the pool's authority key to verify its identity (see [Stratum V2](#stratum-v2)).
 
   There are two pool modes:
   - **Split**: each pool gets a percentage of the jobs.
   - **Failover**: the first healthy pool in the list gets all the work.
 
-  Pools reconnect live when you save; no reboot is needed. Pools can't be assigned to individual chips: the 4 BM1370s share one serial chain and every job goes to all of them. A 25%-per-pool split gives the same result.
+  Pools reconnect live when you save; no reboot is needed. Pools can't be assigned to individual chips: all chips share one serial chain and every job goes to all of them. A 25%-per-pool split gives the same result.
+- **Solo payout check:** the miner reads the coinbase of every job back into addresses and checks whether a block would pay the Bitcoin address in your pool username (the part before `.worker`). Dashboard → *Now mining* shows the result and the coinbase outputs, each pool card shows *pays you N%* or a red *coinbase doesn't pay your address*, and the Blocks page on the screen turns green or red. On a pooled account (a username that isn't an address) it just shows who the block would pay. It understands P2PKH, P2SH, P2WPKH, P2WSH and P2TR on mainnet, testnet and regtest, and works over Stratum V1 and V2.
 - **Live data:**
-  - The block template you're mining: height, reward, coinbase tag, previous hash.
+  - The block template you're mining: height, reward, coinbase tag, previous hash, coinbase outputs.
   - The latest share hash, with its leading zeros highlighted.
   - mempool.space (or your own node's mempool instance): recently mined blocks, projected next blocks and fees.
 - **Auto-tuner (max stable hashrate):**
-  1. **Climb:** starts at 600 MHz / 1150 mV and adds 12 MHz per step. Each step gets a 2 min warm-up and then a 5 min measurement.
+  1. **Climb:** starts at the board's stock point (600 MHz / 1150 mV on the NerdQaxe++) and adds 12 MHz per step. Each step gets a 2 min warm-up and then a 5 min measurement.
   2. If the hardware error rate goes above 1%, or hashrate drops below 92% of the theoretical value, it adds 10 mV (at most 4 times per frequency).
   3. It stops at the first wall: errors that voltage can't fix, the chip/VR temperature ceiling, the power ceiling, or the max frequency.
   4. **Trim:** at the best frequency, it lowers the voltage while the miner stays stable, then adds 10 mV back as a safety margin. This keeps the same hashrate with lower temps.
   5. **Watch:** it saves the result to flash, re-checks every 10 min and drops 12 MHz if the miner drifts unstable (for example, when the room warms up).
   - A full search takes about 1–2 hours. To start it again, hold **BTN2** or use the web UI.
-- **Safety (cannot be overridden from the UI):** the limits are compiled in through `idf.py menuconfig → AxeForge → Hard safety limits`. Defaults:
+- **Safety (cannot be overridden from the UI):** the limits are compiled in through `idf.py menuconfig → AxeForge → Hard safety limits`. Each board has its own power limit (see [Supported boards](#supported-boards)). The NerdQaxe++ defaults:
 
   | Limit | Rev ≤ 6 | Rev7 |
   |---|---|---|
@@ -48,12 +70,14 @@ New firmware for the **NerdQaxe++** (4× BM1370; TPS53647 regulator on rev5.1 an
   - Regulator faults (over-current, VOUT fault, PSU fault) also cut power. After a fault it retries 3 times.
   - A temperature sensor that stops answering for 3 seconds also cuts power. A failed read never counts as a cool reading, and the miner won't power up without working sensors.
   - A fan that has been spinning but drops under 300 rpm at 30 % duty or more for 10 s cuts power (`Fan N stalled`).
-  - A chip that falls far below the others (or reports nonsense) for 15 s cuts power (`Chip N stopped hashing`). On boards whose chips sit in series voltage domains, a chip that stops drawing current lets its domain's voltage climb.
-  - Automatic recoveries (fault retries, overheat cool-down) re-detect the chips at the right baud rate.
+  - A chip that falls far below the others (or reports nonsense) for 15 s cuts power (`ASIC N stopped hashing`). On boards whose chips sit in series voltage domains, a chip that stops drawing current lets its domain's voltage climb.
+  - Power is also cut if the core voltage drops below half its setting while powered (`Core voltage lost`), or no chip returns anything for 15 s while work is being sent (`No chip is hashing`).
+  - On boards with stacked voltage domains (Supra Hex, NerdQaxe++ rev7), the miner won't run with a chip missing: its partner would get the whole domain's voltage.
+  - Automatic recoveries (fault retries, overheat cool-down) re-detect the chips at the right baud rate, ramp them up from their reset clock, and stay at the lower clock afterwards until you change the settings.
   - The monitor that handles all of this runs on its own task, separate from the tuner.
 - **Swarm:** one page with every miner on your network (AxeForge, AxeOS/Bitaxe, NerdQAxe stock firmware): hashrate, temperature, power, shares, best difficulty and uptime, plus totals. *Scan network* finds them; you can also add an address by hand. This miner polls the others itself, so the API protection stays strict and no CORS is needed.
 - **Themes:** *Forge* (dark neon) or *Paper* (minimal, e-ink style: ink on paper, hairline rules, no glow). One setting changes both the screen and the web UI.
-- **Fans:** both NerdQaxe++ fan headers are detected; a header counts as connected once its fan has been seen spinning. Each fan can run on *Auto* or a fixed *Manual* speed. A PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops. Within 3 °C of a tuner ceiling the fans go to 100 % regardless of the target, and both fan speeds are shown.
+- **Fans:** both fan headers are detected on boards that have two (one on the NerdAxe); a header counts as connected once its fan has been seen spinning. Each fan can run on *Auto* or a fixed *Manual* speed. A PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops. Within 3 °C of a tuner ceiling the fans go to 100 % regardless of the target, and both fan speeds are shown.
 
 ## Screen
 
@@ -71,6 +95,7 @@ The pages and their order are set in the web UI (Display → Pages & order). Sho
 
 Other controls and alerts:
 - Long-press **BTN1** turns the backlight on or off.
+- *Screen off after* (Display tab: never, 1, 5, 15, 30 or 60 minutes) turns the backlight off when no button was pressed and no setting saved for that long. The first press only wakes the screen. Faults, overheating and a found block wake it by themselves.
 - Long-press **BTN2** restarts the auto-tune search.
 - A red banner shows faults and overheating.
 - If you ever find a block, the banner flashes **BLOCK FOUND!**
@@ -89,7 +114,7 @@ Open `http://<miner-ip>/`. The API only answers when it's reached by IP address 
 - **Network**
 - **System**:
   - A live log console. Every change made through the API is logged with the client's address, and the next boot says who asked for the last restart.
-  - Firmware update by uploading `axeforge.bin`, so later updates don't need USB.
+  - Firmware update by uploading your board's `.bin` (see [Flashing](#flashing)), so later updates don't need USB.
 
 ## Screens
 
@@ -98,7 +123,7 @@ Two screens are supported by the same firmware. Pick one under **Display → Scr
 | Screen | Resolution | Notes |
 |---|---|---|
 | 3.5" ST7796S / ILI9488 | 480×320 | All pages, plus the two custom layout pages |
-| LilyGo T-Display-S3 (the stock NerdQaxe++ screen) | 320×170 | Compact versions of every page except the custom layouts |
+| LilyGo T-Display-S3 (the stock screen on most NerdQAxe boards) | 320×170 | Compact versions of every page except the custom layouts |
 
 Both connect to the same 8-bit parallel header.
 
@@ -126,26 +151,86 @@ If the screen looks wrong:
 - Garbage on screen → lower the write clock to 10000 kHz.
 - Blank screen → try the ILI9488 controller option.
 
+## Stratum V2
+
+Pick **Stratum V2** as the pool's protocol and enter the pool's SV2 host and port (for example `v2.stratum.braiins.com`, port `3336`) and your worker name.
+
+- **Encryption:** every SV2 connection is encrypted (Noise NX).
+- **Pool identity:** paste the pool's **authority public key** (base58, from the pool's docs) to check you are talking to the real pool. Without it the connection is still encrypted, but the pool isn't verified. The pool card shows *Connected (SV2, verified)* or *Connected (SV2, encrypted)*.
+- **Certificate dates:** with a key set, an expired or not-yet-valid pool certificate is refused once the clock is set over NTP.
+- **Mining:** the miner opens an extended channel, announces its real hashrate and chip model, rolls the version bits the pool allows and keeps the pool's difficulty exactly (no rounding).
+- **Reconnects:** if the pool goes silent for 3 minutes or closes the channel, the miner reconnects (or fails over to the next pool).
+- **Tested so far:** a contributor mined on a NerdQaxe++ rev6 against solo-pool-rs over SV2. Shares were accepted with none rejected, certificate dates were checked, and the miner reconnected after the pool went silent. Not tested yet: other SV2 pools such as Braiins, and a pool closing the channel (none of the pools tried sends that message).
+
 ## Flashing
 
-**Easiest:** open the web flasher at https://issasoridev.github.io/AxeForge/ in Chrome or Edge, connect the miner's USB-C port and press *Install*. It writes the firmware pieces separately, so saved Wi-Fi and pool settings are kept unless you tick *Erase*. If no serial port shows up, hold BOOT, tap RESET and release BOOT.
+**Easiest:** open the web flasher at https://issasoridev.github.io/AxeForge/ in Chrome or Edge, connect the miner's USB-C port, pick your board and press *Install*. It writes the firmware pieces separately, so saved Wi-Fi and pool settings are kept unless you tick *Erase*. If no serial port shows up, hold BOOT, tap RESET and release BOOT.
 
-**With esptool**, either:
-- a clean install with the full image (this **resets all settings**, because the image covers the settings area too):
+Later updates don't need USB: upload your board's file under **System → Firmware update**. That keeps your settings. A file for another board is refused.
 
-  ```bash
-  python -m esptool --chip esp32s3 -b 921600 write_flash 0x0 axeforge-factory.bin
-  ```
+### Flashing without the web flasher
 
-- or the separate pieces from a build, which keeps the settings:
+If the web flasher is down (or you'd rather not use a browser), flash over USB with Espressif's `esptool`. Download your board's files from the [Releases](https://github.com/IsSasoriDev/AxeForge/releases) page first:
 
-  ```bash
-  python -m esptool --chip esp32s3 -b 921600 write_flash 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 axeforge.bin 0xc10000 ota_data_initial.bin
-  ```
+| Board | Update file | Full image |
+|---|---|---|
+| NerdQaxe++ | `axeforge.bin` | `axeforge-factory.bin` |
+| NerdAxe | `axeforge-nerdaxe.bin` | `axeforge-nerdaxe-factory.bin` |
+| NerdQAxe+ | `axeforge-nerdqaxeplus.bin` | `axeforge-nerdqaxeplus-factory.bin` |
+| NerdOctaxe+ | `axeforge-nerdoctaxeplus.bin` | `axeforge-nerdoctaxeplus-factory.bin` |
+| NerdOctaxe-γ | `axeforge-nerdoctaxegamma.bin` | `axeforge-nerdoctaxegamma-factory.bin` |
+| NerdQX | `axeforge-nerdqx.bin` | `axeforge-nerdqx-factory.bin` |
+| Bitaxe Supra Hex | `axeforge-suprahex.bin` | none: install through AxeOS ([see below](#bitaxe-supra-hex)) |
 
-Both reset the OTA boot marker, so the miner boots the version you just wrote.
+1. Install esptool (needs Python 3):
 
-Later updates don't need USB: upload `axeforge.bin` under **System → Firmware update**. That keeps your settings.
+   ```bash
+   python -m pip install esptool
+   ```
+
+2. Connect the miner's USB-C port and find its serial port: `COM3`, `COM4`, … on Windows (Device Manager → Ports), `/dev/ttyACM0` on Linux, `/dev/cu.usbmodem…` on macOS. If none shows up, hold **BOOT**, tap **RESET** and release BOOT.
+
+3. Optional, but recommended the first time: back up the stock firmware (16 MB, takes a few minutes):
+
+   ```bash
+   python -m esptool --chip esp32s3 -p COM3 -b 921600 read_flash 0x0 0x1000000 stock-backup.bin
+   ```
+
+4. Write the full image for your board. This **resets all settings**, because the image covers the settings area too:
+
+   ```bash
+   python -m esptool --chip esp32s3 -p COM3 -b 921600 write_flash 0x0 axeforge-factory.bin
+   ```
+
+   Use your board's full image from the table, for example `axeforge-nerdqx-factory.bin`.
+
+5. Press **RESET** (or unplug and replug). The miner starts in setup mode, see [First boot](#first-boot).
+
+To keep your settings, write the separate pieces of a build instead of the full image. You get them from a local build (`build/` or `build_<board>/`) or from the web flasher's folder on GitHub Pages:
+
+```bash
+python -m esptool --chip esp32s3 -p COM3 -b 921600 write_flash 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 axeforge.bin 0xc10000 ota_data_initial.bin
+```
+
+Both ways reset the OTA boot marker, so the miner boots the version you just wrote. To go back to stock, write your backup (or the stock factory image) at `0x0` the same way.
+
+**Windows without Python:** Espressif's *Flash Download Tool* also works. Choose ESP32-S3 and USB, add the full image at address `0x0`, pick the COM port and press *Start*.
+
+### Bitaxe Supra Hex
+
+The Supra Hex keeps AxeOS: AxeForge goes into its spare firmware slot through AxeOS's own update page, so no USB cable is needed and you can go back at any time.
+
+1. Download `axeforge-suprahex.bin` from the [latest release](https://github.com/IsSasoriDev/AxeForge/releases/latest) and rename it to **`esp-miner.bin`**. AxeOS's update page only accepts that name.
+2. In AxeOS, open **Update**, upload the file under *Firmware* and wait for the reboot. AxeForge takes over AxeOS's Wi-Fi, pool and clock settings and starts mining.
+3. **Back to AxeOS:** in AxeForge, upload a stock `esp-miner.bin` (from the [ESP-Miner releases](https://github.com/bitaxeorg/ESP-Miner/releases)) under *System → Firmware update*.
+
+If AxeForge crashes three boots in a row, the Hex starts AxeOS by itself. Don't use the web flasher or a full image on the Hex: they replace the partition layout AxeOS needs.
+
+Command-line alternative to step 2: `curl -X POST -H "Content-Type: application/octet-stream" --data-binary @esp-miner.bin http://<hex-ip>/api/system/OTA`
+
+### First boot
+
+Installed over stock with the web flasher (without *Erase*), boards other than the NerdQaxe++ take over the stock firmware's Wi-Fi and pool settings and go straight to mining. The full image wipes them.
 
 Coming from the stock firmware, or after a clean install, on first boot:
 1. Join the `AxeForge-XXXX` Wi-Fi network (or scan the QR code on the screen). Phones and laptops open the setup page by themselves (captive portal).
@@ -159,36 +244,45 @@ You need ESP-IDF v5.3.x. Keep the project on a short path on Windows.
 ```bash
 idf.py set-target esp32s3
 idf.py menuconfig   # optional: pins / limits
-idf.py build
+idf.py build        # NerdQaxe++
+```
+
+Every other board builds in its own directory from `sdkconfig.defaults.<board>` (`nerdaxe`, `nerdqaxeplus`, `nerdoctaxeplus`, `nerdoctaxegamma`, `nerdqx`, `suprahex`):
+
+```bash
+idf.py -B build_nerdqx -D SDKCONFIG=build_nerdqx/sdkconfig -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.nerdqx" build
+```
+
+Unit tests for the code that doesn't touch hardware (difficulty, coinbase and merkle building, template decoding, the payout check, SV2 parsers) run on a PC with the normal compiler, no ESP-IDF needed. They need `g++`, `make` and `libmbedtls-dev`:
+
+```bash
+make -C test
 ```
 
 ## Releases (GitHub Actions)
 
-`.github/workflows/build.yml` builds the firmware on every push and pull request. The `.bin` files are attached to the run as an artifact.
+`.github/workflows/build.yml` runs the unit tests and builds every board on every push and pull request. The `.bin` files are attached to the run as an artifact, and the run summary lists any compiler warnings.
 
 To publish a release, push a version tag:
 
 ```bash
-git tag -a v1.2.0 -m "AxeForge v1.2.0"
-git push origin v1.2.0
+git tag -a v1.4.0 -m "AxeForge v1.4.0"
+git push origin v1.4.0
 ```
 
-The workflow writes the tag into `version.txt`, builds with ESP-IDF v5.3.2 and creates a GitHub Release. Attached to it:
-- `axeforge-factory.bin`
-- `axeforge.bin`
-- `SHA256SUMS.txt`
+The workflow writes the tag into `version.txt`, builds every board with ESP-IDF v5.3.2 and creates a GitHub Release with each board's update file and full image (see the table under Flashing) and `SHA256SUMS.txt`.
 
-Tags with a dash (for example `v1.2.0-beta1`) are marked as pre-releases.
+Tags with a dash (for example `v1.5.0-beta1`) are marked as pre-releases.
 
 A release tag also publishes the web flasher (`flasher/`) to GitHub Pages with that version's firmware. This needs a one-time setting: **Settings → Pages → Source: GitHub Actions**. Pre-releases don't replace the public flasher.
 
-## Not supported (yet)
+## Not supported yet
 
 - One pool per ASIC: not possible on this hardware (see above).
-- Bitaxe boards. The source has groundwork for the Supra Hex (`CONFIG_AF_BOARD_SUPRAHEX`: BM1368 driver, 3-domain TPS546 profile, 128×32 OLED), but it isn't finished or tested, and no Bitaxe firmware is built or released.
+- Bitaxe models other than the Supra Hex (Ultra, Supra, Gamma, GT and so on).
 
 ## Credits / license
 
-The BM1370 register sequences, TPS53647 setup, board pinout and the Stratum V2 Noise/protocol component (`components/stratum_v2`) are based on the open-source [ESP-Miner-NerdQAxePlus](https://github.com/shufps/ESP-Miner-NerdQAxePlus) (GPL-3.0). The rev7 TPS546 profile comes from the same project's develop branch. For that reason AxeForge is also released under GPL-3.0.
+The BM1366/BM1368/BM1370 register sequences, TPS53647/TPS53667 setup, TMP451 die sensor handling, board pinouts and limits and the Stratum V2 Noise/protocol component (`components/stratum_v2`) are based on the open-source [ESP-Miner-NerdQAxePlus](https://github.com/shufps/ESP-Miner-NerdQAxePlus) (GPL-3.0). The rev7 TPS546 profile comes from the same project's develop branch. For that reason AxeForge is also released under GPL-3.0.
 
-Thanks to [@cbyam](https://github.com/cbyam) for the SV2 latency, fan safety, recovery, duplicate-result, logging and readability fixes in v1.2.0.
+Thanks to [@cbyam](https://github.com/cbyam) for many fixes and features since v1.2.0: SV2 latency and reconnects, fan safety, recovery, duplicate results, pool difficulty and version rolling, the tuner, the Swarm scan, the screen-off timer and the unit tests.

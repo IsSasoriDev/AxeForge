@@ -39,6 +39,7 @@ struct Settings {
     uint8_t fan_manual[2] = {60, 60};
     uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (minimal, e-ink style)
     uint8_t brightness = 100;
+    uint8_t screen_off_min = 0;   // backlight off after this many idle minutes, 0 = never
 
     // display
     uint8_t display_type = 0;      // 0 = 3.5" 480x320, 1 = LilyGo T-Display-S3 320x170

@@ -77,8 +77,26 @@ struct PoolState {
     uint32_t jobs = 0;
     uint32_t last_share_s = 0;
     uint32_t ping_ms = 0;        // submit -> response latency
+    uint8_t payout = 0;          // Payout of this pool's latest template
+    uint8_t payout_pct = 0;      // share of the coinbase paid to your address
     char status[48] = "";        // last error / state text
 };
+
+// Solo payout check: does the coinbase pay the address in the pool username?
+enum class Payout : uint8_t {
+    Unknown,     // no template yet
+    NotAddress,  // the username isn't a Bitcoin address (pooled account)
+    PaysYou,     // at least one output pays your address
+    NotYou,      // your address is in the username but not in the coinbase
+};
+
+struct CoinbaseOut {
+    uint64_t sats = 0;
+    char addr[64] = "";  // address, "OP_RETURN" or "" for a non-standard script
+    bool yours = false;
+};
+
+#define AF_SHOWN_OUTPUTS 4
 
 // What the chips are hashing right now (from the active job).
 struct BlockTemplate {
@@ -92,6 +110,13 @@ struct BlockTemplate {
     uint8_t branches = 0;        // merkle depth -> ~2^n transactions
     double reward_btc = 0;       // sum of coinbase outputs (subsidy + fees)
     char tag[40] = "";           // printable coinbase text (pool tag)
+    // coinbase outputs (the first AF_SHOWN_OUTPUTS) and the payout check
+    uint8_t n_outputs = 0;
+    CoinbaseOut outputs[AF_SHOWN_OUTPUTS];
+    Payout payout = Payout::Unknown;
+    uint64_t payout_sats = 0;    // to your address
+    uint64_t total_sats = 0;
+    char payout_addr[64] = "";   // your address, from the pool username
 };
 
 struct MempoolBlock {
@@ -147,6 +172,7 @@ struct MinerState {
     bool vr_temp_ok = false;
     bool board_rev7 = false;  // TPS546 regulator
     uint8_t chip_stall = 0;   // 1-based chip that stopped hashing; the monitor acts on it
+    bool no_hash = false;     // powered and fed work, but no chip returns anything
     uint16_t fan_rpm[2] = {};
     uint8_t fan_pct = 0;
     uint8_t fan_duty[2] = {};

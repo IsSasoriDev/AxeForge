@@ -530,24 +530,29 @@ static void build_clock(lv_obj_t *p)
 
 static void build_chips(lv_obj_t *p)
 {
-    const int w = 112, gap = 4;
+    // up to 4 cards in a row; 8 chips (NerdOctaxe) get two rows of compact cards
+    const int cols = AF_NUM_ASICS < 4 ? AF_NUM_ASICS : 4, rows = (AF_NUM_ASICS + 3) / 4, gap = 4;
+    const int w = (LCD_H_RES - 12 - (cols - 1) * gap) / cols, h = (128 - (rows - 1) * gap) / rows;
+    const bool compact = rows > 1;
     for (int i = 0; i < AF_NUM_ASICS; i++) {
-        lv_obj_t *c = panel(p, 6 + i * (w + gap), 4, w, 128);
+        lv_obj_t *c = panel(p, 6 + (i % cols) * (w + gap), 4 + (i / cols) * (h + gap), w, h);
         char cap[16];
         snprintf(cap, sizeof(cap), "ASIC %d", i + 1);
         lv_obj_t *l = label(c, &lv_font_montserrat_12, C_DIM, cap);
-        lv_obj_set_pos(l, 10, 6);
-        s_chips[i].ghs = label(c, &lv_font_montserrat_28, C_CYAN, "--");
-        lv_obj_set_pos(s_chips[i].ghs, 10, 22);
+        lv_obj_set_pos(l, 10, compact ? 3 : 6);
+        s_chips[i].ghs = label(c, compact ? &lv_font_montserrat_20 : &lv_font_montserrat_28, C_CYAN, "--");
+        lv_obj_set_pos(s_chips[i].ghs, 10, compact ? 17 : 22);
         lv_obj_t *u = label(c, &lv_font_montserrat_12, C_DIM, "GH/s");
-        lv_obj_set_pos(u, 10, 54);
-        s_chips[i].temp = label(c, &lv_font_montserrat_14, C_GREEN, "");
-        lv_obj_set_pos(s_chips[i].temp, 10, 76);
+        if (compact) lv_obj_align_to(u, s_chips[i].ghs, LV_ALIGN_OUT_RIGHT_BOTTOM, 4, -2);
+        else lv_obj_set_pos(u, 10, 54);
+        s_chips[i].temp = label(c, compact ? &lv_font_montserrat_12 : &lv_font_montserrat_14, C_GREEN, "");
+        lv_obj_set_pos(s_chips[i].temp, 10, compact ? 40 : 76);
         s_chips[i].err = label(c, &lv_font_montserrat_12, C_DIM, "");
-        lv_obj_set_pos(s_chips[i].err, 10, 96);
+        if (compact) lv_obj_set_pos(s_chips[i].err, w / 2, 40);
+        else lv_obj_set_pos(s_chips[i].err, 10, 96);
         s_chips[i].bar = thin_bar(c, C_CYAN);
         lv_obj_set_width(s_chips[i].bar, w - 20);
-        lv_obj_align(s_chips[i].bar, LV_ALIGN_BOTTOM_MID, 0, -8);
+        lv_obj_align(s_chips[i].bar, LV_ALIGN_BOTTOM_MID, 0, compact ? -3 : -8);
     }
 
     lv_obj_t *t = panel(p, 6, 138, LCD_H_RES - 12, 132);
@@ -702,7 +707,7 @@ static void refresh_dashboard()
     fmt_hash(s.hashrate_ghs, v, sizeof(v), &unit);
     lv_label_set_text(s_hash_val, v);
     lv_label_set_text(s_hash_unit, unit);
-    float max_ghs = board::limits().max_freq_mhz * 2040.0f * AF_NUM_ASICS / 1000.0f;
+    float max_ghs = board::limits().max_freq_mhz * (float) asic::SMALL_CORES * AF_NUM_ASICS / 1000.0f;
     lv_arc_set_value(s_arc_hash, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
     int eff = s.expected_ghs > 0 ? (int) (100.0f * s.hashrate_ghs / s.expected_ghs) : 0;
     lv_arc_set_value(s_arc_eff, eff > 100 ? 100 : eff);

@@ -133,7 +133,9 @@ static void build_widget(lv_obj_t *page, Widget &w, const char *type, int gx, in
             w.parts[i] = b;
             lv_obj_t *l = label(w.box, &lv_font_montserrat_12, C_DIM, "");
             lv_obj_set_pos(l, 9, 24 + i * rowh + rowh / 2 - 7);
-            lv_label_set_text_fmt(l, "%d", i + 1);
+            // 8 chips: each row is a pair (1/2, 3/4, ...)
+            if (AF_NUM_ASICS > 4) lv_label_set_text_fmt(l, "%d/%d", 2 * i + 1, 2 * i + 2);
+            else lv_label_set_text_fmt(l, "%d", i + 1);
             lv_obj_t *v = label(w.box, &lv_font_montserrat_12, C_TEXT, "");
             lv_obj_set_pos(v, w.wpx - 56, 24 + i * rowh + rowh / 2 - 7);
             if (i < 4) w.parts[i] = b;
@@ -267,7 +269,7 @@ static void refresh_widget(Widget &w)
         break;
     case WType::Gauge: {
         fmt_hash(s.hashrate_ghs, hv, sizeof(hv), &hu);
-        float max_ghs = board::limits().max_freq_mhz * 2040.0f * AF_NUM_ASICS / 1000.0f;
+        float max_ghs = board::limits().max_freq_mhz * (float) asic::SMALL_CORES * AF_NUM_ASICS / 1000.0f;
         lv_arc_set_value(w.aux, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
         set_stat(w, hv, hu);
         break;
@@ -312,10 +314,12 @@ static void refresh_widget(Widget &w)
         set_stat(w, v, sub);
         break;
     case WType::Chips: {
-        float per = s.expected_ghs / AF_NUM_ASICS;
+        constexpr int per_row = AF_NUM_ASICS > 4 ? 2 : 1;
+        float per = per_row * s.expected_ghs / AF_NUM_ASICS;
         for (int i = 0; i < 4; i++) {
             lv_obj_t *b = w.parts[i];
-            float g = i < AF_NUM_ASICS ? s.chip_ghs[i] : 0;  // NerdAxe has one chip
+            float g = 0;  // NerdAxe has one chip
+            for (int k = i * per_row; k < (i + 1) * per_row && k < AF_NUM_ASICS; k++) g += s.chip_ghs[k];
             lv_bar_set_value(b, per > 0 ? (int) (100 * g / per) : 0, LV_ANIM_ON);
             lv_label_set_text_fmt((lv_obj_t *) lv_obj_get_user_data(b), "%.0f G", g);
         }

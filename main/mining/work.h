@@ -50,8 +50,11 @@ void build(const StratumJob &sj, const char *extranonce1, uint32_t en2, int en2_
 // hash_out (optional) receives the 32-byte block hash in internal order.
 double nonce_difficulty(const Work &w, uint32_t nonce, uint32_t version, uint8_t *hash_out = nullptr);
 
-// Decodes what's being mined: height, reward, coinbase tag, prev hash.
-void describe_template(const StratumJob &sj, const char *extranonce1, int en2_len, BlockTemplate &out);
+// Decodes what's being mined: height, reward, coinbase tag, prev hash, and the
+// coinbase outputs. With `user` (the pool username) it also checks whether the
+// coinbase pays the address in it (solo mining).
+void describe_template(const StratumJob &sj, const char *extranonce1, int en2_len, BlockTemplate &out,
+                       const char *user = nullptr);
 
 double nbits_to_difficulty(uint32_t nbits);
 uint32_t block_height_from_coinb1(const char *coinb1);

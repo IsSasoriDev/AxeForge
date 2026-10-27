@@ -47,6 +47,10 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
         if (settings::get().wifi_ssid[0]) esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+        auto *ev = (wifi_event_sta_disconnected_t *) data;
+        // the reason codes are esp_wifi_types.h's wifi_err_reason_t (201 = AP not found, ...)
+        if (s_connected || s_retries % 8 == 0)
+            ESP_LOGW(TAG, "disconnected, reason %d, rssi %d (retry %d)", ev->reason, ev->rssi, s_retries + 1);
         s_connected = false;
         g_state.ip[0] = 0;
         if (++s_retries == 8) start_setup_ap();  // keep retrying STA in the background

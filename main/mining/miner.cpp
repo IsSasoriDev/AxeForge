@@ -20,27 +20,15 @@
 
 static const char *TAG = "miner";
 
-#if AF_ASIC_BM1368
-#define JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
-#elif AF_ASIC_BM1366
-#define JOB_INTERVAL_MS 1500                   // NerdAxe reference cadence
-#else
-#define JOB_INTERVAL_MS 500
-#endif
+#define JOB_INTERVAL_MS AF_JOB_INTERVAL_MS  // per board, see core/board_config.h
 // A chip below this share of the median chip (or wildly above its expected rate) for
 // STALL_PERIODS counter periods in a row is reported as stalled.
 #define STALL_LOW 0.30f
 #define STALL_HIGH 3.0f
 #define STALL_PERIODS 3
 #define NUM_SLOTS 128
-#if AF_ASIC_BM1366
-// one small chip: a lower ticket difficulty keeps results coming every few seconds
-#define ASIC_DIFF_MIN 64
-#define ASIC_DIFF_MAX 256
-#else
-#define ASIC_DIFF_MIN 512
-#define ASIC_DIFF_MAX 2048
-#endif
+#define ASIC_DIFF_MIN AF_ASIC_DIFF_MIN
+#define ASIC_DIFF_MAX AF_ASIC_DIFF_MAX
 #define COUNTER_PERIOD_MS 5000
 #define HISTORY_EVERY 6  // counter periods per chart point (30 s)
 
@@ -84,6 +72,23 @@ static uint32_t asic_difficulty(double pool_diff)
     if (pool_diff < ASIC_DIFF_MIN) return ASIC_DIFF_MIN;
     if (pool_diff > ASIC_DIFF_MAX) return ASIC_DIFF_MAX;
     return (uint32_t) pool_diff;
+}
+
+// Keeps the per-pool payout check and logs when it changes, so a solo pool that
+// stops paying your address (or never did) shows up in the log.
+static void note_payout(int p, const BlockTemplate &t)
+{
+    PoolState &ps = g_state.pools[p];
+    uint8_t pct = t.total_sats ? (uint8_t) (100.0 * t.payout_sats / t.total_sats + 0.5) : 0;
+    if ((uint8_t) t.payout == ps.payout && pct == ps.payout_pct) return;
+    ps.payout = (uint8_t) t.payout;
+    ps.payout_pct = pct;
+    if (t.payout == Payout::PaysYou)
+        ESP_LOGI(TAG, "pool %d: a block would pay %s %.8f BTC (%u%% of the coinbase)", p + 1, t.payout_addr,
+                 t.payout_sats / 1e8, pct);
+    else if (t.payout == Payout::NotYou)
+        ESP_LOGW(TAG, "pool %d: the coinbase does NOT pay %s (fine for pooled mining, wrong for solo)", p + 1,
+                 t.payout_addr);
 }
 
 struct PoolSlot {
@@ -165,9 +170,10 @@ static void job_task(void *)
         if (s.shown_gen != s.gen) {
             // decode each pool's template once per new job, not on every switch
             s.decoded = BlockTemplate();
-            work::describe_template(s.tmpl, s.info.en1, s.info.en2_len, s.decoded);
+            work::describe_template(s.tmpl, s.info.en1, s.info.en2_len, s.decoded, settings::get().pools[p].user);
             s.decoded.pool = p;
             s.shown_gen = s.gen;
+            note_payout(p, s.decoded);
         }
         if (p != last_pool || g_state.tmpl.height != s.decoded.height) {
             g_state.tmpl = s.decoded;
@@ -317,7 +323,7 @@ static void result_task(void *)
 static void counter_task(void *)
 {
     vTaskDelay(pdMS_TO_TICKS(4000));
-    int n = 0, periods = 0, stall = 0;
+    int n = 0, periods = 0, stall = 0, dead = 0;
     while (true) {
         if (!board::is_powered()) {
             memset(s_prev_t, 0, sizeof(s_prev_t));
@@ -325,8 +331,17 @@ static void counter_task(void *)
             g_state.hashrate_ghs = 0;
             memset(g_state.chip_ghs, 0, sizeof(g_state.chip_ghs));
             memset(g_state.chip_err_ghs, 0, sizeof(g_state.chip_err_ghs));
-            periods = stall = 0;
+            periods = stall = dead = 0;
             vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+        if (s_paused) {
+            // power-up or a clock change in progress: keep off the UART, and take a
+            // fresh baseline afterwards (the counters restart with the chips)
+            memset(s_prev_t, 0, sizeof(s_prev_t));
+            memset(s_prev_err_t, 0, sizeof(s_prev_err_t));
+            dead = 0;
+            vTaskDelay(pdMS_TO_TICKS(500));
             continue;
         }
         // two READ_ALL bursts must not overlap, so space them out
@@ -349,6 +364,16 @@ static void counter_task(void *)
         // Compared against the median chip, so an idle board (no pool work yet)
         // or one that is throttled as a whole never counts as a stall.
         int chips = g_state.chips_detected < AF_NUM_ASICS ? g_state.chips_detected : AF_NUM_ASICS;
+        // The median comparison below can't see a board where every chip went
+        // quiet at once (a tripped regulator, say): catch that on its own, while
+        // work is actually being sent.
+        bool fed = g_state.pool_connected && !s_paused && g_state.expected_ghs > 0;
+        dead = periods > 3 && fed && total < 0.05f * g_state.expected_ghs ? dead + 1 : 0;
+        if (dead >= STALL_PERIODS) {
+            ESP_LOGE(TAG, "no chip is hashing (%.0f GH/s of %.0f expected)", total, g_state.expected_ghs);
+            g_state.no_hash = true;
+            dead = 0;
+        }
         if (++periods > 3 && chips > 1 && g_state.expected_ghs > 0) {
             float per = g_state.expected_ghs / chips;
             float sorted[AF_NUM_ASICS];
@@ -364,7 +389,7 @@ static void counter_task(void *)
             }
             stall = bad >= 0 ? stall + 1 : 0;
             if (stall >= STALL_PERIODS) {
-                ESP_LOGE(TAG, "chip %d at %.0f GH/s while the others run ~%.0f", bad, g_state.chip_ghs[bad], med);
+                ESP_LOGE(TAG, "ASIC %d at %.0f GH/s while the others run ~%.0f", bad + 1, g_state.chip_ghs[bad], med);
                 g_state.chip_stall = (uint8_t) (bad + 1);
                 stall = 0;
             }

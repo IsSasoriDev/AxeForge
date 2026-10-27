@@ -135,6 +135,8 @@ uint16_t clamp_mv(int mv)
     return (uint16_t) mv;
 }
 
+uint16_t max_mv() { return CONFIG_AF_MAX_CORE_MV; }
+
 uint16_t clamp_freq(int mhz)
 {
     if (mhz < 400) mhz = 400;
@@ -287,6 +289,7 @@ const char *error_text(Error e)
     case Error::NoRegulator: return "Voltage DAC (DS4432U) not found";
     case Error::NoTempSensor: return "Temperature sensor not responding";
     case Error::NoChips: return "No BM1366 chip answered";
+    case Error::ChipMissing: return "A chip in a stacked voltage domain didn't answer";
     case Error::PsuFault: return "5 V input too low";
     case Error::OverCurrent: return "Core over-current";
     case Error::VoutFault: return "Core voltage fault";

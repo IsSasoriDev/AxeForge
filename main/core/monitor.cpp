@@ -9,6 +9,7 @@
 
 #include "core/board.h"
 #include "core/settings.h"
+#include "core/tuner.h"
 #include "core/state.h"
 #include "hw/sensors.h"
 #include "mining/miner.h"
@@ -26,6 +27,10 @@ static const char *TAG = "monitor";
 // Over-temperature and over-power cut-offs need this many consecutive readings:
 // a single corrupted sensor read must not shut the miner down.
 #define CRIT_CONFIRM_S 2
+// Powered, past start-up, and the core reads under half its set voltage this long:
+// the regulator dropped out (a tripped domain, say) while everything else looks fine.
+#define VOUT_SETTLE_S 10
+#define VOUT_LOST_S 5
 // A fan driven at least this hard but turning slower than this, for this long, has
 // stalled. Only fans seen spinning since boot count: a fan that is not fitted reads
 // 0 rpm too, and must not keep a one-fan miner from running.
@@ -87,6 +92,7 @@ static void monitor_task(void *)
     int overheat_retries = 0, recovery_wait = 0;
     int sensor_bad = 0;
     int crit_chip = 0, crit_vr = 0, crit_power = 0;
+    int powered_s = 0, vout_low = 0;
     int stall[2] = {0, 0};
     char why[64];
 
@@ -111,6 +117,7 @@ static void monitor_task(void *)
                 if (!g_state.fan_present[i]) ESP_LOGW(TAG, "fan header %d: nothing connected (0 rpm since boot)", i + 1);
         }
 
+        if (!board::is_powered()) powered_s = vout_low = 0;
         if (board::is_powered()) {
             // a lost sensor reads as -1 here, which the PI treats as "full fan"
             float a = asic_pi.update(g_state.temp_ok ? g_state.chip_temp_max : -1, cfg.fan_target_c, cfg.fan_min_pct);
@@ -135,8 +142,22 @@ static void monitor_task(void *)
 
             // ---- hard limits: these cut power, no questions asked ----
             if (g_state.chip_stall) {
-                snprintf(why, sizeof(why), "Chip %d stopped hashing", g_state.chip_stall - 1);
+                // 1-based, like the ASIC numbers on the screen and in the web UI
+                snprintf(why, sizeof(why), "ASIC %d stopped hashing", g_state.chip_stall);
                 g_state.chip_stall = 0;
+                emergency(SysStatus::Fault, why);
+                continue;
+            }
+            if (g_state.no_hash) {
+                g_state.no_hash = false;
+                emergency(SysStatus::Fault, "No chip is hashing");
+                continue;
+            }
+            float set_v = board::core_mv() / 1000.0f;
+            vout_low = ++powered_s > VOUT_SETTLE_S && set_v > 0 && g_state.vout < 0.5f * set_v ? vout_low + 1 : 0;
+            if (vout_low >= VOUT_LOST_S) {
+                snprintf(why, sizeof(why), "Core voltage lost (%.2f V of %.2f V)", g_state.vout, set_v);
+                vout_low = 0;
                 emergency(SysStatus::Fault, why);
                 continue;
             }
@@ -207,6 +228,7 @@ static void monitor_task(void *)
                 uint16_t mv = cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
                 ESP_LOGW(TAG, "cooled down, restarting at %u MHz (%d/%d)", f, overheat_retries, MAX_OVERHEAT_RETRIES);
                 if (board::power_up(f, mv) == board::Error::None) {
+                    tuner::hold(f);  // manual mode would otherwise go straight back up
                     // only a point that actually came up becomes the new tuned point
                     if (cfg.autotune) {
                         cfg.tuned_freq = f;
@@ -226,7 +248,9 @@ static void monitor_task(void *)
                 ESP_LOGW(TAG, "retrying after fault (%d/%d)", fault_retries, MAX_FAULT_RETRIES);
                 uint16_t f = cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz;
                 uint16_t mv = cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
-                if (board::power_up(board::clamp_freq(f - RECOVERY_FREQ_DROP), mv) == board::Error::None) {
+                uint16_t lower = board::clamp_freq(f - RECOVERY_FREQ_DROP);
+                if (board::power_up(lower, mv) == board::Error::None) {
+                    tuner::hold(lower);
                     g_state.status = SysStatus::Mining;
                     g_state.fault[0] = 0;
                     miner::pause(false);

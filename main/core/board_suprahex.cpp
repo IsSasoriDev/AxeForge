@@ -58,6 +58,8 @@ uint16_t clamp_mv(int mv)
     return (uint16_t) mv;
 }
 
+uint16_t max_mv() { return CONFIG_AF_MAX_CORE_MV; }
+
 uint16_t clamp_freq(int mhz)
 {
     if (mhz < 400) mhz = 400;
@@ -118,6 +120,13 @@ Error power_up(uint16_t freq, uint16_t mv)
     if (chips == 0) {
         shutdown();
         return Error::NoChips;
+    }
+    // The six chips sit in three series domains of two. With one missing, its
+    // partner gets the domain's whole share of the stack voltage: never run that.
+    if (chips != AF_NUM_ASICS) {
+        ESP_LOGE(TAG, "only %d of %d chips answered: not powering a broken stack", chips, AF_NUM_ASICS);
+        shutdown();
+        return Error::ChipMissing;
     }
     asic::switch_to_fast_baud();
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -231,6 +240,7 @@ const char *error_text(Error e)
     case Error::NoRegulator: return "Voltage regulator not found";
     case Error::NoTempSensor: return "Temperature sensor not responding";
     case Error::NoChips: return "No BM1368 chips answered";
+    case Error::ChipMissing: return "A chip in a stacked voltage domain didn't answer";
     case Error::PsuFault: return "PSU / input voltage fault";
     case Error::OverCurrent: return "Core over-current";
     case Error::VoutFault: return "Core voltage fault";

@@ -1,4 +1,5 @@
 #include "sv2_protocol.h"
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 

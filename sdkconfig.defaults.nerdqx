@@ -1,0 +1,4 @@
+# nerdqx build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_nerdqx -D SDKCONFIG=build_nerdqx/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.nerdqx" build
+CONFIG_AF_BOARD_NERDQX=y

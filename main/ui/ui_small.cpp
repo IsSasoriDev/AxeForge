@@ -191,9 +191,15 @@ static void build_dash(lv_obj_t *p)
     lv_obj_set_style_arc_color(s_arc, C_TRACK, LV_PART_MAIN);
     lv_obj_set_style_arc_width(s_arc, 10, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(s_arc, C_CYAN, LV_PART_INDICATOR);
+    // full arc width with centred text: align_to() places a label once, so one
+    // sized for "--" drifted right as soon as it showed "12.32"
     s_hash = label(p, &lv_font_montserrat_28, C_TEXT, "--");
+    lv_obj_set_width(s_hash, 132);
+    lv_obj_set_style_text_align(s_hash, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(s_hash, s_arc, LV_ALIGN_CENTER, 0, -6);
     s_unit = label(p, &lv_font_montserrat_14, C_CYAN, "TH/s");
+    lv_obj_set_width(s_unit, 132);
+    lv_obj_set_style_text_align(s_unit, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(s_unit, s_arc, LV_ALIGN_CENTER, 0, 18);
 
     static const char *caps[4] = {"CHIP", "VR", "POWER", "FAN"};
@@ -262,20 +268,25 @@ static void build_pool(lv_obj_t *p)
 
 static void build_chips(lv_obj_t *p)
 {
+    // 8 chips (NerdOctaxe): two rows of half-height cards
+    const bool compact = AF_NUM_ASICS > 4;
+    const int h = compact ? 66 : 136;
     for (int i = 0; i < AF_NUM_ASICS; i++) {
-        lv_obj_t *c = panel(p, 4 + i * 79, 4, 75, 136);
+        lv_obj_t *c = panel(p, 4 + (i % 4) * 79, 4 + (i / 4) * (h + 4), 75, h);
         char cap[8];
         snprintf(cap, sizeof(cap), "ASIC %d", i + 1);
         lv_obj_t *l = label(c, &lv_font_montserrat_12, C_DIM, cap);
-        lv_obj_set_pos(l, 7, 6);
-        s_chip_ghs[i] = label(c, &lv_font_montserrat_20, C_CYAN, "--");
-        lv_obj_set_pos(s_chip_ghs[i], 7, 26);
-        lv_obj_t *u = label(c, &lv_font_montserrat_12, C_DIM, "GH/s");
-        lv_obj_set_pos(u, 7, 50);
+        lv_obj_set_pos(l, 7, compact ? 3 : 6);
+        s_chip_ghs[i] = label(c, compact ? &lv_font_montserrat_14 : &lv_font_montserrat_20, C_CYAN, "--");
+        lv_obj_set_pos(s_chip_ghs[i], 7, compact ? 18 : 26);
+        if (!compact) {
+            lv_obj_t *u = label(c, &lv_font_montserrat_12, C_DIM, "GH/s");
+            lv_obj_set_pos(u, 7, 50);
+        }
         s_chip_sub[i] = rlabel(c, &lv_font_montserrat_12, C_TEXT);
-        lv_obj_set_pos(s_chip_sub[i], 7, 74);
+        lv_obj_set_pos(s_chip_sub[i], 7, compact ? 35 : 74);
         s_chip_bar[i] = bar(c, 61, C_CYAN);
-        lv_obj_align(s_chip_bar[i], LV_ALIGN_BOTTOM_MID, 0, -8);
+        lv_obj_align(s_chip_bar[i], LV_ALIGN_BOTTOM_MID, 0, compact ? -4 : -8);
     }
 }
 
@@ -378,14 +389,15 @@ static void refresh_dash()
     fmt_hash(s.hashrate_ghs, v, sizeof(v), &u);
     lv_label_set_text(s_hash, v);
     lv_label_set_text(s_unit, u);
-    float max_ghs = board::limits().max_freq_mhz * 2040.0f * AF_NUM_ASICS / 1000.0f;
+    float max_ghs = board::limits().max_freq_mhz * (float) asic::SMALL_CORES * AF_NUM_ASICS / 1000.0f;
     lv_arc_set_value(s_arc, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
     lv_label_set_text_fmt(s_dash_vals[0], "%.0f\xC2\xB0" "C", s.chip_temp_max);
     lv_obj_set_style_text_color(s_dash_vals[0], temp_col(s.chip_temp_max, CONFIG_AF_MAX_CHIP_TEMP - 6, CONFIG_AF_MAX_CHIP_TEMP), 0);
     if (AF_HAS_VR_SENSOR) lv_label_set_text_fmt(s_dash_vals[1], "%.0f\xC2\xB0" "C", s.vr_temp);
     else lv_label_set_text(s_dash_vals[1], "--");
     float jth = s.hashrate_ghs > 1 ? s.pin / (s.hashrate_ghs / 1000.0f) : 0;
-    lv_label_set_text_fmt(s_dash_vals[2], "%.2fW #9aa8bd %.0fJ/TH#", s.pin, jth);
+    // one decimal: with two the value ran into the POWER caption on this 320 px screen
+    lv_label_set_text_fmt(s_dash_vals[2], "%.1fW #9aa8bd %.0fJ/TH#", s.pin, jth);
     lv_label_set_text_fmt(s_dash_vals[3], "%u%% #9aa8bd %u#", s.fan_pct, s.fan_rpm[0]);
     const char *ph = s.tuner.phase == TunerPhase::Locked ? "#2bff88 LOCKED#"
                      : s.tuner.phase == TunerPhase::Off  ? "#9aa8bd MANUAL#"
@@ -474,9 +486,16 @@ static void refresh_blocks()
         lv_obj_set_style_bg_grad_color(s_cube[i], lv_color_darken(c, LV_OPA_40), 0);
     }
     const BlockTemplate &t = s.tmpl;
-    if (t.valid)
-        lv_label_set_text_fmt(s_blk_now, "#00e5ff " LV_SYMBOL_CHARGE "# Block %lu  #2bff88 %.3f BTC#  #ff2bd6 %s#",
-                              (unsigned long) t.height, t.reward_btc, t.tag);
+    if (t.valid) {
+        // solo payout check in place of the pool tag when there is a verdict
+        const char *pay = t.payout == Payout::PaysYou ? "#2bff88 pays you#" : t.payout == Payout::NotYou ? "#ff3b5c NOT you#" : "";
+        if (pay[0])
+            lv_label_set_text_fmt(s_blk_now, "#00e5ff " LV_SYMBOL_CHARGE "# Block %lu  #2bff88 %.3f BTC#  %s",
+                                  (unsigned long) t.height, t.reward_btc, pay);
+        else
+            lv_label_set_text_fmt(s_blk_now, "#00e5ff " LV_SYMBOL_CHARGE "# Block %lu  #2bff88 %.3f BTC#  #ff2bd6 %s#",
+                                  (unsigned long) t.height, t.reward_btc, t.tag);
+    }
     if (s.last_hash[0]) {
         char buf[160];
         hash_markup(s.last_hash, 32, buf, sizeof(buf));
@@ -517,7 +536,9 @@ static void refresh_chips()
     for (int i = 0; i < AF_NUM_ASICS; i++) {
         lv_label_set_text_fmt(s_chip_ghs[i], "%.0f", s.chip_ghs[i]);
         float tot = s.chip_ghs[i] + s.chip_err_ghs[i];
-        lv_label_set_text_fmt(s_chip_sub[i], "%s%.0f\xC2\xB0" "C\n#9aa8bd err %.1f%%#", s.chip_temp_own[i] ? "" : "~",
+        // compact cards (8 chips) have room for one line only
+        lv_label_set_text_fmt(s_chip_sub[i], AF_NUM_ASICS > 4 ? "%s%.0f\xC2\xB0 #9aa8bd %.1f%%#" : "%s%.0f\xC2\xB0" "C\n#9aa8bd err %.1f%%#",
+                              s.chip_temp_own[i] ? "" : "~",
                               s.chip_temp[i], tot > 0 ? 100.0f * s.chip_err_ghs[i] / tot : 0.0f);
         lv_bar_set_value(s_chip_bar[i], per > 0 ? (int) (100 * s.chip_ghs[i] / per) : 0, LV_ANIM_ON);
     }

@@ -1,0 +1,16 @@
+{
+  "name": "AxeForge for NerdQX",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "nerdqx/bootloader.bin", "offset": 0 },
+        { "path": "nerdqx/partition-table.bin", "offset": 32768 },
+        { "path": "nerdqx/axeforge.bin", "offset": 65536 },
+        { "path": "nerdqx/ota_data_initial.bin", "offset": 12648448 }
+      ]
+    }
+  ]
+}

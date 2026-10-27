@@ -8,6 +8,14 @@ menu "AxeForge"
             pin that belongs to another board's regulator is never safe.
         config AF_BOARD_NERDQAXE
             bool "NerdQaxe++ (4x BM1370)"
+        config AF_BOARD_NERDQAXEPLUS
+            bool "NerdQAxe+ (4x BM1368)"
+        config AF_BOARD_NERDOCTAXEPLUS
+            bool "NerdOctaxe+ (8x BM1368)"
+        config AF_BOARD_NERDOCTAXEGAMMA
+            bool "NerdOctaxe-gamma (8x BM1370)"
+        config AF_BOARD_NERDQX
+            bool "NerdQX (4x BM1370, die sensors)"
         config AF_BOARD_NERDAXE
             bool "NerdAxe (1x BM1366, T-Display-S3)"
         config AF_BOARD_SUPRAHEX
@@ -15,7 +23,7 @@ menu "AxeForge"
     endchoice
 
     menu "Big display (3.5in 480x320)"
-        depends on AF_BOARD_NERDQAXE || AF_BOARD_NERDAXE
+        depends on !AF_BOARD_SUPRAHEX
         choice AF_LCD_BUS
             prompt "Interface"
             default AF_LCD_BUS_I80
@@ -111,6 +119,7 @@ menu "AxeForge"
             default 15
         config AF_LCD_ROTATE_180
             bool "Rotate 180 degrees"
+            default y if AF_BOARD_NERDQX
             default n
         config AF_LCD_INVERT_COLORS
             bool "Invert colors (IPS panels usually need this)"
@@ -123,13 +132,15 @@ menu "AxeForge"
     menu "Hard safety limits (auto-tuner can never exceed these)"
         config AF_MAX_FREQ_MHZ
             int "Max ASIC frequency (MHz)"
-            range 400 800
-            default 625 if AF_BOARD_SUPRAHEX
+            range 400 1250
+            default 625 if AF_BOARD_SUPRAHEX || AF_BOARD_NERDQAXEPLUS || AF_BOARD_NERDOCTAXEPLUS
             default 600 if AF_BOARD_NERDAXE
+            default 1000 if AF_BOARD_NERDQX
             default 750
         config AF_MAX_CORE_MV
             int "Max core voltage (mV)"
             range 1100 1350
+            default 1350 if AF_BOARD_NERDQX
             default 1300
         config AF_MIN_CORE_MV
             int "Min core voltage (mV)"
@@ -153,6 +164,10 @@ menu "AxeForge"
             int "Max input power (W)"
             default 120 if AF_BOARD_SUPRAHEX
             default 15 if AF_BOARD_NERDAXE
+            default 70 if AF_BOARD_NERDQAXEPLUS
+            default 130 if AF_BOARD_NERDOCTAXEPLUS
+            default 250 if AF_BOARD_NERDOCTAXEGAMMA
+            default 240 if AF_BOARD_NERDQX
             default 100
 
         comment "Rev7 boards (TPS546 regulator, detected at boot)"
@@ -174,6 +189,17 @@ menu "AxeForge"
             int "Rev7 emergency shutdown regulator temperature (C)"
             depends on AF_BOARD_NERDQAXE
             default 105
+        comment "NerdOctaxe-gamma rev3.0+ (TPS53667 regulator, detected at boot)"
+            depends on AF_BOARD_NERDOCTAXEGAMMA
+        config AF_G67_MAX_FREQ_MHZ
+            int "TPS53667 board max ASIC frequency (MHz)"
+            depends on AF_BOARD_NERDOCTAXEGAMMA
+            range 400 850
+            default 800
+        config AF_G67_MAX_POWER_W
+            int "TPS53667 board max power (W)"
+            depends on AF_BOARD_NERDOCTAXEGAMMA
+            default 300
     endmenu
 
 endmenu

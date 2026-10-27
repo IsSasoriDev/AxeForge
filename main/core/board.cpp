@@ -1,7 +1,9 @@
-// NerdQaxe++ (rev5.1/rev6: TPS53647, rev7: TPS546 stack). The Supra Hex lives in
-// board_suprahex.cpp; exactly one of the two is compiled.
-#include "sdkconfig.h"
-#if CONFIG_AF_BOARD_NERDQAXE
+// The NerdQaxe family: NerdQaxe++ (rev5.1/rev6: TPS53647, rev7: TPS546 stack),
+// NerdQAxe+, NerdOctaxe+, NerdOctaxe-g and NerdQX. They share the ESP32 module,
+// regulator wiring, fans and board sensors; board_config.h holds what differs.
+// The NerdAxe and the Supra Hex have their own files; exactly one is compiled.
+#include "core/board_config.h"
+#if AF_NQ_FAMILY
 
 #include "board.h"
 
@@ -18,6 +20,7 @@
 #include "core/state.h"
 #include "hw/i2c_bus.h"
 #include "hw/sensors.h"
+#include "hw/tmp451.h"
 #include "hw/tps53647.h"
 #include "hw/tps546.h"
 
@@ -27,22 +30,32 @@ static const char *TAG = "board";
 #define PIN_LDO_EN GPIO_NUM_13
 #define PIN_ASIC_RST GPIO_NUM_1
 
-#define NUM_PHASES 3
-#define IMAX_A (NUM_PHASES * 30)
-#define IFAULT_A (IMAX_A + 5)
-#define INIT_MV 1200
-#define START_DIFFICULTY 2048
+#define PIN_VR_DETECT GPIO_NUM_3  // NerdOctaxe-g rev3.0+: strapped high for a TPS53667
+
+#define START_DIFFICULTY AF_ASIC_DIFF_MAX
+#if AF_ASIC_BM1368
+#define NO_CHIPS_TEXT "No BM1368 chips answered"
+#else
+#define NO_CHIPS_TEXT "No BM1370 chips answered"
+#endif
 
 // The TMP1075s sit on the PCB next to the chips; the die runs ~10 C hotter.
-// Only rev7 adds this; rev <= 6 reports the raw sensor (PR #6).
+// The NerdQaxe++ adds this on rev7 only; rev <= 6 reports the raw sensor (PR #6).
 #define REV7_DIE_TEMP_OFFSET 10.0f
 
 static bool s_powered = false;
 static bool s_rev7 = false;
+static int s_phases = AF_VR_PHASES, s_imax = AF_VR_IMAX_A;
+static float s_ifault = AF_VR_IFAULT_A;
+static float s_vr_offset = 0;  // the TPS53667 board's VR sensor reads low
+static uint16_t s_max_mv = CONFIG_AF_MAX_CORE_MV;
+static int s_die_sensors = 0;  // chips with a TMP451 die reading
 static board::Limits s_limits = {CONFIG_AF_MAX_FREQ_MHZ, CONFIG_AF_MAX_POWER_W, CONFIG_AF_MAX_VR_TEMP,
                                  CONFIG_AF_CRIT_VR_TEMP};
+#if AF_DETECT_REV7
 static const board::Limits REV7_LIMITS = {CONFIG_AF_REV7_MAX_FREQ_MHZ, CONFIG_AF_REV7_MAX_POWER_W,
                                           CONFIG_AF_REV7_MAX_VR_TEMP, CONFIG_AF_REV7_CRIT_VR_TEMP};
+#endif
 static SemaphoreHandle_t s_lock;  // monitor and tuner both drive power
 
 namespace {
@@ -69,9 +82,11 @@ bool is_rev7() { return s_rev7; }
 uint16_t clamp_mv(int mv)
 {
     if (mv < CONFIG_AF_MIN_CORE_MV) mv = CONFIG_AF_MIN_CORE_MV;
-    if (mv > CONFIG_AF_MAX_CORE_MV) mv = CONFIG_AF_MAX_CORE_MV;
+    if (mv > s_max_mv) mv = s_max_mv;
     return (uint16_t) mv;
 }
+
+uint16_t max_mv() { return s_max_mv; }
 
 uint16_t clamp_freq(int mhz)
 {
@@ -93,15 +108,46 @@ Error init_hardware()
     fan::set_pct(1, 100);
     temp::detect();
     asic::uart_init();
+    ESP_LOGI(TAG, "%s: %d x %s", AF_BOARD_NAME, AF_NUM_ASICS, asic::MODEL);
 
+#if AF_DETECT_REV7
     if (tps546::detect()) {
         s_rev7 = true;
         s_limits = REV7_LIMITS;
         ESP_LOGI(TAG, "rev7 board (TPS546) - limits %u MHz / %.0f W", s_limits.max_freq_mhz, s_limits.max_power_w);
     }
+#endif
+#if AF_DETECT_TPS53667
+    // the strap has a pull-down: boards before rev3.0 read low (TPS53647)
+    gpio_reset_pin(PIN_VR_DETECT);
+    gpio_set_direction(PIN_VR_DETECT, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(PIN_VR_DETECT, GPIO_PULLDOWN_ONLY);
+    vTaskDelay(pdMS_TO_TICKS(1));
+    if (gpio_get_level(PIN_VR_DETECT)) {
+        s_phases = 6;
+        s_imax = 240;
+        s_ifault = 235;
+        s_vr_offset = 8;
+        s_limits.max_power_w = CONFIG_AF_G67_MAX_POWER_W;
+        s_limits.max_freq_mhz = CONFIG_AF_G67_MAX_FREQ_MHZ;
+        ESP_LOGI(TAG, "TPS53667 board (6 phases) - limits %u MHz / %.0f W", s_limits.max_freq_mhz, s_limits.max_power_w);
+    } else {
+        ESP_LOGI(TAG, "TPS53647 board (4 phases) - limits %u MHz / %.0f W", s_limits.max_freq_mhz, s_limits.max_power_w);
+    }
+#endif
+    s_die_sensors = tmp451::start();
+#ifdef AF_NO_MUX_MAX_FREQ
+    if (s_die_sensors == 0) {
+        // the QX is told apart from a NerdQaxe++ by its die sensor mux
+        s_limits.max_freq_mhz = AF_NO_MUX_MAX_FREQ;
+        s_max_mv = AF_NO_MUX_MAX_MV;
+        ESP_LOGE(TAG, "no die temperature mux: not a NerdQX? limited to %u MHz / %u mV", AF_NO_MUX_MAX_FREQ,
+                 AF_NO_MUX_MAX_MV);
+    }
+#endif
     g_state.board_rev7 = s_rev7;
     // without a working chip sensor there is no over-temperature protection
-    if (temp::count() == 0) return Error::NoTempSensor;
+    if (temp::count() == 0 && s_die_sensors == 0) return Error::NoTempSensor;
     return Error::None;
 }
 
@@ -125,7 +171,7 @@ Error power_up(uint16_t freq, uint16_t mv)
     gpio_set_level(PIN_LDO_EN, 1);
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    uint16_t init_mv = mv > INIT_MV ? mv : INIT_MV;
+    uint16_t init_mv = mv > AF_INIT_MV ? mv : AF_INIT_MV;
     if (s_rev7) {
         // TPS546: EN first, then configure; the output turns on with the first VOUT
         gpio_set_level(PIN_VR_EN, 1);
@@ -137,7 +183,7 @@ Error power_up(uint16_t freq, uint16_t mv)
             return Error::NoRegulator;
         }
     } else {
-        if (!tps53647::init(NUM_PHASES, IMAX_A, IFAULT_A)) {
+        if (!tps53647::init(s_phases, s_imax, s_ifault)) {
             gpio_set_level(PIN_LDO_EN, 0);
             return Error::NoRegulator;
         }
@@ -157,6 +203,13 @@ Error power_up(uint16_t freq, uint16_t mv)
         shutdown();
         return Error::NoChips;
     }
+    // rev7 stacks the chips in two series domains: a missing chip overvolts its partner
+    if (s_rev7 && chips != AF_NUM_ASICS) {
+        ESP_LOGE(TAG, "only %d of %d chips answered: not powering a broken stack", chips, AF_NUM_ASICS);
+        shutdown();
+        return Error::ChipMissing;
+    }
+    tmp451::enable(true);
     asic::switch_to_fast_baud();
     vTaskDelay(pdMS_TO_TICKS(500));
 
@@ -171,6 +224,7 @@ void shutdown()
 {
     Guard g;
     ESP_LOGW(TAG, "shutting down ASIC power");
+    tmp451::enable(false);
     if (s_rev7) tps546::off();
     gpio_set_level(PIN_VR_EN, 0);
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -215,24 +269,40 @@ bool is_powered() { return s_powered; }
 
 void read_telemetry()
 {
-    // The BM1370 has no readable die sensor; the board has 1-3 TMP1075s near the
-    // chips. Chips without their own sensor show the nearest one, flagged.
-    // A failed read clears temp_ok; the monitor cuts power if that persists.
+    // The board has 1-3 TMP1075s near the chips; chips without their own sensor
+    // show the nearest one, flagged. The NerdQX and NerdOctaxe-g also read each
+    // die through a TMP451 mux. Those diodes only work while the chips are
+    // powered, so before power-up (and if a die reading goes missing) the board
+    // sensors stand in. A failed read clears temp_ok; the monitor cuts power if
+    // that persists.
     float tmax = 0;
     int n = temp::count();
-    bool ok = n > 0;
-    float last = 0;
+    bool ok = n > 0 || s_die_sensors > 0;
+    float last = NAN;
+    const float proxy_offset = s_rev7 ? REV7_DIE_TEMP_OFFSET : AF_PROXY_DIE_OFFSET;
+    // hottest board sensor: stands in for a chip whose die reading is missing
+    float board_max = NAN;
+    if (s_die_sensors > 0) {
+        for (int k = 0; k < n; k++) {
+            float t = temp::asic_area(k);
+            if (!isnan(t) && (isnan(board_max) || t > board_max)) board_max = t;
+        }
+        if (!isnan(board_max)) board_max += proxy_offset;
+    }
     for (int i = 0; i < AF_NUM_ASICS; i++) {
-        bool own = i < n;
-        float t = own ? temp::asic_area(i) : last;
-        if (own) {
-            if (isnan(t)) {
-                ok = false;
-                t = 0;
-            } else {
-                if (s_rev7) t += REV7_DIE_TEMP_OFFSET;
-            }
+        float t = i < s_die_sensors ? tmp451::chip(i) : NAN;
+        bool own = !isnan(t);
+        if (!own && i < n) {
+            t = temp::asic_area(i);
+            if (!isnan(t)) t += proxy_offset;
+            own = s_die_sensors == 0;  // a board sensor is only "own" on boards without die sensors
             last = t;
+        } else if (!own) {
+            t = s_die_sensors > 0 ? board_max : last;
+        }
+        if (isnan(t)) {
+            ok = false;
+            t = 0;
         }
         g_state.chip_temp[i] = t;
         g_state.chip_temp_own[i] = own;
@@ -244,7 +314,7 @@ void read_telemetry()
     g_state.fan_rpm[1] = fan::rpm(1);
     // TPS53647 boards measure the regulator with the TMP1075 on its back side,
     // the TPS546 reports its own die temperature
-    float vr = s_rev7 ? tps546::temperature() : temp::vr_board();
+    float vr = s_rev7 ? tps546::temperature() : temp::vr_board() + s_vr_offset;
     g_state.vr_temp_ok = !isnan(vr);
     g_state.vr_temp = g_state.vr_temp_ok ? vr : 0;
     if (!s_powered) return;
@@ -286,7 +356,8 @@ const char *error_text(Error e)
     case Error::None: return "OK";
     case Error::NoRegulator: return "Voltage regulator not found";
     case Error::NoTempSensor: return "Temperature sensor not responding";
-    case Error::NoChips: return "No BM1370 chips answered";
+    case Error::NoChips: return NO_CHIPS_TEXT;
+    case Error::ChipMissing: return "A chip in a stacked voltage domain didn't answer";
     case Error::PsuFault: return "PSU / input voltage fault";
     case Error::OverCurrent: return "Core over-current";
     case Error::VoutFault: return "Core voltage fault";
@@ -297,4 +368,4 @@ const char *error_text(Error e)
 
 } // namespace board
 
-#endif // CONFIG_AF_BOARD_NERDQAXE
+#endif // AF_NQ_FAMILY

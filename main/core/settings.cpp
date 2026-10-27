@@ -7,6 +7,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
+#include "core/board_config.h"
 
 static const char *TAG = "settings";
 static Settings s_settings;
@@ -106,7 +107,7 @@ void pools_from_json(const char *json)
     cJSON_Delete(a);
 }
 
-#if CONFIG_AF_BOARD_SUPRAHEX || CONFIG_AF_BOARD_NERDAXE
+#if AF_KEEP_STOCK_NVS
 // First boot after switching from AxeOS / the NerdQAxe stock firmware: take over its Wi-Fi, pools and
 // clock settings (read-only, the "main" namespace is left untouched) so the
 // miner comes back on the same network instead of opening a setup AP.
@@ -167,6 +168,19 @@ void load()
     s.display_type = 1;  // T-Display-S3
     s.rotate_180 = true; // mounted the other way round than on the NerdQaxe++
 #endif
+#if CONFIG_AF_BOARD_NERDQAXEPLUS || CONFIG_AF_BOARD_NERDOCTAXEPLUS
+    s.freq_mhz = 490;  // BM1368 stock point
+    s.core_mv = 1250;
+#endif
+#if CONFIG_AF_BOARD_NERDOCTAXEGAMMA
+    s.freq_mhz = 600;
+    s.core_mv = 1150;
+#endif
+#if CONFIG_AF_BOARD_NERDQX
+    s.freq_mhz = 777;  // reference firmware default
+    s.core_mv = 1200;
+    s.rotate_180 = true;
+#endif
 #if CONFIG_AF_BOARD_SUPRAHEX
     s.freq_mhz = 490;  // BM1368 stock point
     s.core_mv = 1166;
@@ -176,7 +190,7 @@ void load()
 
     if (nvs_open("axeforge", NVS_READONLY, &h) != ESP_OK) {
         ESP_LOGW(TAG, "no saved settings, using defaults");
-#if CONFIG_AF_BOARD_SUPRAHEX || CONFIG_AF_BOARD_NERDAXE
+#if AF_KEEP_STOCK_NVS
         if (import_axeos(s)) save();
 #endif
         return;
@@ -215,6 +229,7 @@ void load()
     get_u8(h, "fman1", s.fan_manual[1]);
     get_u8(h, "theme", s.theme);
     get_u8(h, "bright", s.brightness);
+    get_u8(h, "scroff", s.screen_off_min);
     get_u8(h, "disptype", s.display_type);
     get_str(h, "pages", s.pages, sizeof(s.pages));
     get_u8(h, "defpage", s.default_page);
@@ -257,6 +272,7 @@ void save()
     nvs_set_u8(h, "fman1", s.fan_manual[1]);
     nvs_set_u8(h, "theme", s.theme);
     nvs_set_u8(h, "bright", s.brightness);
+    nvs_set_u8(h, "scroff", s.screen_off_min);
     nvs_set_u8(h, "disptype", s.display_type);
     nvs_set_str(h, "pages", s.pages);
     nvs_set_u8(h, "defpage", s.default_page);

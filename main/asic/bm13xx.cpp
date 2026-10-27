@@ -107,7 +107,7 @@ static void write_one(uint8_t addr, uint8_t reg, uint8_t b0, uint8_t b1, uint8_t
     send(CMD_WRITE_SINGLE, d, 6);
 }
 
-static int next_pow2(int n)
+[[maybe_unused]] static int next_pow2(int n)
 {
     int p = 1;
     while (p < n) p <<= 1;
@@ -223,6 +223,11 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     // found no chips unless the port is set back first.
     uart_set_baudrate(UART, 115200);
     uart_flush(UART);
+    // The chips just came out of reset at their default PLL. Ramping from the
+    // clock they ran at before a power cut would jump them from ~56 MHz to full
+    // speed in one step; on the Supra Hex that surge trips the regulator's
+    // over-current shutdown on every fault retry.
+    s_freq = 56.25f;
     for (int i = 0; i < 4; i++) set_version_mask_all();
 
     // count chips: read reg 0 on everybody
@@ -319,6 +324,12 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0x10, 0x00, 0x00, 0x15, 0x1C);  // hash counting (S19XP stock value)
 #elif AF_ASIC_BM1368
     write_all(0x10, 0x00, 0x00, 0x15, 0xA4);  // hash counting (S21 stock value)
+#elif defined(AF_VR_FREQ_HZ)
+    {
+        // reg = 65536 * 3000 Hz (15 MHz IO clock / 5000) / rolling frequency
+        uint32_t v = (uint32_t) ((65536ull * 3000 + AF_VR_FREQ_HZ / 2) / AF_VR_FREQ_HZ);
+        write_all(0x10, v >> 24, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff);
+    }
 #else
     write_all(0x10, 0x00, 0x00, 0x1E, 0xB5);  // version rolling speed (stock value)
 #endif

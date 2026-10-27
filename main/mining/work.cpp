@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mbedtls/sha256.h"
+#include "mining/payout.h"
 
 // 0x00000000FFFF0000...0000 as a double
 static const double TRUEDIFFONE = 26959535291011309493156476344723991336010898738574164086137773096960.0;
@@ -172,7 +173,7 @@ static uint64_t read_varint(const uint8_t *b, size_t len, size_t &o)
     return v;
 }
 
-void describe_template(const StratumJob &sj, const char *en1, int en2_len, BlockTemplate &t)
+void describe_template(const StratumJob &sj, const char *en1, int en2_len, BlockTemplate &t, const char *user)
 {
     t.height = block_height_from_coinb1(sj.coinb1);
     t.ntime = sj.ntime;
@@ -219,16 +220,36 @@ void describe_template(const StratumJob &sj, const char *en1, int en2_len, Block
     }
     t.tag[tl] = 0;
 
+    // your address (solo pools pay the one in the username) as an output script
+    uint8_t mine[payout::MAX_SCRIPT];
+    size_t mine_len = 0;
+    payout::Net net = payout::Net::Main;
+    if (user && payout::user_address(user, t.payout_addr, sizeof(t.payout_addr), &net))
+        mine_len = payout::address_to_script(t.payout_addr, mine, sizeof(mine), &net);
+
     uint64_t outs = read_varint(cb, len, o);
-    uint64_t sats = 0;
+    uint64_t sats = 0, to_me = 0;
     for (uint64_t i = 0; i < outs && o + 8 <= len; i++) {
         uint64_t v = 0;
         for (int b = 0; b < 8; b++) v |= (uint64_t) cb[o + b] << (8 * b);
         o += 8;
         sats += v;
-        o += read_varint(cb, len, o);
+        uint64_t sl = read_varint(cb, len, o);
+        if (o + sl > len) break;
+        bool yours = mine_len && sl == mine_len && memcmp(cb + o, mine, sl) == 0;
+        if (yours) to_me += v;
+        if (t.n_outputs < AF_SHOWN_OUTPUTS) {
+            CoinbaseOut &co = t.outputs[t.n_outputs++];
+            co.sats = v;
+            co.yours = yours;
+            payout::script_to_address(cb + o, sl, net, co.addr, sizeof(co.addr));
+        }
+        o += sl;
     }
     t.reward_btc = sats / 1e8;
+    t.total_sats = sats;
+    t.payout_sats = to_me;
+    t.payout = !mine_len ? Payout::NotAddress : to_me ? Payout::PaysYou : Payout::NotYou;
     free(cb);
     t.valid = true;
 }

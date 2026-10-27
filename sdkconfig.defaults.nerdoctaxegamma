@@ -1,0 +1,4 @@
+# nerdoctaxegamma build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_nerdoctaxegamma -D SDKCONFIG=build_nerdoctaxegamma/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.nerdoctaxegamma" build
+CONFIG_AF_BOARD_NERDOCTAXEGAMMA=y

@@ -36,6 +36,7 @@ struct Result {
 };
 
 static volatile bool s_restart = false;
+static volatile uint16_t s_hold = 0;  // clock cap after a fault retry, 0 = none
 
 static const char *verdict_text(Verdict v)
 {
@@ -61,6 +62,7 @@ static bool should_abort() { return s_restart || !settings::get().autotune || !b
 // frequency down before voltage down.
 static bool apply(uint16_t freq, uint16_t mv)
 {
+    if (s_hold && freq > s_hold) freq = s_hold;
     freq = board::clamp_freq(freq);
     mv = board::clamp_mv(mv);
     g_state.tuner.trial_freq = freq;
@@ -177,7 +179,7 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
             continue;
         }
 
-        if (r.verdict == Verdict::Errors && bumps < MAX_MV_BUMPS && mv + MV_STEP <= CONFIG_AF_MAX_CORE_MV) {
+        if (r.verdict == Verdict::Errors && bumps < MAX_MV_BUMPS && mv + MV_STEP <= board::max_mv()) {
             // more voltage usually fixes errors at a given clock
             mv += MV_STEP;
             bumps++;
@@ -226,10 +228,16 @@ static void tuner_task(void *)
 
     while (true) {
         Settings &cfg = settings::get();
+        static uint16_t seen_freq = 0;
+        if (cfg.freq_mhz != seen_freq) {  // a new manual clock lifts the cap
+            if (seen_freq) s_hold = 0;
+            seen_freq = cfg.freq_mhz;
+        }
         if (!cfg.autotune) {
+            uint16_t want = s_hold && cfg.freq_mhz > s_hold ? s_hold : cfg.freq_mhz;
             g_state.tuner.phase = TunerPhase::Off;
             snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Manual: %u MHz @ %u mV", cfg.freq_mhz, cfg.core_mv);
-            if (board::is_powered() && (board::freq_mhz() != board::clamp_freq(cfg.freq_mhz) ||
+            if (board::is_powered() && (board::freq_mhz() != board::clamp_freq(want) ||
                                         board::core_mv() != board::clamp_mv(cfg.core_mv))) {
                 apply(cfg.freq_mhz, cfg.core_mv);
             }
@@ -307,5 +315,15 @@ void start()
 {
     if (xTaskCreate(tuner_task, "tuner", 4096, NULL, 4, NULL) != pdPASS) ESP_LOGE(TAG, "could not start tuner task");
 }
-void restart() { s_restart = true; }
+void restart()
+{
+    s_hold = 0;
+    s_restart = true;
+}
+
+void hold(uint16_t mhz)
+{
+    s_hold = mhz;
+    ESP_LOGW(TAG, "holding at or below %u MHz after a fault", mhz);
+}
 }

@@ -39,6 +39,8 @@ header h1{font-size:20px;margin:0;flex:1}
 .gauge svg{width:210px;height:210px}.gauge .v{font-size:40px;font-weight:800;fill:var(--text)}.gauge .u{font-size:15px;fill:var(--cyan);font-weight:700}.gauge .s{font-size:11px;fill:var(--dim)}
 .chart{height:150px;width:100%}
 .chips .card .big{color:var(--cyan)}
+.outs{margin-top:8px;font-size:12px;color:var(--dim)}.outs div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-top:1px solid var(--line)}
+.outs b{color:var(--green)}.outs span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,monospace}
 .tag{font-size:10px;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--dim);font-weight:700;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px}.kv div:nth-child(odd){color:var(--dim)}.kv div:nth-child(even){text-align:right;font-weight:600;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
 .tune{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tune .pill{color:var(--violet)}
@@ -189,7 +191,9 @@ html[data-theme=paper] .pill{background:transparent}
 <div class="grid g2 mb">
  <div class="card"><h3>Now mining <span class="tag" id="nmpool">--</span></h3>
   <div class="big" id="nmh">--</div><div class="sub" id="nmtag"></div>
-  <div class="kv" style="margin-top:12px"><div>Block reward</div><div id="nmrew">--</div><div>Transactions</div><div id="nmtx">--</div><div>Previous block</div><div id="nmprev" class="hash" style="font-size:11px">--</div></div></div>
+  <div class="kv" style="margin-top:12px"><div>Block reward</div><div id="nmrew">--</div><div>Transactions</div><div id="nmtx">--</div><div>Previous block</div><div id="nmprev" class="hash" style="font-size:11px">--</div>
+  <div>Payout</div><div id="nmpay" title="Who a block found on this template would pay. Solo pools pay the address in your username.">--</div></div>
+  <div class="outs" id="nmouts"></div></div>
  <div class="card"><h3>Live share hash <span class="tag" id="lhd">--</span></h3><div class="hash" id="lh">waiting for the first share…</div>
   <div class="sub" style="margin-top:8px" id="lhn"></div></div>
 </div>
@@ -220,7 +224,7 @@ html[data-theme=paper] .pill{background:transparent}
 
 <!-- ============================== POOLS -->
 <section id="pools">
-<div class="info"><b>About "one pool per ASIC":</b> on the NerdQaxe++ all 4 BM1370 chips share one serial chain and every job
+<div class="info"><b>About "one pool per ASIC":</b> all the chips share one serial chain and every job
 is broadcast to all of them (chips split the nonce range, the job packet carries no chip address). So pools can't be pinned to
 individual chips. Instead AxeForge splits the <i>miner's work</i> between pools by percentage — 4 pools at 25% each is the same
 hashrate as one chip per pool — or uses them as failover.</div>
@@ -274,6 +278,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option></select>
 <p class="note">Changing the theme reboots the miner so the screen is rebuilt with the new palette.</p>
 <label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
+<label>Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
 <div class="row"><div><label>Start page</label><select name="defpage" id="defpage"></select></div>
 <div><label>Auto-rotate pages</label><select name="rotate"><option value="0">Off</option><option value="10">Every 10 s</option><option value="20">Every 20 s</option><option value="30">Every 30 s</option><option value="60">Every minute</option></select></div></div>
 <div class="switch" style="margin-top:8px"><div><b>Rotate 180°</b><span>Flip the screen if the miner is mounted upside down.</span></div><input class="tg" type="checkbox" name="rot180"></div>
@@ -344,11 +349,19 @@ function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p
  $('garcbg').setAttribute('d',`M${x0} ${y0}A${r} ${r} 0 1 1 ${x1} ${y1}`);$('garc').setAttribute('d',`M${x0} ${y0}A${r} ${r} 0 ${f*270>180?1:0} 1 ${xf} ${yf}`)}
 const statusCol={mining:'var(--green)',setup:'var(--violet)',connecting:'var(--orange)',fault:'var(--red)',overheat:'var(--red)'};
 const phaseCol={locked:'var(--green)',backoff:'var(--orange)',manual:'var(--dim)'};
+// solo payout check (template.payout): 1 username isn't an address, 2 pays you, 3 doesn't
+function shortAddr(a){return a&&a.length>24?a.slice(0,12)+'…'+a.slice(-8):a}
+function payHtml(tm){
+ if(tm.payout==2){const pct=tm.totalSats?100*tm.payoutSats/tm.totalSats:0;
+  return `<span style="color:var(--green)">✓ ${(tm.payoutSats/1e8).toFixed(8)} BTC to your address (${pct>99.95?100:pct.toFixed(1)}%)</span>`}
+ if(tm.payout==3)return `<span style="color:var(--red)" title="Fine for pooled mining. On a solo pool a block would not pay you: check the address in the pool username.">✗ not your address (${esc(shortAddr(tm.payoutAddr))})</span>`;
+ if(tm.payout==1)return '<span style="color:var(--dim)">pooled: the username isn\'t a Bitcoin address</span>';
+ return '--'}
 function hashHtml(h){if(!h)return'';const z=(h.match(/^0*/)||[''])[0].length;return `<em>${h.slice(0,z)}</em>${h.slice(z)}`}
 
-function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/4||1;
+function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/(c.length||4)||1;
  const ceil=cfg.limits?.chipCeil||68,tc=x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
- return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor; the BM1370 has no readable die sensor">shared sensor</span>'}</h3>
+ return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor shared by several chips">shared sensor</span>'}</h3>
  <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%</div>
  <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
 function blocks(m){
@@ -363,7 +376,7 @@ function blocks(m){
 async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){return}
  const L=cfg.limits||{chipCrit:80,vrCrit:100,maxPower:100,maxFreq:750};
  const [v,u]=hr(S.hashrate);$('hrv').textContent=v;$('hru').textContent=u;
- const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*2040*4/1000));
+ const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*(S.smallCores||2040)*(S.asicCount||4)/1000));
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status;st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
  $('fault').style.display=S.fault?'block':'none';$('fault').textContent='⚠ '+S.fault;
@@ -379,7 +392,9 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  // template + hash
  const tm=S.template;if(tm.valid){$('nmh').textContent=tm.height.toLocaleString();$('nmtag').textContent=tm.tag||'';
   $('nmpool').textContent='pool '+(tm.pool+1)+' · '+(S.pools[tm.pool]?.host||'');$('nmrew').textContent=tm.reward.toFixed(8)+' BTC';
-  $('nmtx').textContent='~'+(2**tm.branches).toLocaleString()+' (merkle depth '+tm.branches+')';$('nmprev').textContent=tm.prevHash}
+  $('nmtx').textContent='~'+(2**tm.branches).toLocaleString()+' (merkle depth '+tm.branches+')';$('nmprev').textContent=tm.prevHash;
+  $('nmpay').innerHTML=payHtml(tm);
+  $('nmouts').innerHTML=(tm.outputs||[]).map(o=>`<div><span title="${esc(o.addr)}">${o.yours?'<b>you</b> · ':''}${esc(shortAddr(o.addr)||'non-standard script')}</span><span>${(o.sats/1e8).toFixed(8)} BTC</span></div>`).join('')}
  if(S.lastHash){$('lh').innerHTML=hashHtml(S.lastHash);$('lhd').textContent='diff '+sfx(S.lastHashDiff);
   $('lhn').textContent=(S.lastHash.match(/^0*/)[0].length)+' leading zeros · '+S.hashesChecked.toLocaleString()+' shares verified on the ESP32'}
  // pools mini list
@@ -391,7 +406,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
  $('nip').textContent=S.ip||'--';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
- $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × BM1370';$('svin').textContent=S.vin.toFixed(2)+' V';
+ $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
  $('navfoot').textContent=(S.ip||'')+' · v'+S.version;$('edsmall').style.display=S.screen=='tdisplay'?'':'none';
  if(cur=='pools')poolLive()}
@@ -467,7 +482,7 @@ function renderPools(){$('pooleds').innerHTML=P.pools.map((p,i)=>`<div class="po
 function poolLive(){if(!S.pools)return;S.pools.forEach((p,i)=>{const d=$('pd'+i);if(!d)return;
  d.className='dot '+(p.connected?'ok':p.enabled?'wait':'');$('ps'+i).textContent=p.status||'';
  $('pl'+i).innerHTML=p.enabled?`<span><b>${p.workPct}%</b> of work</span><span><b>${hr(p.ghs).join(' ')}</b> est.</span><span>diff <b>${p.diff}</b></span>
- <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>`:''})}
+ <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>${p.payout==2?`<span style="color:var(--green)">✓ pays you <b>${p.payoutPct}%</b></span>`:p.payout==3?'<span style="color:var(--red)">✗ coinbase doesn\'t pay your address</span>':''}`:''})}
 async function savePools(){await act('/api/pools',JSON.stringify(P))}
 
 /* ---------------- screen preview + pages */

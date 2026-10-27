@@ -1,0 +1,16 @@
+{
+  "name": "AxeForge for NerdOctaxe+",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "nerdoctaxeplus/bootloader.bin", "offset": 0 },
+        { "path": "nerdoctaxeplus/partition-table.bin", "offset": 32768 },
+        { "path": "nerdoctaxeplus/axeforge.bin", "offset": 65536 },
+        { "path": "nerdoctaxeplus/ota_data_initial.bin", "offset": 12648448 }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# nerdoctaxeplus build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_nerdoctaxeplus -D SDKCONFIG=build_nerdoctaxeplus/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.nerdoctaxeplus" build
+CONFIG_AF_BOARD_NERDOCTAXEPLUS=y

@@ -3,6 +3,10 @@ name: Build
 # Every push / PR builds the firmware and keeps the .bin files as a workflow
 # artifact. Pushing a tag like v1.2.0 also publishes a GitHub Release and the
 # web flasher (GitHub Pages, Settings -> Pages -> Source: GitHub Actions).
+#
+# One image per board. The NerdQaxe++ builds in build/ and keeps the plain
+# axeforge*.bin names; every other board builds in build_<board>/ from
+# sdkconfig.defaults.<board> and ships as axeforge-<board>*.bin.
 on:
   push:
     branches: [main, master]
@@ -13,7 +17,28 @@ on:
 permissions:
   contents: write  # needed to create releases
 
+env:
+  BOARDS: nerdaxe nerdqaxeplus nerdoctaxeplus nerdoctaxegamma nerdqx
+  # Installed through AxeOS's own update page into the spare app slot, so AxeOS
+  # stays as the fallback: update file only, no full image, no web flasher.
+  UPDATE_ONLY_BOARDS: suprahex
+
 jobs:
+  # Host-side unit tests (test/): difficulty, coinbase/merkle, template decode,
+  # SV2 parsers, payout check. Built with ASan/UBSan; no ESP-IDF needed, so this
+  # takes seconds.
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install compiler and mbedtls
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ make libmbedtls-dev
+      - name: Run unit tests
+        run: make -C test
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -36,12 +61,16 @@ jobs:
         with:
           esp_idf_version: v5.3.2
           target: esp32s3
+          # Output goes to build.log too, for the warning summary below.
           command: |
-            idf.py build &&
-            idf.py -B build_nerdaxe -D SDKCONFIG=build_nerdaxe/sdkconfig \
-              -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.nerdaxe" build &&
-            for b in build build_nerdaxe; do
-              (cd $b && esptool.py --chip esp32s3 merge_bin -o axeforge-factory.bin \
+            set -o pipefail &&
+            idf.py build 2>&1 | tee build.log &&
+            for b in ${{ env.BOARDS }} ${{ env.UPDATE_ONLY_BOARDS }}; do
+              idf.py -B build_$b -D SDKCONFIG=build_$b/sdkconfig \
+                -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.$b" build 2>&1 | tee -a build.log || exit 1
+            done &&
+            for d in build $(for b in ${{ env.BOARDS }}; do echo build_$b; done); do
+              (cd $d && esptool.py --chip esp32s3 merge_bin -o axeforge-factory.bin \
                 --flash_mode dio --flash_freq 80m --flash_size 16MB \
                 0x0 bootloader/bootloader.bin \
                 0x8000 partition_table/partition-table.bin \
@@ -49,13 +78,28 @@ jobs:
                 0xc10000 ota_data_initial.bin) || exit 1
             done
 
+      - name: Warning summary
+        if: always()
+        run: |
+          grep -hoE '[^ ]+\.(c|cpp|h|inc):[0-9]+:[0-9]+: warning: .*' build.log 2>/dev/null \
+            | sed 's|^/github/workspace/||; s|^/project/||' | sort -u > warnings.txt || true
+          {
+            echo "### Compiler warnings: $(wc -l < warnings.txt)"
+            if [ -s warnings.txt ]; then echo '```'; cat warnings.txt; echo '```'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Collect binaries
         run: |
           mkdir -p dist
           sudo cp build/axeforge-factory.bin dist/axeforge-factory.bin
           sudo cp build/axeforge.bin dist/axeforge.bin
-          sudo cp build_nerdaxe/axeforge-factory.bin dist/axeforge-nerdaxe-factory.bin
-          sudo cp build_nerdaxe/axeforge.bin dist/axeforge-nerdaxe.bin
+          for b in $BOARDS; do
+            sudo cp build_$b/axeforge-factory.bin dist/axeforge-$b-factory.bin
+            sudo cp build_$b/axeforge.bin dist/axeforge-$b.bin
+          done
+          for b in $UPDATE_ONLY_BOARDS; do
+            sudo cp build_$b/axeforge.bin dist/axeforge-$b.bin
+          done
           sudo chown -R "$(id -u):$(id -g)" dist
           cd dist && sha256sum *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt
 
@@ -67,12 +111,14 @@ jobs:
           cp flasher/* site/
           sudo cp build/bootloader/bootloader.bin build/partition_table/partition-table.bin \
                   build/ota_data_initial.bin build/axeforge.bin site/
-          mkdir -p site/nerdaxe
-          sudo cp build_nerdaxe/bootloader/bootloader.bin build_nerdaxe/partition_table/partition-table.bin \
-                  build_nerdaxe/ota_data_initial.bin build_nerdaxe/axeforge.bin site/nerdaxe/
+          for b in $BOARDS; do
+            mkdir -p site/$b
+            sudo cp build_$b/bootloader/bootloader.bin build_$b/partition_table/partition-table.bin \
+                    build_$b/ota_data_initial.bin build_$b/axeforge.bin site/$b/
+          done
           sudo chown -R "$(id -u):$(id -g)" site
           sed -i "s/__VERSION__/${VERSION}/g" site/index.html site/manifest-*.json
-          ls -la site
+          ls -laR site
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -94,10 +140,7 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            dist/axeforge-factory.bin
-            dist/axeforge.bin
-            dist/axeforge-nerdaxe-factory.bin
-            dist/axeforge-nerdaxe.bin
+            dist/*.bin
             dist/SHA256SUMS.txt
           # notes live in their own Markdown file so editing them can't break this YAML
           body_path: RELEASE_NOTES.md

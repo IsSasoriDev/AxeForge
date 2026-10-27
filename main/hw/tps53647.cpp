@@ -8,6 +8,7 @@ static const char *TAG = "tps53647";
 
 #define ADDR 0x71
 #define DEVICE_CODE 0x01f0
+#define DEVICE_CODE_67 0x01f8  // TPS53667
 #define HW_MIN_VOLTAGE 0.25f  // VID step 5 mV from 0.25 V
 
 // PMBus commands
@@ -15,10 +16,13 @@ static const char *TAG = "tps53647";
 #define CLEAR_FAULTS 0x03
 #define RESTORE_DEFAULT_ALL 0x12
 #define VOUT_COMMAND 0x21
+#define VOUT_MAX 0x24
 #define IOUT_OC_FAULT_LIMIT 0x46
 #define IOUT_OC_WARN_LIMIT 0x4A
 #define OT_FAULT_LIMIT 0x4F
 #define OT_WARN_LIMIT 0x51
+#define IIN_OC_FAULT_LIMIT 0x5B
+#define IIN_OC_WARN_LIMIT 0x5D
 #define STATUS_BYTE 0x78
 #define STATUS_VOUT 0x7A
 #define STATUS_IOUT 0x7B
@@ -29,14 +33,19 @@ static const char *TAG = "tps53647";
 #define READ_IOUT 0x8C
 #define READ_TEMPERATURE_1 0x8D
 #define READ_PIN 0x97
+#define MFR_00_PHASE_OC 0xD0
 #define MFR_04_VOUT 0xD4
 #define MFR_10_IMAX 0xDA
 #define MFR_12 0xDC
 #define MFR_13 0xDD
+#define MFR_16_UVLO 0xE0
+#define MFR_19 0xE3
 #define MFR_20_PHASES 0xE4
+#define MFR_24_PHASE_EN 0xE8
 #define MFR_44_DEVCODE 0xFC
 
 static bool s_initialized = false;
+static bool s_67 = false;
 
 static float slinear11_to_float(uint16_t value)
 {
@@ -81,13 +90,16 @@ bool detect()
     uint16_t code = 0;
     if (i2c_bus::read_word_le(ADDR, MFR_44_DEVCODE, &code) != ESP_OK) return false;
     ESP_LOGI(TAG, "device code %04x", code);
-    return code == DEVICE_CODE;
+    s_67 = code == DEVICE_CODE_67;
+    return code == DEVICE_CODE || s_67;
 }
+
+bool is_tps53667() { return s_67; }
 
 bool init(int phases, int imax_a, float ifault_a)
 {
     if (!detect()) {
-        ESP_LOGE(TAG, "TPS53647 not found");
+        ESP_LOGE(TAG, "TPS53647 / TPS53667 not found");
         return false;
     }
     const uint8_t on_off = 0b00010111;
@@ -102,12 +114,25 @@ bool init(int phases, int imax_a, float ifault_a)
     if (phases >= 1 && phases <= 6) {
         i2c_bus::write_byte(ADDR, MFR_20_PHASES, (uint8_t) (phases - 1));
     }
+    if (s_67) {
+        // TPS53667 extras, as the reference firmware sets them for the NerdOctaxe-g:
+        // all phases on, no phase shedding, 45 A per-phase limit, 6 V UVLO
+        i2c_bus::write_byte(ADDR, MFR_24_PHASE_EN, 0x00);
+        i2c_bus::write_word_le(ADDR, VOUT_MAX, (uint16_t) ((int) ((1.4f - HW_MIN_VOLTAGE) / 0.005f) + 1));
+        i2c_bus::write_byte(ADDR, MFR_00_PHASE_OC, 0x07);
+        i2c_bus::write_byte(ADDR, MFR_16_UVLO, 0x01);
+        i2c_bus::write_word_le(ADDR, MFR_19, 0x0003);
+    }
     i2c_bus::write_word_le(ADDR, OT_WARN_LIMIT, float_to_slinear11(95.0f));
     i2c_bus::write_word_le(ADDR, OT_FAULT_LIMIT, float_to_slinear11(125.0f));
     i2c_bus::write_word_le(ADDR, IOUT_OC_WARN_LIMIT, float_to_slinear11(ifault_a));
     i2c_bus::write_word_le(ADDR, IOUT_OC_FAULT_LIMIT, float_to_slinear11(ifault_a));
+    if (s_67) {
+        i2c_bus::write_word_le(ADDR, IIN_OC_WARN_LIMIT, float_to_slinear11(25.0f));   // ~300 W in
+        i2c_bus::write_word_le(ADDR, IIN_OC_FAULT_LIMIT, float_to_slinear11(28.0f));  // ~336 W in
+    }
     s_initialized = true;
-    ESP_LOGI(TAG, "initialized: %d phases, imax %dA", phases, imax_a);
+    ESP_LOGI(TAG, "%s initialized: %d phases, imax %dA", s_67 ? "TPS53667" : "TPS53647", phases, imax_a);
     return true;
 }
 

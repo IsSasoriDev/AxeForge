@@ -8,6 +8,7 @@
 #include "sdkconfig.h"
 
 #include "core/board.h"
+#include "core/board_config.h"
 #include "core/settings.h"
 #include "core/tuner.h"
 #include "core/state.h"
@@ -17,7 +18,7 @@
 
 static const char *TAG = "monitor";
 
-#define VR_FAN_TARGET_C 65.0f
+#define VR_FAN_TARGET_C AF_VR_FAN_TARGET_C  // per board, 65 C unless board_config.h says otherwise
 #define COOLDOWN_HYST_C 20.0f
 #define RECOVERY_FREQ_DROP 50
 #define MAX_FAULT_RETRIES 3

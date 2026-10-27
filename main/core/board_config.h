@@ -42,6 +42,9 @@
 #define AF_ASIC_DIFF_MIN 1024  // about three BM1370s' worth of hashing per chip (shufps' Q1373 values)
 #define AF_ASIC_DIFF_MAX 4096
 #define AF_KEEP_STOCK_NVS 1
+// its VR area runs ~67 C at stock clocks (the stock firmware's fans hold it there at
+// ~68%); a 65 C target kept fan 2 pinned at 100%
+#define AF_VR_FAN_TARGET_C 72.0f
 #else
 // The NerdQaxe family: same ESP32 module, LCD, fans (EMC2302), board sensors
 // (TMP1075) and TPS536x7 regulator wiring; they differ in chips, phases and limits.
@@ -127,6 +130,9 @@
 
 #ifndef AF_HAS_VR_SENSOR
 #define AF_HAS_VR_SENSOR 1
+#endif
+#ifndef AF_VR_FAN_TARGET_C
+#define AF_VR_FAN_TARGET_C 65.0f  // the VR fan's PI target
 #endif
 #ifndef AF_JOB_INTERVAL_MS
 #define AF_JOB_INTERVAL_MS 500

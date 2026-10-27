@@ -44,6 +44,9 @@ static const char *TAG = "board";
 #define MIN_FREQ_MHZ 300
 
 static bool s_powered = false;
+static bool s_stage_hot = false;  // TPS53647 power stage at or past its OT warning
+#define STAGE_WARN_C 95.0f            // the OT warning tps53647::init programs
+#define STAGE_HYST_C 5.0f
 static board::Limits s_limits = {CONFIG_AF_MAX_FREQ_MHZ, CONFIG_AF_MAX_POWER_W, CONFIG_AF_MAX_VR_TEMP,
                                  CONFIG_AF_CRIT_VR_TEMP};
 static SemaphoreHandle_t s_lock;  // monitor and tuner both drive power
@@ -213,12 +216,24 @@ void read_telemetry()
     g_state.temp_ok = ok;
     g_state.fan_rpm[0] = fan::rpm(0);
     g_state.fan_rpm[1] = fan::rpm(1);
-    // The stock firmware shows the TMP1075 at the VR, which reads ~8.5 C below the
-    // TPS53647's own sensor. The VR limits act on the hotter of the two.
+    // VR temperature is the TMP1075 by the regulator, as on the stock firmware and
+    // the NerdQaxe++ rev5.1/6 (same regulator, same sensor placement), so the fan
+    // target and limits mean the same thing. The TPS53647 reports the hottest power
+    // stage, 8-10 C higher and rising with current; it shuts the stages off itself
+    // at 125 C. From its 95 C warning on, the VR is reported at the tuner's ceiling
+    // so the tuner backs off and the fans go to full.
     float vr = temp::vr_board();
     if (s_powered) {
-        float own = tps53647::temperature();
-        if (own > 0 && (isnan(vr) || own > vr)) vr = own;
+        float stage = tps53647::temperature();
+        bool was = s_stage_hot;
+        if (stage >= STAGE_WARN_C) s_stage_hot = true;
+        else if (stage < STAGE_WARN_C - STAGE_HYST_C) s_stage_hot = false;
+        if (s_stage_hot != was) ESP_LOGW(TAG, "power stage %.1f C: %s", stage, s_stage_hot ? "hot, holding the VR at its ceiling" : "back to normal");
+        if (s_stage_hot && !isnan(vr) && vr < s_limits.vr_ceil_c) vr = s_limits.vr_ceil_c;
+        static int tick = 0;
+        if (++tick % 60 == 0) ESP_LOGI(TAG, "VR %.1f C at the board, power stage %.1f C", temp::vr_board(), stage);
+    } else {
+        s_stage_hot = false;
     }
     g_state.vr_temp_ok = !isnan(vr);
     g_state.vr_temp = g_state.vr_temp_ok ? vr : 0;

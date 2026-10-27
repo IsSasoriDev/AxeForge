@@ -702,7 +702,7 @@ static void refresh_dashboard()
     fmt_hash(s.hashrate_ghs, v, sizeof(v), &unit);
     lv_label_set_text(s_hash_val, v);
     lv_label_set_text(s_hash_unit, unit);
-    float max_ghs = board::limits().max_freq_mhz * 2040.0f * AF_NUM_ASICS / 1000.0f;
+    float max_ghs = board::limits().max_freq_mhz * (float) asic::SMALL_CORES * AF_NUM_ASICS / 1000.0f;
     lv_arc_set_value(s_arc_hash, (int16_t) (1000.0f * s.hashrate_ghs / max_ghs));
     int eff = s.expected_ghs > 0 ? (int) (100.0f * s.hashrate_ghs / s.expected_ghs) : 0;
     lv_arc_set_value(s_arc_eff, eff > 100 ? 100 : eff);

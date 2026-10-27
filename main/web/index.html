@@ -220,7 +220,7 @@ html[data-theme=paper] .pill{background:transparent}
 
 <!-- ============================== POOLS -->
 <section id="pools">
-<div class="info"><b>About "one pool per ASIC":</b> on the NerdQaxe++ all 4 BM1370 chips share one serial chain and every job
+<div class="info"><b>About "one pool per ASIC":</b> all the chips share one serial chain and every job
 is broadcast to all of them (chips split the nonce range, the job packet carries no chip address). So pools can't be pinned to
 individual chips. Instead AxeForge splits the <i>miner's work</i> between pools by percentage — 4 pools at 25% each is the same
 hashrate as one chip per pool — or uses them as failover.</div>
@@ -348,7 +348,7 @@ function hashHtml(h){if(!h)return'';const z=(h.match(/^0*/)||[''])[0].length;ret
 
 function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/4||1;
  const ceil=cfg.limits?.chipCeil||68,tc=x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
- return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor; the BM1370 has no readable die sensor">shared sensor</span>'}</h3>
+ return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor; the chips have no readable die sensor">shared sensor</span>'}</h3>
  <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%</div>
  <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
 function blocks(m){
@@ -391,7 +391,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
  $('nip').textContent=S.ip||'--';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
- $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × BM1370';$('svin').textContent=S.vin.toFixed(2)+' V';
+ $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM13xx');$('svin').textContent=S.vin.toFixed(2)+' V';
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
  $('navfoot').textContent=(S.ip||'')+' · v'+S.version;$('edsmall').style.display=S.screen=='tdisplay'?'':'none';
  if(cur=='pools')poolLive()}

@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include "sdkconfig.h"
 
+#include "asic/bm13xx.h"
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
@@ -135,6 +136,7 @@ static esp_err_t status_get(httpd_req_t *req)
 #else
     cJSON_AddStringToObject(r, "board", s.board_rev7 ? "rev7 (TPS546)" : "rev5.1/6 (TPS53647)");
 #endif
+    cJSON_AddStringToObject(r, "asicModel", asic::MODEL);
     cJSON_AddNumberToObject(r, "power", s.pin);
     cJSON_AddNumberToObject(r, "vin", s.vin);
     cJSON_AddNumberToObject(r, "vout", s.vout);

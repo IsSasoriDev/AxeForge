@@ -364,6 +364,7 @@ static void refresh_header()
     case SysStatus::Mining: break;
     case SysStatus::Fault: t = "FAULT"; c = C_RED; break;
     case SysStatus::Overheat: t = "OVERHEAT"; c = C_RED; break;
+    case SysStatus::Paused: t = "PAUSED"; c = C_DIM; break;
     }
     lv_label_set_text(s_status, t);
     lv_obj_set_style_text_color(s_status, c, 0);

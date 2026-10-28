@@ -10,11 +10,15 @@
 
 #include "core/board.h"
 #include "core/board_config.h"
+#include "core/ota_guard.h"
+#include "core/psu.h"
 #include "core/settings.h"
 #include "core/tuner.h"
 #include "core/state.h"
 #include "hw/sensors.h"
 #include "mining/miner.h"
+#include "net/notify.h"
+#include "net/price.h"
 #include "net/wifi.h"
 
 static const char *TAG = "monitor";
@@ -87,6 +91,8 @@ static void emergency(SysStatus status, const char *why)
     board::shutdown();
     g_state.status = status;
     snprintf(g_state.fault, sizeof(g_state.fault), "%s", why);
+    notify::post(NOTIFY_FAULT, "power cut: %s (chip %.0f C, VR %.0f C, %.0f W)", why, g_state.chip_temp_max,
+                 g_state.vr_temp, g_state.pin);
 }
 
 static void monitor_task(void *)
@@ -99,12 +105,15 @@ static void monitor_task(void *)
     int crit_chip = 0, crit_vr = 0, crit_power = 0;
     int powered_s = 0, vout_low = 0;
     int stall[2] = {0, 0};
+    bool price_paused = false;
     char why[64];
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
         g_state.uptime_s++;
         board::read_telemetry();
+        psu::tick();
+        ota_guard::tick();
         Settings &cfg = settings::get();
         const board::Limits &lim = board::limits();
         bool sensors_ok = g_state.temp_ok && g_state.vr_temp_ok;
@@ -127,7 +136,7 @@ static void monitor_task(void *)
             // a lost sensor reads as -1 here, which the PI treats as "full fan"
             float a = asic_pi.update(g_state.temp_ok ? g_state.chip_temp_max : -1, cfg.fan_target_c, cfg.fan_min_pct);
             float v = vr_pi.update(g_state.vr_temp_ok ? g_state.vr_temp : -1, VR_FAN_TARGET_C, cfg.fan_min_pct);
-#if CONFIG_AF_BOARD_SUPRAHEX
+#if AF_HEX_FAMILY
             // both Hex fans blow across chips and regulator alike
             float duty[2] = {v > a ? v : a, v > a ? v : a};
 #else
@@ -218,10 +227,41 @@ static void monitor_task(void *)
                     continue;
                 }
             }
+            if (price::want_pause() && g_state.status != SysStatus::Overheat && g_state.status != SysStatus::Fault) {
+                ESP_LOGW(TAG, "electricity price above the limit: chips off until it drops");
+                price_paused = true;
+                miner::pause(true);
+                board::shutdown();
+                g_state.status = SysStatus::Paused;
+                continue;
+            }
             if (g_state.status != SysStatus::Overheat && g_state.status != SysStatus::Fault) {
                 if (wifi::in_setup_mode()) g_state.status = SysStatus::SetupAP;
                 else if (!wifi::connected()) g_state.status = SysStatus::Connecting;
                 else g_state.status = g_state.pool_connected ? SysStatus::Mining : SysStatus::Connecting;
+            }
+        } else if (price_paused) {
+            // chips off: only the cooling down needs air (shutdown left the fans at 100 %)
+            float d = g_state.chip_temp_max > 45 || g_state.vr_temp > 50 ? 40 : 0;
+            for (int i = 0; i < 2; i++) {
+                fan::set_pct(i, d);
+                g_state.fan_duty[i] = (uint8_t) d;
+            }
+            g_state.fan_pct = (uint8_t) d;
+            g_state.status = wifi::in_setup_mode() ? SysStatus::SetupAP : SysStatus::Paused;
+            if (!price::want_pause()) {
+                price_paused = false;
+                uint16_t f = cfg.autotune && cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz;
+                uint16_t mv = cfg.autotune && cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
+                ESP_LOGI(TAG, "electricity price back under the limit: powering up at %u MHz", f);
+                board::Error e = board::power_up(f, mv);
+                if (e == board::Error::None) {
+                    g_state.status = SysStatus::Connecting;
+                    miner::pause(false);
+                } else {
+                    g_state.status = SysStatus::Fault;  // the fault retries take it from here
+                    snprintf(g_state.fault, sizeof(g_state.fault), "%s", board::error_text(e));
+                }
             }
         } else if (g_state.status == SysStatus::Overheat && overheat_retries < MAX_OVERHEAT_RETRIES) {
             fan::set_pct(0, 100);

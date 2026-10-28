@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <ctype.h>
 #include "cJSON.h"
 #include "esp_app_desc.h"
 #include "esp_heap_caps.h"
@@ -19,6 +20,8 @@
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
+#include "core/ota_guard.h"
+#include "core/psu.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "core/tuner.h"
@@ -35,8 +38,33 @@
 #include "esp_attr.h"
 #include "lwip/sockets.h"
 #include "core/json_util.h"  // depth-limited parse for untrusted JSON
+#include "core/selftest.h"
+#include "mining/stats.h"
+#include "net/ble_setup.h"
+#include "net/eth.h"
+#include "net/notify.h"
+#include "net/otp.h"
+#include "net/price.h"
+#include "src/extra/libs/qrcode/qrcodegen.h"
 
 static const char *TAG = "web";
+
+// what this board's build has, for the settings page
+#if AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373
+static const bool VR_SPEED_SETTING = false;  // register 0x10 is the nonce space there
+#else
+static const bool VR_SPEED_SETTING = true;
+#endif
+#if (AF_BITAXE_FAMILY || AF_HEX_FAMILY) && !CONFIG_AF_BOARD_NAJA
+static const bool HAS_BAP = true;
+#else
+static const bool HAS_BAP = false;
+#endif
+#if AF_NQ_FAMILY
+static const bool HAS_ETH = true;
+#else
+static const bool HAS_ETH = false;
+#endif
 
 extern const char index_html_start[] asm("_binary_index_html_start");
 extern const char index_html_end[] asm("_binary_index_html_end");
@@ -102,6 +130,7 @@ static const char *status_name(SysStatus s)
     case SysStatus::Mining: return "mining";
     case SysStatus::Fault: return "fault";
     case SysStatus::Overheat: return "overheat";
+    case SysStatus::Paused: return "paused";
     }
     return "";
 }
@@ -187,10 +216,28 @@ static esp_err_t status_get(httpd_req_t *req)
     settings::own_worker(worker, sizeof(worker));
     cJSON_AddStringToObject(r, "worker", worker);
     cJSON_AddStringToObject(r, "version", esp_app_get_description()->version);
+    cJSON_AddBoolToObject(r, "otaPending", ota_guard::pending());
+    {
+        const psu::State &p = psu::state();
+        cJSON *po = cJSON_AddObjectToObject(r, "psu");
+        cJSON_AddStringToObject(po, "level", psu::level_name(p.level));
+        cJSON_AddNumberToObject(po, "nominal", p.nominal);
+        cJSON_AddNumberToObject(po, "idle", p.idle_v);
+        cJSON_AddNumberToObject(po, "load", p.load_v);
+        cJSON_AddNumberToObject(po, "min", p.min_v);
+        cJSON_AddNumberToObject(po, "watts", p.load_w);
+        cJSON_AddNumberToObject(po, "sag", p.sag_pct);
+        cJSON_AddNumberToObject(po, "mohm", p.ohms * 1000);
+    }
+    cJSON_AddItemToObject(r, "price", price::json());
     cJSON_AddNumberToObject(r, "freeHeap", esp_get_free_heap_size());
     cJSON_AddNumberToObject(r, "freeInternal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     cJSON_AddNumberToObject(r, "freeDma", heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     cJSON_AddNumberToObject(r, "chipsDetected", s.chips_detected);
+    cJSON *net = cJSON_AddObjectToObject(r, "eth");
+    cJSON_AddBoolToObject(net, "up", eth::up());
+    cJSON_AddStringToObject(net, "ip", eth::ip());
+    cJSON_AddStringToObject(r, "bleSetup", ble_setup::name());
 
     cJSON *pool = cJSON_AddObjectToObject(r, "pool");
     cJSON_AddBoolToObject(pool, "connected", s.pool_connected);
@@ -223,6 +270,7 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(o, "pingMs", ps.ping_ms);
         cJSON_AddNumberToObject(o, "payout", ps.payout);
         cJSON_AddNumberToObject(o, "payoutPct", ps.payout_pct);
+        cJSON_AddBoolToObject(o, "payoutBlocked", ps.payout_blocked);
         cJSON_AddStringToObject(o, "status", ps.status);
         cJSON_AddItemToArray(pl, o);
     }
@@ -297,6 +345,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(tu, "bestGhs", t.best_ghs);
     cJSON_AddNumberToObject(tu, "trialFreq", t.trial_freq);
     cJSON_AddNumberToObject(tu, "trialMv", t.trial_mv);
+    cJSON_AddNumberToObject(tu, "goal", settings::get().tune_goal);
 
     cJSON *chips = cJSON_AddArrayToObject(r, "chips");
     for (int i = 0; i < AF_NUM_ASICS; i++) {
@@ -305,6 +354,7 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(c, "errGhs", s.chip_err_ghs[i]);
         cJSON_AddNumberToObject(c, "temp", s.chip_temp[i]);
         cJSON_AddBoolToObject(c, "ownSensor", s.chip_temp_own[i]);
+        cJSON_AddNumberToObject(c, "mhz", s.freq_mhz + asic::chip_offset(i));
         cJSON_AddItemToArray(chips, c);
     }
 
@@ -342,6 +392,17 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "atune", c.autotune);
     cJSON_AddNumberToObject(r, "freq", c.freq_mhz);
     cJSON_AddNumberToObject(r, "mv", c.core_mv);
+    cJSON_AddNumberToObject(r, "tgoal", c.tune_goal);
+    cJSON_AddNumberToObject(r, "pcap", c.power_cap_w);
+    cJSON_AddBoolToObject(r, "chiptune", c.chip_tune);
+    cJSON_AddBoolToObject(r, "chipClock", asic::PER_CHIP_CLOCK);
+    cJSON_AddBoolToObject(r, "otaguard", c.ota_guard);
+    cJSON_AddBoolToObject(r, "priceon", c.price_on);
+    cJSON_AddNumberToObject(r, "pricesrc", c.price_src);
+    cJSON_AddStringToObject(r, "pricezone", c.price_zone);
+    cJSON_AddStringToObject(r, "priceurl", c.price_url);
+    cJSON_AddStringToObject(r, "pricepath", c.price_path);
+    cJSON_AddNumberToObject(r, "pricemax", c.price_max);
     cJSON_AddNumberToObject(r, "fantgt", c.fan_target_c);
     cJSON_AddNumberToObject(r, "fanmin", c.fan_min_pct);
     cJSON_AddNumberToObject(r, "fmode0", c.fan_mode[0]);
@@ -357,6 +418,21 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddStringToObject(r, "city", c.city);
     cJSON_AddBoolToObject(r, "fahr", c.fahrenheit);
     cJSON_AddBoolToObject(r, "h24", c.clock_24h);
+    cJSON_AddNumberToObject(r, "paymode", c.payout_mode);
+    cJSON_AddNumberToObject(r, "payfee", c.payout_max_fee);
+    cJSON_AddNumberToObject(r, "jobms", c.job_ms);
+    cJSON_AddNumberToObject(r, "jobmsDefault", AF_JOB_INTERVAL_MS);
+    cJSON_AddNumberToObject(r, "vrhz", c.vr_hz);
+    cJSON_AddBoolToObject(r, "vrSupported", VR_SPEED_SETTING);
+    // the webhook URL and bot token are secrets: say whether they're set, never send them
+    cJSON_AddBoolToObject(r, "discordSet", c.discord_url[0] != 0);
+    cJSON_AddBoolToObject(r, "tgSet", c.tg_token[0] != 0);
+    cJSON_AddStringToObject(r, "tgchat", c.tg_chat);
+    cJSON_AddNumberToObject(r, "notify", c.notify_events);
+    cJSON_AddBoolToObject(r, "bap", c.bap_on);
+    cJSON_AddBoolToObject(r, "hasBap", HAS_BAP);
+    cJSON_AddBoolToObject(r, "blesetup", c.ble_setup);
+    cJSON_AddBoolToObject(r, "hasEth", HAS_ETH);
     cJSON *lim = cJSON_AddObjectToObject(r, "limits");
     cJSON_AddNumberToObject(lim, "maxFreq", board::limits().max_freq_mhz);
     cJSON_AddNumberToObject(lim, "minMv", CONFIG_AF_MIN_CORE_MV);
@@ -479,6 +555,14 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.autotune = get_bool(j, "atune", c.autotune);
     c.freq_mhz = board::clamp_freq(get_int(j, "freq", c.freq_mhz, 0, 2000));
     c.core_mv = board::clamp_mv(get_int(j, "mv", c.core_mv, 0, 2000));
+    // a new goal (or cap, or per-chip setting) means a new search
+    int goal = get_int(j, "tgoal", c.tune_goal, 0, 2);
+    int cap = get_int(j, "pcap", c.power_cap_w, 0, 2000);
+    bool chip_tune = get_bool(j, "chiptune", c.chip_tune);
+    bool retune = goal != c.tune_goal || (goal == 1 && cap != c.power_cap_w) || chip_tune != c.chip_tune;
+    c.tune_goal = (uint8_t) goal;
+    c.power_cap_w = (uint16_t) cap;
+    c.chip_tune = chip_tune;
     c.fan_target_c = (uint8_t) get_int(j, "fantgt", c.fan_target_c, 40, 70);
     c.fan_min_pct = (uint8_t) get_int(j, "fanmin", c.fan_min_pct, 10, 100);
     c.fan_mode[0] = (uint8_t) get_int(j, "fmode0", c.fan_mode[0], 0, 1);
@@ -524,8 +608,69 @@ static esp_err_t settings_post(httpd_req_t *req)
     // strip a trailing slash so "/api/..." can be appended
     size_t ml = strlen(c.mempool_url);
     if (ml && c.mempool_url[ml - 1] == '/') c.mempool_url[ml - 1] = 0;
+    // solo payout check and chip timing: picked up live
+    c.payout_mode = (uint8_t) get_int(j, "paymode", c.payout_mode, 0, 1);
+    c.payout_max_fee = (uint8_t) get_int(j, "payfee", c.payout_max_fee, 0, 100);
+    int jm = get_int(j, "jobms", c.job_ms, 0, 5000);
+    c.job_ms = (uint16_t) (jm && jm < 50 ? 50 : jm);
+    int vr = get_int(j, "vrhz", (int) c.vr_hz, 0, 100000);
+    if (vr && vr < 5000) vr = 5000;
+    if ((uint32_t) vr != c.vr_hz) {
+        c.vr_hz = (uint32_t) vr;
+        asic::set_vr_freq(c.vr_hz, board::is_powered());
+    }
+    // notifications: an empty field keeps what is saved, "notifyClear" removes all
+    if (get_bool(j, "notifyClear", false)) c.discord_url[0] = c.tg_token[0] = c.tg_chat[0] = 0;
+    cJSON *dv = cJSON_GetObjectItem(j, "discord");
+    if (cJSON_IsString(dv) && dv->valuestring[0]) {
+        if (notify::valid_discord(dv->valuestring) && strlen(dv->valuestring) < sizeof(c.discord_url))
+            snprintf(c.discord_url, sizeof(c.discord_url), "%s", dv->valuestring);
+        else ESP_LOGW(TAG, "Discord webhook ignored: it has to be a https://discord.com/api/webhooks/ address");
+    }
+    cJSON *tv = cJSON_GetObjectItem(j, "tgtoken");
+    if (cJSON_IsString(tv) && tv->valuestring[0]) {
+        if (notify::valid_tg_token(tv->valuestring)) snprintf(c.tg_token, sizeof(c.tg_token), "%s", tv->valuestring);
+        else ESP_LOGW(TAG, "Telegram bot token ignored: it looks like 123456789:AA...");
+    }
+    cJSON *cv = cJSON_GetObjectItem(j, "tgchat");
+    if (cJSON_IsString(cv)) {
+        // a chat id (-100123...) or @channelname
+        bool ok = strlen(cv->valuestring) < sizeof(c.tg_chat);
+        for (const char *p = cv->valuestring; *p && ok; p++)
+            ok = (*p >= '0' && *p <= '9') || *p == '-' || *p == '@' || *p == '_' || (*p >= 'a' && *p <= 'z') ||
+                 (*p >= 'A' && *p <= 'Z');
+        if (ok) snprintf(c.tg_chat, sizeof(c.tg_chat), "%s", cv->valuestring);
+    }
+    c.notify_events = (uint8_t) get_int(j, "notify", c.notify_events, 0, 0x1f);
+    bool bap_on = get_bool(j, "bap", c.bap_on);
+    if (bap_on != c.bap_on) reboot = true;  // the port is opened at boot
+    c.bap_on = bap_on;
+    c.ble_setup = get_bool(j, "blesetup", c.ble_setup);
+    c.ota_guard = get_bool(j, "otaguard", c.ota_guard);
+
+    // electricity price
+    c.price_on = get_bool(j, "priceon", c.price_on);
+    c.price_src = (uint8_t) get_int(j, "pricesrc", c.price_src, 0, 1);
+    char zone[sizeof(c.price_zone)];
+    snprintf(zone, sizeof(zone), "%s", c.price_zone);
+    if (copy_str(j, "pricezone", zone, sizeof(zone))) {
+        for (char *p = zone; *p; p++) *p = (char) toupper((unsigned char) *p);
+        snprintf(c.price_zone, sizeof(c.price_zone), "%s", zone);
+    }
+    char purl[sizeof(c.price_url)];
+    snprintf(purl, sizeof(purl), "%s", c.price_url);
+    if (copy_str(j, "priceurl", purl, sizeof(purl))) {
+        if (!purl[0] || valid_base_url(purl)) snprintf(c.price_url, sizeof(c.price_url), "%s", purl);
+        else ESP_LOGW(TAG, "price URL ignored: needs http:// or https:// and a host");
+    }
+    copy_str(j, "pricepath", c.price_path, sizeof(c.price_path));
+    cJSON *pm = cJSON_GetObjectItem(j, "pricemax");
+    if (cJSON_IsNumber(pm) && pm->valuedouble > -1000 && pm->valuedouble < 100000) c.price_max = (float) pm->valuedouble;
+
     cJSON_Delete(j);
     settings::save();
+    price::refresh_now();
+    if (retune && c.autotune) tuner::restart();
     if (wx_changed) weather::refresh_now();
     if (mp_changed) mempool::refresh_now();
 
@@ -544,6 +689,12 @@ static esp_err_t retune_post(httpd_req_t *req)
     settings::save();
     tuner::restart();
     return httpd_resp_sendstr(req, "Auto-tune restarted. A full search takes 1-2 hours.");
+}
+
+static esp_err_t ota_keep_post(httpd_req_t *req)
+{
+    ota_guard::keep();
+    return httpd_resp_sendstr(req, "Keeping this firmware.");
 }
 
 static esp_err_t restart_post(httpd_req_t *req)
@@ -646,6 +797,7 @@ static esp_err_t ota_post(httpd_req_t *req)
         else esp_ota_abort(h);
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Upload rejected: not a valid AxeForge app image");
     }
+    ota_guard::armed(part);
     ESP_LOGW(TAG, "OTA written to %s, rebooting", part->label);
     httpd_resp_sendstr(req, "Update installed. Rebooting...");
     schedule_reboot(req);
@@ -819,6 +971,136 @@ static esp_err_t layout_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, "Layout saved and applied.");
 }
 
+// ------------------------------------------------------------------ wifi scan
+static esp_err_t wifi_scan_get(httpd_req_t *req) { return send_json(req, wifi::scan()); }
+
+// ------------------------------------------------------------------ best shares, 24 h stats
+static esp_err_t scoreboard_get(httpd_req_t *req) { return send_json(req, stats::scoreboard_json()); }
+
+static esp_err_t scoreboard_post(httpd_req_t *req)
+{
+    char *body = recv_body(req, 64);
+    cJSON *j = body ? json_parse(body) : nullptr;
+    free(body);
+    bool reset = cJSON_IsTrue(cJSON_GetObjectItem(j, "reset"));
+    cJSON_Delete(j);
+    if (!reset) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "nothing to do");
+    stats::reset();
+    return httpd_resp_sendstr(req, "Best shares cleared.");
+}
+
+static esp_err_t stats_get(httpd_req_t *req) { return send_json(req, stats::day_json()); }
+
+// ------------------------------------------------------------------ self-test
+static esp_err_t selftest_get(httpd_req_t *req) { return send_json(req, selftest::json()); }
+
+static esp_err_t selftest_post(httpd_req_t *req)
+{
+    return httpd_resp_sendstr(req, selftest::start() ? "Self-test started. It takes about a minute; mining keeps running."
+                                                     : "A self-test is already running.");
+}
+
+// ------------------------------------------------------------------ notifications
+static esp_err_t notify_post(httpd_req_t *req)
+{
+    return httpd_resp_sendstr(req, notify::test() ? "Test message sent. Check Discord / Telegram."
+                                                  : "Set a Discord webhook or a Telegram bot first, then save.");
+}
+
+// ------------------------------------------------------------------ two-factor login
+#define SESSION_HDR "X-AxeForge-Session"
+
+static void session_of(httpd_req_t *req, char *out, size_t len)
+{
+    out[0] = 0;
+    size_t n = httpd_req_get_hdr_value_len(req, SESSION_HDR);
+    if (n && n < len) httpd_req_get_hdr_value_str(req, SESSION_HDR, out, len);
+}
+
+// The otpauth:// URI as an SVG QR code, for the authenticator app to scan.
+static char *qr_svg(const char *text)
+{
+    static uint8_t qr[qrcodegen_BUFFER_LEN_FOR_VERSION(10)], tmp[qrcodegen_BUFFER_LEN_FOR_VERSION(10)];
+    if (!qrcodegen_encodeText(text, tmp, qr, qrcodegen_Ecc_MEDIUM, 1, 10, qrcodegen_Mask_AUTO, true)) return nullptr;
+    int n = qrcodegen_getSize(qr);
+    size_t cap = 256 + (size_t) n * n * 24;
+    char *svg = (char *) malloc(cap);
+    if (!svg) return nullptr;
+    size_t o = snprintf(svg, cap,
+                        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 %d %d' shape-rendering='crispEdges'>"
+                        "<rect x='-4' y='-4' width='%d' height='%d' fill='#fff'/><path fill='#000' d='",
+                        n + 8, n + 8, n + 8, n + 8);
+    for (int y = 0; y < n; y++)
+        for (int x = 0; x < n; x++)
+            if (qrcodegen_getModule(qr, x, y) && o + 24 < cap) o += snprintf(svg + o, cap - o, "M%d %dh1v1h-1z", x, y);
+    snprintf(svg + o, cap - o, "'/></svg>");
+    return svg;
+}
+
+static esp_err_t otp_get(httpd_req_t *req)
+{
+    char tok[40];
+    session_of(req, tok, sizeof(tok));
+    cJSON *r = cJSON_CreateObject();
+    cJSON_AddBoolToObject(r, "enabled", otp::enabled());
+    cJSON_AddBoolToObject(r, "session", otp::enabled() && otp::session_ok(tok));
+    cJSON_AddBoolToObject(r, "clock", g_state.time_synced);
+    return send_json(req, r);
+}
+
+// {"action":"setup"|"confirm"|"login"|"logout"|"disable", "code":"123456"}
+static esp_err_t otp_post(httpd_req_t *req)
+{
+    char *body = recv_body(req, 128);
+    cJSON *j = body ? json_parse(body) : nullptr;
+    free(body);
+    cJSON *a = cJSON_GetObjectItem(j, "action"), *c = cJSON_GetObjectItem(j, "code");
+    char action[12] = "", code[8] = "";
+    if (cJSON_IsString(a)) snprintf(action, sizeof(action), "%s", a->valuestring);
+    if (cJSON_IsString(c)) snprintf(code, sizeof(code), "%s", c->valuestring);
+    cJSON_Delete(j);
+    char tok[40];
+    session_of(req, tok, sizeof(tok));
+    cJSON *r = cJSON_CreateObject();
+    const char *err = nullptr;
+    char token[40] = "";
+    if (!strcmp(action, "setup")) {
+        if (otp::enabled()) {
+            err = "Two-factor login is already on.";
+        } else {
+            char secret[40], uri[160];
+            otp::begin_setup(secret, sizeof(secret), uri, sizeof(uri));
+            cJSON_AddStringToObject(r, "secret", secret);
+            cJSON_AddStringToObject(r, "uri", uri);
+            char *svg = qr_svg(uri);
+            cJSON_AddStringToObject(r, "svg", svg ? svg : "");
+            free(svg);
+        }
+    } else if (!strcmp(action, "confirm")) {
+        err = otp::confirm(code, token, sizeof(token));
+    } else if (!strcmp(action, "login")) {
+        err = otp::login(code, token, sizeof(token));
+    } else if (!strcmp(action, "logout")) {
+        otp::logout(tok);
+    } else if (!strcmp(action, "disable")) {
+        // a valid session and a fresh code: a stolen session alone can't switch it off
+        if (!otp::session_ok(tok)) err = "Log in first.";
+        else err = otp::disable(code);
+    } else {
+        err = "Unknown action.";
+    }
+    if (err) {
+        cJSON_Delete(r);
+        httpd_resp_set_status(req, "400 Bad Request");
+        cJSON *e = cJSON_CreateObject();
+        cJSON_AddStringToObject(e, "error", err);
+        return send_json(req, e);
+    }
+    if (token[0]) cJSON_AddStringToObject(r, "token", token);
+    cJSON_AddBoolToObject(r, "enabled", otp::enabled());
+    return send_json(req, r);
+}
+
 // ------------------------------------------------------------------ guard
 // The API has no login, so it must at least be unusable from other web sites.
 // - Host has to name this device (an IP or a LAN name), which defeats DNS
@@ -890,6 +1172,16 @@ static esp_err_t api_guard(httpd_req_t *req)
         int f = get_hdr(req, "Sec-Fetch-Site", v, sizeof(v));
         if (f < 0 || (f == 1 && strcmp(v, "same-origin") != 0 && strcmp(v, "none") != 0))
             return deny(req, "cross-site request");
+        // with two-factor login on, changes need a session from a valid code
+        if (otp::enabled() && strcmp(req->uri, "/api/otp") != 0) {
+            char tok[40];
+            session_of(req, tok, sizeof(tok));
+            if (!otp::session_ok(tok)) {
+                httpd_resp_set_status(req, "401 Unauthorized");
+                httpd_resp_set_type(req, "application/json");
+                return httpd_resp_sendstr(req, "{\"login\":true,\"error\":\"Log in with your authenticator code.\"}");
+            }
+        }
         // every change to the miner leaves a trace of who made it
         char ip[48];
         peer_ip(req, ip, sizeof(ip));
@@ -921,7 +1213,7 @@ void start()
     httpd_handle_t h = NULL;
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
     cfg.stack_size = 8192;
-    cfg.max_uri_handlers = 24;
+    cfg.max_uri_handlers = 36;
     cfg.recv_wait_timeout = 15;
     cfg.send_wait_timeout = 10;
     cfg.max_open_sockets = 8;
@@ -940,6 +1232,7 @@ void start()
         {"/api/retune", HTTP_POST, retune_post, NULL},
         {"/api/restart", HTTP_POST, restart_post, NULL},
         {"/api/ota", HTTP_POST, ota_post, NULL},
+        {"/api/ota/keep", HTTP_POST, ota_keep_post, NULL},
         {"/api/pools", HTTP_GET, pools_get, NULL},
         {"/api/pools", HTTP_POST, pools_post, NULL},
         {"/api/logs", HTTP_GET, logs_get, NULL},
@@ -949,6 +1242,15 @@ void start()
         {"/api/layout", HTTP_POST, layout_post, NULL},
         {"/api/swarm", HTTP_GET, swarm_get, NULL},
         {"/api/swarm", HTTP_POST, swarm_post, NULL},
+        {"/api/wifi/scan", HTTP_GET, wifi_scan_get, NULL},
+        {"/api/scoreboard", HTTP_GET, scoreboard_get, NULL},
+        {"/api/scoreboard", HTTP_POST, scoreboard_post, NULL},
+        {"/api/stats", HTTP_GET, stats_get, NULL},
+        {"/api/selftest", HTTP_GET, selftest_get, NULL},
+        {"/api/selftest", HTTP_POST, selftest_post, NULL},
+        {"/api/notify", HTTP_POST, notify_post, NULL},
+        {"/api/otp", HTTP_GET, otp_get, NULL},
+        {"/api/otp", HTTP_POST, otp_post, NULL},
     };
     for (auto u : uris) {
         if (strncmp(u.uri, "/api/", 5) == 0) {

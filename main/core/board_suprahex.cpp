@@ -1,9 +1,11 @@
-// Bitaxe Supra Hex 701/702: 6x BM1368 in 3 series voltage domains, one
-// TPS546D24 (PMBus on/off, no enable pin), EMC2302 fans, TMP1075 x2.
+// Bitaxe Supra Hex 701/702 (6x BM1368) and Ultra Hex 302/303 (6x BM1366): the
+// chips in 3 series voltage domains, one TPS546D24 (PMBus on/off, no enable
+// pin), EMC2302 fans, TMP1075 x2. The two boards differ only in the chip.
 // Power-up order follows the Bitaxe reference firmware: regulator configured
 // and switched on with the chips held in reset, then reset released.
 #include "sdkconfig.h"
-#if CONFIG_AF_BOARD_SUPRAHEX
+#include "core/board_config.h"
+#if AF_HEX_FAMILY
 
 #include "board.h"
 
@@ -27,8 +29,12 @@ static const char *TAG = "board";
 #define INIT_MV 1150  // enumeration is reliable from here up
 #define START_DIFFICULTY 2048
 // The regulator only reports its output; fans, ESP32 and conversion losses
-// come on top. Same allowance the reference firmware uses for this board.
+// come on top. Same allowance the reference firmware uses for each board.
+#if CONFIG_AF_BOARD_ULTRAHEX
+#define POWER_OFFSET_W 12.0f
+#else
 #define POWER_OFFSET_W 25.0f
+#endif
 // TMP1075s sit on the PCB next to the chips; the die runs ~10 C hotter.
 #define DIE_TEMP_OFFSET 10.0f
 
@@ -134,7 +140,7 @@ Error power_up(uint16_t freq, uint16_t mv)
     set_core_mv(mv);
     s_freq = freq;
     g_state.freq_mhz = freq;
-    g_state.expected_ghs = freq * (float) asic::SMALL_CORES * chips / 1000.0f;
+    g_state.expected_ghs = (freq * chips + asic::offset_total()) * (float) asic::SMALL_CORES / 1000.0f;
     return Error::None;
 }
 
@@ -171,7 +177,7 @@ bool set_freq_mhz(uint16_t mhz)
     if (!asic::set_frequency(mhz)) return false;
     s_freq = mhz;
     g_state.freq_mhz = mhz;
-    g_state.expected_ghs = mhz * (float) asic::SMALL_CORES * g_state.chips_detected / 1000.0f;
+    g_state.expected_ghs = (mhz * g_state.chips_detected + asic::offset_total()) * (float) asic::SMALL_CORES / 1000.0f;
     return true;
 }
 
@@ -241,7 +247,11 @@ const char *error_text(Error e)
     case Error::None: return "OK";
     case Error::NoRegulator: return "Voltage regulator not found";
     case Error::NoTempSensor: return "Temperature sensor not responding";
+#if AF_ASIC_BM1366
+    case Error::NoChips: return "No BM1366 chips answered";
+#else
     case Error::NoChips: return "No BM1368 chips answered";
+#endif
     case Error::ChipMissing: return "A chip in a stacked voltage domain didn't answer";
     case Error::PsuFault: return "PSU / input voltage fault";
     case Error::OverCurrent: return "Core over-current";
@@ -253,4 +263,4 @@ const char *error_text(Error e)
 
 } // namespace board
 
-#endif // CONFIG_AF_BOARD_SUPRAHEX
+#endif // AF_HEX_FAMILY

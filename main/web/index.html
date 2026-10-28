@@ -63,6 +63,10 @@ input[type=range]{padding:0;height:6px;accent-color:var(--cyan);background:none;
 .btn:hover{filter:brightness(1.1)}.btn:active{transform:scale(.97)}
 .btn.alt{background:var(--panel2);color:var(--text);border:1px solid var(--line)}.btn.warn{background:var(--red);color:#fff}.btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
 .note{color:var(--dim);font-size:12px;margin-top:10px}
+.pbars{display:flex;align-items:flex-end;gap:1px;height:56px;margin-top:12px}
+.pbars i{flex:1;min-width:1px;background:var(--cyan);border-radius:1px 1px 0 0;opacity:.85}
+.pbars i.hi{background:var(--red)}
+.pbars i:first-child{outline:1px solid var(--text)}
 .info{background:rgba(139,92,255,.1);border:1px solid rgba(139,92,255,.4);border-radius:12px;padding:12px 14px;color:#d9ccff;font-size:13px;margin-bottom:14px}
 .lim{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
 .lim div{background:var(--panel2);border-radius:10px;padding:10px}.lim b{display:block;font-size:18px}.lim span{font-size:11px;color:var(--dim)}
@@ -111,6 +115,16 @@ background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),line
 nav{position:fixed;bottom:0;top:auto;height:auto;width:100%;display:flex;flex-direction:row;overflow-x:auto;padding:6px;border-right:0;border-top:1px solid var(--line);z-index:5}
 nav .logo,nav .foot{display:none}nav button{flex-direction:column;gap:3px;font-size:10px;padding:8px 10px;width:auto;flex:1;min-width:62px;justify-content:center}
 nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:1fr}main{padding-bottom:100px}}
+/* phones: all eight tabs fit across the bottom bar, and the Swarm table keeps to the
+   columns that matter so nothing important sits off-screen */
+@media(max-width:560px){
+nav{padding:4px 2px calc(4px + env(safe-area-inset-bottom))}
+nav button{min-width:0;flex:1 1 0;padding:6px 0;font-size:9px;white-space:nowrap}
+main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+.long{display:none}
+.card h3{flex-wrap:wrap}#logf{flex:1;min-width:0}
+#swt th:nth-child(2),#swt td:nth-child(2),#swt th:nth-child(n+6):not(:last-child),#swt td:nth-child(n+6):not(:last-child){display:none}
+#swt{font-size:13px}#swt td,#swt th{padding:8px 4px}#swt .sub{white-space:normal}}
 
 /* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
 html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a1f;--pend:#131316;--line:#232328;--text:#ededef;--dim:#9a9aa3;
@@ -159,6 +173,17 @@ html[data-theme=paper] .pill{background:transparent}
 .tbl td{padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}.tbl tr:last-child td{border-bottom:0}
 .tbl td.r,.tbl th.r{text-align:right}.tbl tr.off td{opacity:.5}.tbl a{color:var(--cyan);text-decoration:none;font-weight:600}
 .fanst{font-size:12px;color:var(--dim);margin-top:2px}
+/* self-test, scan list, login */
+.st{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:baseline;margin-top:6px}
+.st b{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:1px 7px;border-radius:6px;border:1px solid var(--line);color:var(--dim);text-align:center}
+.st b.pass{color:var(--green)}.st b.fail{color:var(--red)}.st b.warn,.st b.run{color:var(--orange)}
+.st span{font-size:13px}.st span i{display:block;font-style:normal;color:var(--dim);font-size:12px}
+.wl{display:flex;flex-direction:column;gap:4px;margin-top:8px}.wl button{display:flex;justify-content:space-between;gap:8px;text-align:left;background:var(--track);border:0;color:var(--text);padding:8px 10px;border-radius:8px;cursor:pointer;font:inherit}
+.wl button span{color:var(--dim);font-size:12px;white-space:nowrap}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin-top:8px}.checks label{display:flex;gap:8px;align-items:center;margin:0;font-size:13px}.checks input{width:auto}
+.qr{background:#fff;padding:8px;border-radius:10px;width:200px;max-width:100%;margin-top:10px}.qr svg{display:block;width:100%;height:auto}
+#login{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+#login.on{display:flex}#login .card{max-width:360px;width:100%}
 </style></head>
 <body><div class="app">
 <nav id="nav">
@@ -168,7 +193,7 @@ html[data-theme=paper] .pill{background:transparent}
 <button data-t="tuning"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Tuning</button>
 <button data-t="swarm"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.8 7.2 6.3 15.8M13.2 7.2l4.5 8.6M7.5 18h9"/></svg>Swarm</button>
 <button data-t="display"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Display</button>
-<button data-t="clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Clock &amp; data</button>
+<button data-t="clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Clock<span class="long"> &amp; data</span></span></button>
 <button data-t="network"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M2 9a15 15 0 0120 0"/><circle cx="12" cy="19.5" r=".8"/></svg>Network</button>
 <button data-t="system"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>System</button>
 <div class="foot" id="navfoot"></div>
@@ -207,6 +232,13 @@ html[data-theme=paper] .pill{background:transparent}
  <div class="card"><h3>Live share hash <span class="tag" id="lhd">--</span></h3><div class="hash" id="lh">waiting for the first share…</div>
   <div class="sub" style="margin-top:8px" id="lhn"></div></div>
 </div>
+<div class="grid g2 mb">
+ <div class="card"><h3>Last 24 hours <span class="seg" id="dayseg"><button data-m="hashrate" class="on">Hashrate</button><button data-m="temp">Temp</button><button data-m="power">Power</button></span></h3>
+  <svg class="chart" id="daychart" preserveAspectRatio="none"></svg><p class="note" id="daynote" style="margin-top:6px"></p></div>
+ <div class="card"><h3>Best shares <span class="tag" id="scorecount">--</span></h3>
+  <div style="overflow-x:auto"><table class="tbl" id="scores"></table></div>
+  <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="resetScores()">Clear list</button><span class="meta">Kept across reboots.</span></div></div>
+</div>
 <div class="grid g3">
  <div class="card"><h3>Auto-tune</h3><div class="tune"><span class="pill" id="tph">--</span><b id="tpt"></b></div><div class="sub" id="tnote" style="margin-top:8px"></div><div class="bar"><i id="tbar" style="background:var(--violet)"></i></div>
   <div class="kv" style="margin-top:12px"><div>Best point</div><div id="tbest">--</div><div>Steps tested</div><div id="tsteps">0</div></div></div>
@@ -243,11 +275,29 @@ hashrate as one chip per pool — or uses them as failover.</div>
  <p class="note" id="pmodenote"></p></div>
 <div id="pooleds"></div>
 <div class="btns"><button class="btn" onclick="savePools()">Save &amp; reconnect</button><span class="meta">No reboot needed. Weights are normalized across enabled pools.</span></div>
+<form data-f><div class="card" style="margin-top:16px"><h3>Solo payout check</h3>
+<label style="margin-top:0">When a pool's coinbase doesn't pay the address in its username</label>
+<select name="paymode"><option value="0">Warn only (keep mining)</option><option value="1">Don't send that pool any work</option></select>
+<label>Highest pool fee you accept (%)</label><input name="payfee" type="number" min="0" max="100" step="1">
+<p class="note">Only for usernames that are a Bitcoin address (solo mining). With "don't send work", a pool whose block template would pay you less than 100% minus this fee gets no jobs until its next template does; the other pools carry on. 100 means any fee is fine and only a template that doesn't pay you at all is skipped.</p></div>
+<div class="btns"><button class="btn">Save payout check</button></div></form>
 </section>
 
 <!-- ============================== TUNING -->
 <section id="tuning"><form data-f><div class="card"><h3>Mode</h3>
-<div class="switch"><div><b>Auto-tune for max stable hashrate</b><span>Climbs the clock, adds voltage on errors, stops at thermal/power/error walls, then trims voltage back down.</span></div><input class="tg" type="checkbox" name="atune"></div></div>
+<div class="switch"><div><b>Auto-tune</b><span>Climbs the clock, adds voltage on errors, stops at thermal/power/error walls, then trims voltage back down.</span></div><input class="tg" type="checkbox" name="atune"></div>
+<div class="row" style="margin-top:12px"><div><label>Tuning goal</label><select name="tgoal" id="tgoal" onchange="goalUi()"><option value="0">Most hashrate</option><option value="1">Most hashrate under a power limit</option><option value="2">Best efficiency (J/TH)</option></select></div>
+<div id="pcaprow"><label>Power limit (W, input)</label><input name="pcap" type="number" min="0" max="2000" step="1" placeholder="board limit"></div></div>
+<p class="note" id="goalnote"></p>
+<div class="switch" id="chiprow"><div><b>Per-chip clocks</b><span>After the tuner locks, every chip that can go faster gets its own higher clock, in 12 MHz steps up to +48 MHz. Each chip is judged by its own error count; a chip that slips later is taken down a step on its own. Not used with the efficiency goal.</span></div><input class="tg" type="checkbox" name="chiptune"></div>
+<p class="note">Changing the goal, the limit or per-chip clocks starts a new search.</p></div>
+<div class="card"><h3>Electricity price <span class="tag" id="pricest">off</span></h3>
+<div class="switch" style="padding-top:0"><div><b>Stop mining when power is expensive</b><span>The chips are switched off while the price is above your limit and start again once it drops (at most one change every 10 minutes). If the price can't be read, the miner keeps mining.</span></div><input class="tg" type="checkbox" name="priceon"></div>
+<div class="row" style="margin-top:12px"><div><label>Price source</label><select name="pricesrc" id="pricesrc" onchange="priceUi()"><option value="0">Energy-Charts day-ahead (Europe)</option><option value="1">My own URL (JSON)</option></select></div>
+<div id="pzrow"><label>Bidding zone</label><input name="pricezone" list="zones" placeholder="DE-LU"><datalist id="zones"><option>AT</option><option>BE</option><option>BG</option><option>CH</option><option>CZ</option><option>DE-LU</option><option>DK1</option><option>DK2</option><option>EE</option><option>ES</option><option>FI</option><option>FR</option><option>GR</option><option>HR</option><option>HU</option><option>IT-North</option><option>LT</option><option>LV</option><option>NL</option><option>NO1</option><option>NO2</option><option>PL</option><option>PT</option><option>RO</option><option>RS</option><option>SE3</option><option>SE4</option><option>SI</option><option>SK</option></datalist></div>
+<div><label>Stop above <span id="punit">ct/kWh</span></label><input name="pricemax" type="number" step="0.01"></div></div>
+<div class="row" id="purlrow"><div><label>URL</label><input name="priceurl" placeholder="https://example.com/price.json"></div><div><label>Path to the number</label><input name="pricepath" placeholder="e.g. data.price or 0.value"></div></div>
+<p class="note" id="pnote"></p><div class="pbars" id="pbars"></div><p class="note" id="pinfo"></p></div>
 <div class="card"><h3>Manual point / tuner start</h3><div class="row">
 <div><label>Frequency (MHz) <span class="rv" id="fv"></span></label><input type="range" name="freq" min="400" max="750" step="6.25" oninput="fv.textContent=this.value"></div>
 <div><label>Core voltage (mV) <span class="rv" id="mvv"></span></label><input type="range" name="mv" min="1100" max="1300" step="10" oninput="mvv.textContent=this.value"></div></div>
@@ -261,6 +311,10 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div><label>Fan 2 · VR header</label><div class="fanst" id="fan2st">--</div><select name="fmode1"><option value="0">Auto (follows chip and VR temp)</option><option value="1">Manual</option></select>
 <label>Manual speed <span class="rv" id="fm1v"></span></label><input type="range" name="fman1" min="20" max="100" oninput="fm1v.textContent=this.value+'%'"></div></div>
 <p class="note">A header counts as connected once its fan has been seen spinning. Manual fans still go to 100% if a sensor is lost or the chips get within 3 °C of the ceiling.</p></div>
+<div class="card"><h3>Advanced chip timing</h3><div class="row">
+<div><label>Job interval (ms)</label><input name="jobms" type="number" min="0" max="5000" step="10" id="jobms"></div>
+<div id="vrrow"><label>Version-rolling speed (Hz)</label><input name="vrhz" type="number" min="0" max="100000" step="500" placeholder="board default"></div></div>
+<p class="note">0 keeps the board's default. A longer job interval means fewer jobs and slightly more stale work; shorter means more UART traffic. Version-rolling speed exists on BM1370 boards only and is written to the chips right away.</p></div>
 <div class="card"><h3>Hard limits (compiled in)</h3><div class="lim" id="lims"></div></div>
 <div class="btns"><button class="btn">Save tuning</button><button type="button" class="btn alt" onclick="act('/api/retune')">Restart auto-tune search</button></div></form></section>
 
@@ -310,12 +364,19 @@ hashrate as one chip per pool — or uses them as failover.</div>
 
 <!-- ============================== NETWORK -->
 <section id="network"><form data-f><div class="card"><h3>Wi-Fi</h3>
-<label>Network name (SSID)</label><input name="ssid">
+<label>Network name (SSID)</label><input name="ssid" id="ssidin">
+<div class="btns" style="margin-top:8px"><button type="button" class="btn alt sm" onclick="scanWifi()">Scan for networks</button><span class="meta" id="wscan"></span></div>
+<div class="wl" id="wlist"></div>
 <label>Password</label><input name="wpass" type="password" placeholder="leave empty to keep current">
 <label>Hostname</label><input name="hostname" id="hostin" maxlength="32" pattern="[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?" placeholder="automatic">
 <div class="kv" style="margin-top:16px"><div>IP address</div><div id="nip">--</div><div>Signal</div><div id="nrssi">--</div></div>
 <p class="note">The name this miner gives your router, and the one other miners' Swarm pages show. Leave it empty to keep the name the stock firmware used, or axeforge-XXXX.</p>
 <p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect, it opens the AxeForge-XXXX setup network again.</p></div>
+<div class="card"><h3>Other connections</h3>
+<div class="kv" id="ethrow"><div>Ethernet</div><div id="neth">--</div></div>
+<p class="note" id="ethnote">A W5500 Ethernet adapter on the NerdQAxe header is found at boot. With a cable plugged in, the miner gets an address over the wire as well, and the setup Wi-Fi stays closed.</p>
+<div class="switch"><div><b>Bluetooth setup</b><span>While the setup network is open, the miner can also be set up with the free "ESP BLE Provisioning" app (it shows up as PROV_AXEFORGE_XXXX). Bluetooth turns off once Wi-Fi works.</span></div><input class="tg" type="checkbox" name="blesetup"></div>
+<div class="switch" id="baprow"><div><b>Accessory port</b><span>Lets add-ons made for AxeOS (displays, controllers) read and set the miner over the Bitaxe accessory header. Changing it reboots.</span></div><input class="tg" type="checkbox" name="bap"></div></div>
 <div class="btns"><button class="btn">Save Wi-Fi</button></div></form></section>
 
 <!-- ============================== SYSTEM -->
@@ -327,25 +388,58 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div class="grid g2">
 <div class="card"><h3>Device</h3><div class="kv">
 <div>Firmware</div><div id="sver">--</div><div>Chips</div><div id="schips">--</div><div>Input</div><div id="svin">--</div>
-<div>Core</div><div id="svout">--</div><div>VR fan</div><div id="sfan2">--</div><div>Free memory</div><div id="sheap">--</div><div>Uptime</div><div id="sup">--</div></div>
+<div>Power supply</div><div id="spsu">--</div><div>Core</div><div id="svout">--</div><div>VR fan</div><div id="sfan2">--</div><div>Free memory</div><div id="sheap">--</div><div>Uptime</div><div id="sup">--</div></div>
 <div class="btns" style="margin-top:14px"><button class="btn alt" onclick="act('/api/restart')">Reboot miner</button></div></div>
 <div class="card"><h3>Firmware update</h3>
 <div class="drop" id="drop">Drop <b>axeforge.bin</b> here or click to choose<input type="file" id="file" accept=".bin" hidden></div>
 <div class="prog" id="prog"><i></i></div>
-<p class="note">Use the app image (axeforge.bin), not the factory image. Mining keeps running during the upload.</p></div>
+<p class="note">Use the app image (axeforge.bin), not the factory image. Mining keeps running during the upload.</p>
+<div class="switch"><div><b>Roll back a bad update</b><span>If new firmware crashes at start-up twice, or is online but not mining 10 minutes after boot, the previous firmware starts again. It is kept once it has mined normally for 2 minutes.</span></div><input class="tg" type="checkbox" id="otaguard" onchange="act('/api/settings',JSON.stringify({otaguard:this.checked}))"></div>
+<div id="otabox" style="display:none"><p class="note">This firmware is still on probation.</p><div class="btns"><button class="btn alt sm" onclick="act('/api/ota/keep')">Keep this version</button></div></div></div>
 </div>
+<div class="grid g2" style="margin-top:16px">
+<div class="card"><h3>Self-test <span class="tag" id="stres">not run</span></h3>
+<p class="note" style="margin-top:0">Checks sensors, regulator, chips and fans, then measures hashrate, errors and power for a minute. Mining keeps running.</p>
+<div class="st" id="stlist"></div>
+<div class="btns" style="margin-top:12px"><button class="btn alt" id="stbtn" onclick="runSelftest()">Run self-test</button></div></div>
+<div class="card"><h3>Notifications</h3>
+<label style="margin-top:0">Discord webhook URL</label><input id="ndiscord" placeholder="https://discord.com/api/webhooks/..." autocomplete="off">
+<div class="row"><div><label>Telegram bot token</label><input id="ntgtoken" placeholder="123456789:AA..." autocomplete="off"></div>
+<div><label>Telegram chat id</label><input id="ntgchat" placeholder="e.g. 123456789"></div></div>
+<div class="checks" id="nevents"></div>
+<p class="note">Saved tokens stay hidden; leave a field empty to keep it. Telegram: make a bot with @BotFather, send it a message, then use your chat id.</p>
+<div class="btns"><button class="btn" onclick="saveNotify()">Save</button><button class="btn alt" onclick="act('/api/notify')">Send test</button><button class="btn alt" onclick="clearNotify()">Remove all</button></div></div>
+</div>
+<div class="card" style="margin-top:16px"><h3>Two-factor login <span class="tag" id="otpst">--</span></h3><div id="otpbox"></div></div>
 </section>
 </main></div>
 <div id="toast"></div>
+<div id="login"><div class="card"><h3>Log in</h3><p class="note" style="margin-top:0">Two-factor login is on. Enter the 6-digit code from your authenticator app to make changes.</p>
+<input id="logincode" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code">
+<div class="btns" style="margin-top:12px"><button class="btn" id="loginok">Log in</button><button class="btn alt" id="loginno">Cancel</button></div><p class="note" id="loginerr"></p></div></div>
 <script>
-{const f=window.fetch;window.fetch=(u,o={})=>{o.headers=Object.assign({'X-AxeForge':'1'},o.headers||{});return f(u,o)}}
+// every request carries the CSRF header and, with two-factor login on, the session;
+// a 401 asks for a code once and repeats the request
+let SESS='';try{SESS=localStorage.getItem('af-sess')||''}catch(e){}
+function setSess(t){SESS=t||'';try{t?localStorage.setItem('af-sess',t):localStorage.removeItem('af-sess')}catch(e){}}
+const rawFetch=window.fetch;
+const hdrs=o=>{const h=Object.assign({'X-AxeForge':'1'},o.headers||{});if(SESS)h['X-AxeForge-Session']=SESS;return Object.assign({},o,{headers:h})};
+window.fetch=async(u,o={})=>{let r=await rawFetch(u,hdrs(o));
+ if(r.status==401&&u!='/api/otp'&&await askLogin())r=await rawFetch(u,hdrs(o));return r};
+let loginWait=null;
+function askLogin(){if(loginWait)return loginWait;const m=$('login'),c=$('logincode');c.value='';$('loginerr').textContent='';m.classList.add('on');setTimeout(()=>c.focus(),50);
+ loginWait=new Promise(res=>{const done=v=>{m.classList.remove('on');loginWait=null;res(v)};
+  $('loginno').onclick=()=>done(false);
+  const go=async()=>{const r=await rawFetch('/api/otp',hdrs({method:'POST',body:JSON.stringify({action:'login',code:c.value.trim()})}));const j=await r.json().catch(()=>({}));
+   if(j.token){setSess(j.token);done(true)}else $('loginerr').textContent=j.error||'Login failed'};
+  $('loginok').onclick=go;c.onkeydown=e=>{if(e.key=='Enter')go()}});return loginWait}
 const $=id=>document.getElementById(id);
 const titles={dash:'Dashboard',swarm:'Swarm',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
 let S={},cfg={},cur='dash',navv;
 const SRC='https://github.com/IsSasoriDev/AxeForge';
 function tab(t){cur=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);
- if(t=='display'){shot();drawCanvas()}if(t=='system')pollLogs();if(t=='swarm')loadSwarm()}
+ if(t=='display'){shot();drawCanvas()}if(t=='system'){pollLogs();pollSelftest();loadOtp()}if(t=='swarm')loadSwarm()}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500)}
 async function act(u,body){try{const r=await fetch(u,{method:'POST',body:body||''});const x=await r.text();toast(x);return x}catch(e){toast('Request failed')}}
@@ -374,7 +468,7 @@ const PROTO=['Stratum V1','V1 + TLS','Stratum V2'],PSHORT=['V1','TLS','SV2'];
 function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p=t=>[cx+r*Math.cos(a0+sw*t),cy+r*Math.sin(a0+sw*t)];
  const [x0,y0]=p(0),[x1,y1]=p(1),[xf,yf]=p(Math.max(.001,Math.min(1,f)));
  $('garcbg').setAttribute('d',`M${x0} ${y0}A${r} ${r} 0 1 1 ${x1} ${y1}`);$('garc').setAttribute('d',`M${x0} ${y0}A${r} ${r} 0 ${f*270>180?1:0} 1 ${xf} ${yf}`)}
-const statusCol={mining:'var(--green)',setup:'var(--violet)',connecting:'var(--orange)',fault:'var(--red)',overheat:'var(--red)'};
+const statusCol={mining:'var(--green)',setup:'var(--violet)',connecting:'var(--orange)',fault:'var(--red)',overheat:'var(--red)',paused:'var(--cyan)'};
 const phaseCol={locked:'var(--green)',backoff:'var(--orange)',manual:'var(--dim)'};
 // solo payout check (template.payout): 1 username isn't an address, 2 pays you, 3 doesn't
 function shortAddr(a){return a&&a.length>24?a.slice(0,12)+'…'+a.slice(-8):a}
@@ -388,8 +482,8 @@ function hashHtml(h){if(!h)return'';const z=(h.match(/^0*/)||[''])[0].length;ret
 
 function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/(c.length||4)||1;
  const ceil=cfg.limits?.chipCeil||68,tc=ember()?tempCol(x.temp,ceil):x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
- return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor shared by several chips">shared sensor</span>'}</h3>
- <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%</div>
+ return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor shared by several chips">shared<span class="long"> sensor</span></span>'}</h3>
+ <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%${x.mhz&&x.mhz!=S.freq?` · <b style="color:var(--cyan)">${x.mhz} MHz</b>`:''}</div>
  <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
 function blocks(m){
  if(!m.valid){$('cubes').innerHTML=`<span class="meta">${esc(m.error||'Loading mempool…')}</span>`;return}
@@ -433,8 +527,10 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
- $('nip').textContent=S.ip||'--';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
+ $('nip').textContent=S.ip||'--';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'no adapter or no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
  $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
+ const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
+ $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
  if(navv!==S.ip+S.version){navv=S.ip+S.version;
   // release builds link to their tag's source, local and dev builds to the repo
@@ -486,10 +582,25 @@ async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setThem
  const L=cfg.limits;document.querySelector('[name=freq]').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=L.minMv;mv.max=L.maxMv;
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[L.maxPower+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
- pagesFrom(cfg.pages)}
+ $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
+ $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();$('ethrow').style.display=$('ethnote').style.display=cfg.hasEth?'':'none';
+ notifyForm();pagesFrom(cfg.pages)}
 document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const d={};
  f.querySelectorAll('[name]').forEach(el=>{d[el.name]=el.type=='checkbox'?el.checked:(el.type=='range'||el.type=='number'||el.tagName=='SELECT')?Number(el.value):el.value});
  act('/api/settings',JSON.stringify(d)).then(loadCfg)});
+
+/* ---------------- tuning goal & electricity price */
+function goalUi(){const g=+$('tgoal').value;$('pcaprow').style.display=g==1?'':'none';
+ $('goalnote').textContent=['Climbs until a thermal, power or error wall.','Same climb, but the wall is your power limit (measured at the input, below the board limit of '+(cfg.limits?.maxPower||'?')+' W).','Holds the voltage, climbs while joules per terahash keep falling, then trims the voltage.'][g]}
+function priceUi(){const u=+$('pricesrc').value==1;$('pzrow').style.display=u?'none':'';$('purlrow').style.display=u?'':'none';$('punit').textContent=u?'(the URL\'s unit)':'ct/kWh';
+ $('pnote').textContent=u?'Any URL that returns JSON with the price in it, read every 5 minutes. A Home Assistant sensor needs a token, so put it behind a public template or proxy.':'Wholesale day-ahead price (no taxes or grid fees) from energy-charts.info, for your bidding zone.'}
+function priceLive(p){if(!p)return;const st=$('pricest');
+ if(!p.on){st.textContent='off';st.style.color='';$('pbars').innerHTML='';$('pinfo').textContent='';return}
+ st.textContent=p.pausing?'paused':'mining';st.style.color=p.pausing?'var(--cyan)':'var(--green)';
+ const now=p.now!==undefined?p.now.toFixed(2)+' '+(p.unit||''):'no price';
+ $('pinfo').textContent=p.error?'⚠ '+p.error:('Now '+now+' · limit '+p.max+' '+(p.unit||'')+(p.slots?.length?' · next '+Math.round(p.slots.length*p.step/3600)+' h':''));
+ const sl=p.slots||[],v=sl.filter(x=>x!==null),hi=Math.max(p.max,...v,0.01),lo=Math.min(0,...v);
+ $('pbars').innerHTML=sl.map(x=>x===null?'<i style="height:0"></i>':`<i class="${x>p.max?'hi':''}" style="height:${Math.max(2,100*(x-lo)/(hi-lo))}%" title="${x} ct/kWh"></i>`).join('')}
 
 /* ---------------- pools editor */
 let P={pools:[],mode:'split'};
@@ -514,7 +625,7 @@ function renderPools(){$('pooleds').innerHTML=P.pools.map((p,i)=>`<div class="po
 function poolLive(){if(!S.pools)return;S.pools.forEach((p,i)=>{const d=$('pd'+i);if(!d)return;
  d.className='dot '+(p.connected?'ok':p.enabled?'wait':'');$('ps'+i).textContent=p.status||'';
  $('pl'+i).innerHTML=p.enabled?`<span><b>${p.workPct}%</b> of work</span><span><b>${hr(p.ghs).join(' ')}</b> est.</span><span>diff <b>${p.diff}</b></span>
- <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>${p.payout==2?`<span style="color:var(--green)">✓ pays you <b>${p.payoutPct}%</b></span>`:p.payout==3?'<span style="color:var(--red)">✗ coinbase doesn\'t pay your address</span>':''}`:''})}
+ <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>${p.payout==2?`<span style="color:var(--green)">✓ pays you <b>${p.payoutPct}%</b></span>`:p.payout==3?'<span style="color:var(--red)">✗ coinbase doesn\'t pay your address</span>':''}${p.payoutBlocked?'<span style="color:var(--red)"><b>no work</b> (payout check)</span>':''}`:''})}
 async function savePools(){await act('/api/pools',JSON.stringify(P))}
 
 /* ---------------- screen preview + pages */
@@ -586,14 +697,78 @@ async function pollLogs(){clearTimeout(logTimer);if(cur!='system')return;
   if(logLines.length&&logSince)logLines[logLines.length-1]+=parts.shift();logLines.push(...parts);if(logLines.length>2000)logLines=logLines.slice(-1500);renderLog()}logSince=r.next}catch(e){}}
  logTimer=setTimeout(pollLogs,1000)}
 
+/* ---------------- 24 h chart, best shares */
+let dayMetric='hashrate',DAY=null;
+document.querySelectorAll('#dayseg button').forEach(b=>b.onclick=()=>{dayMetric=b.dataset.m;document.querySelectorAll('#dayseg button').forEach(x=>x.classList.toggle('on',x==b));drawDay()});
+async function loadDay(){try{DAY=await (await fetch('/api/stats')).json()}catch(e){return}drawDay()}
+function drawDay(){const c=$('daychart');if(!DAY)return;const v=DAY[dayMetric]||[],W=c.clientWidth||600,H=c.clientHeight||150;
+ const fmt=dayMetric=='hashrate'?x=>hr(x).join(' '):dayMetric=='temp'?x=>x.toFixed(1)+' °C':x=>x.toFixed(1)+' W';
+ $('daynote').textContent=v.length?`${v.length} points, one per ${DAY.step/60} minutes · since boot, up to 24 h`:'';
+ const pts=v.map((y,i)=>[v.length>1?i/(v.length-1)*W:W,y]).filter(p=>p[1]>0);
+ if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" style="fill:var(--axis)" text-anchor="middle" font-size="12">First point after 5 minutes of mining</text>`;return}
+ const mx=Math.max(...pts.map(p=>p[1]))*1.05,mn=Math.min(...pts.map(p=>p[1]))*.95,y=q=>H-6-(q-mn)/(mx-mn||1)*(H-16);
+ const line=pts.map(p=>`${p[0].toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');c.setAttribute('viewBox',`0 0 ${W} ${H}`);
+ c.innerHTML=`<defs><linearGradient id="cf2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--chart)" stop-opacity=".3"/><stop offset="1" style="stop-color:var(--chart)" stop-opacity="0"/></linearGradient></defs>${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" style="stroke:var(--track)"/>`).join('')}
+ <polygon points="${pts[0][0]},${H} ${line} ${pts[pts.length-1][0]},${H}" fill="url(#cf2)"/><polyline points="${line}" fill="none" style="stroke:var(--chart)" stroke-width="2" stroke-linejoin="round"/>
+ <text x="${W-4}" y="12" style="fill:var(--axis)" font-size="11" text-anchor="end">max ${fmt(mx/1.05)}</text><text x="${W-4}" y="${H-4}" style="fill:var(--axis)" font-size="11" text-anchor="end">min ${fmt(mn/.95)}</text>`}
+// "14:05" today, "27 Oct 14:05" before
+const when=t=>{const d=new Date(t*1000),hm=d.toTimeString().slice(0,5);return d.toDateString()==new Date().toDateString()?hm:d.getDate()+' '+d.toLocaleString('en',{month:'short'})+' '+hm};
+async function loadScores(){let a;try{a=await (await fetch('/api/scoreboard')).json()}catch(e){return}
+ $('scorecount').textContent=a.length?'top '+a.length:'none yet';
+ $('scores').innerHTML=a.length?'<tr><th>#</th><th class="r">Difficulty</th><th>Found</th><th class="r">Pool</th><th class="r">Chip</th></tr>'+a.map((s,i)=>`<tr><td>${i+1}</td><td class="r"><b>${sfx(s.diff)}</b></td>
+  <td>${s.time?when(s.time):'up '+dur(s.uptime)}</td><td class="r">${s.pool+1}</td><td class="r">${s.chip>=0?s.chip+1:'-'}</td></tr>`).join(''):'<tr><td class="meta">Shares the chips find show up here, best first.</td></tr>'}
+async function resetScores(){if(!confirm('Clear the best shares list and the best difficulty?'))return;await act('/api/scoreboard',JSON.stringify({reset:true}));loadScores()}
+
+/* ---------------- Wi-Fi scan */
+async function scanWifi(){$('wscan').textContent='scanning…';$('wlist').innerHTML='';let a=[];try{a=await (await fetch('/api/wifi/scan')).json()}catch(e){}
+ $('wscan').textContent=a.length?a.length+' networks':'none found, try again';
+ $('wlist').innerHTML=a.map(n=>`<button type="button" data-s="${esc(n.ssid)}"><b>${esc(n.ssid)}</b><span>${n.secure?'🔒 ':''}${n.rssi} dBm</span></button>`).join('');
+ $('wlist').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('ssidin').value=b.dataset.s;$('wlist').innerHTML='';document.querySelector('[name=wpass]').focus()})}
+
+/* ---------------- self-test */
+let stTimer;
+async function runSelftest(){await act('/api/selftest');pollSelftest()}
+async function pollSelftest(){clearTimeout(stTimer);let r;try{r=await (await fetch('/api/selftest')).json()}catch(e){return}
+ const L={wait:'wait',run:'…',pass:'pass',warn:'warn',fail:'fail'};
+ $('stlist').innerHTML=r.running||r.done?r.steps.map(s=>`<b class="${s.state}">${L[s.state]}</b><span>${esc(s.name)}<i>${esc(s.detail)}</i></span>`).join(''):'';
+ const t=$('stres');t.textContent=r.running?'running':r.done?(r.passed?'passed':'failed'):'not run';t.style.color=r.running?'var(--orange)':r.done?(r.passed?'var(--green)':'var(--red)'):'';
+ $('stbtn').disabled=r.running;if(r.running)stTimer=setTimeout(pollSelftest,2000)}
+
+/* ---------------- notifications */
+const NEV=[[1,'Block found'],[2,'New best share'],[4,'Faults and power cuts'],[8,'No pool for 5 minutes'],[16,'Miner started']];
+function notifyForm(){$('nevents').innerHTML=NEV.map(([b,n])=>`<label><input type="checkbox" data-b="${b}" ${cfg.notify&b?'checked':''}>${n}</label>`).join('');
+ $('ndiscord').value='';$('ndiscord').placeholder=cfg.discordSet?'saved (hidden), paste a new one to replace':'https://discord.com/api/webhooks/...';
+ $('ntgtoken').value='';$('ntgtoken').placeholder=cfg.tgSet?'saved (hidden)':'123456789:AA...';$('ntgchat').value=cfg.tgchat||''}
+async function saveNotify(){let n=0;document.querySelectorAll('#nevents input').forEach(e=>{if(e.checked)n|=+e.dataset.b});
+ await act('/api/settings',JSON.stringify({discord:$('ndiscord').value.trim(),tgtoken:$('ntgtoken').value.trim(),tgchat:$('ntgchat').value.trim(),notify:n}));loadCfg()}
+async function clearNotify(){if(!confirm('Remove the Discord webhook and the Telegram bot?'))return;await act('/api/settings',JSON.stringify({notifyClear:true}));loadCfg()}
+
+/* ---------------- two-factor login */
+async function otpPost(b){const r=await fetch('/api/otp',{method:'POST',body:JSON.stringify(b)});return r.json().catch(()=>({error:'Request failed'}))}
+async function loadOtp(){let o;try{o=await (await fetch('/api/otp')).json()}catch(e){return}const st=$('otpst'),box=$('otpbox');
+ st.textContent=o.enabled?'on':'off';st.style.color=o.enabled?'var(--green)':'';
+ if(o.enabled){box.innerHTML=`<p class="note" style="margin-top:0">Changes to this miner need a code from your authenticator app. You are ${o.session?'logged in on this browser (for 12 hours or until a reboot)':'not logged in on this browser'}.</p>
+  <div class="btns">${o.session?'<button class="btn alt" onclick="otpLogout()">Log out</button>':'<button class="btn alt" onclick="askLogin().then(loadOtp)">Log in</button>'}</div>
+  <label>Turn it off: current code</label><div class="btns"><input id="otpoff" inputmode="numeric" maxlength="6" style="max-width:140px" placeholder="123456"><button class="btn warn" onclick="otpDisable()">Turn off</button></div>`}
+ else box.innerHTML=`<p class="note" style="margin-top:0">Anyone on your network can change this miner's settings. With two-factor login, changes need a 6-digit code from an authenticator app (Google Authenticator, Aegis, 1Password, ...). The miner needs internet time for the codes to match.${o.clock?'':' <b>Its clock isn\'t set yet.</b>'}</p>
+  <p class="note">If you lose the app, the only way back in is reflashing with Erase.</p><div class="btns"><button class="btn" onclick="otpSetup()">Set up two-factor login</button></div><div id="otpnew"></div>`}
+async function otpSetup(){const r=await otpPost({action:'setup'});if(r.error){toast(r.error);return}
+ $('otpnew').innerHTML=`<div class="qr">${r.svg}</div><p class="note">Scan this with your authenticator app, or enter the key by hand: <b style="font-family:monospace;color:var(--text);word-break:break-all">${esc(r.secret)}</b></p>
+  <label>Code from the app</label><div class="btns"><input id="otpcode" inputmode="numeric" maxlength="6" style="max-width:140px" placeholder="123456"><button class="btn" onclick="otpConfirm()">Turn on</button></div>`}
+async function otpConfirm(){const r=await otpPost({action:'confirm',code:$('otpcode').value.trim()});if(r.error){toast(r.error);return}setSess(r.token);toast('Two-factor login is on.');loadOtp()}
+async function otpDisable(){const r=await otpPost({action:'disable',code:$('otpoff').value.trim()});if(r.error){toast(r.error);return}setSess('');toast('Two-factor login is off.');loadOtp()}
+async function otpLogout(){await otpPost({action:'logout'});setSess('');loadOtp()}
+
 /* ---------------- firmware upload */
 const drop=$('drop'),file=$('file');drop.onclick=()=>file.click();
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');upload(e.dataTransfer.files[0])};file.onchange=()=>upload(file.files[0]);
 function upload(f){if(!f)return;if(!confirm(`Install ${f.name} (${(f.size/1024|0)} kB)? The miner will reboot.`))return;
  const x=new XMLHttpRequest(),pb=$('prog');pb.style.display='block';x.upload.onprogress=e=>pb.firstChild.style.width=(100*e.loaded/e.total)+'%';
- x.onload=()=>toast(x.responseText);x.onerror=()=>toast('Upload failed');x.open('POST','/api/ota');x.setRequestHeader('X-AxeForge','1');x.send(f)}
+ x.onload=()=>toast(x.responseText);x.onerror=()=>toast('Upload failed');x.open('POST','/api/ota');x.setRequestHeader('X-AxeForge','1');if(SESS)x.setRequestHeader('X-AxeForge-Session',SESS);
+ x.onload=()=>{if(x.status==401){toast('Log in first, then upload again');askLogin()}else toast(x.responseText)};x.send(f)}
 
-loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();
+loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();loadDay();loadScores();
+setInterval(()=>{if(!document.hidden&&cur=='dash'){loadDay();loadScores()}},60000);
 setInterval(()=>{if(!document.hidden)tick()},2000);setInterval(()=>{if(!document.hidden)chart()},30000);
 </script></body></html>

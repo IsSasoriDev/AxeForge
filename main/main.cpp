@@ -18,9 +18,17 @@
 #include "core/board_config.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
+#include "core/ota_guard.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "core/tuner.h"
+#include "hw/bap.h"
+#include "asic/bm13xx.h"
+#include "mining/stats.h"
+#include "net/eth.h"
+#include "net/notify.h"
+#include "net/otp.h"
+#include "net/price.h"
 #include "mining/miner.h"
 #include "net/captive.h"
 #include "net/mempool.h"
@@ -36,7 +44,7 @@ static const char *TAG = "main";
 
 MinerState g_state;
 
-#if CONFIG_AF_BOARD_SUPRAHEX || AF_BITAXE_FAMILY
+#if AF_HEX_FAMILY || AF_BITAXE_FAMILY
 // Stock Bitaxe bootloaders have no app rollback. Installed through AxeOS's own
 // update page, AxeOS stays in the factory slot: if AxeForge crashes on boot three
 // times running, hand the board back to it instead of looping until someone finds
@@ -113,7 +121,7 @@ extern "C" void app_main(void)
     if (monitor::last_emergency()[0])
         ESP_LOGW(TAG, "last emergency (%lu since power-on): %s", (unsigned long) monitor::emergency_count(), monitor::last_emergency());
     esp_err_t err = nvs_flash_init();
-#if CONFIG_AF_BOARD_SUPRAHEX || AF_BITAXE_FAMILY
+#if AF_HEX_FAMILY || AF_BITAXE_FAMILY
     // This NVS also holds AxeOS's settings and the board identity: never erase it.
     if (err != ESP_OK) fall_back_to_stock("settings storage unreadable");
     boot_guard(rr);
@@ -128,6 +136,11 @@ extern "C" void app_main(void)
 #endif
     settings::load();
     Settings &cfg = settings::get();
+    ota_guard::boot(rr);  // before the stock fallback: a bad update goes back to the last AxeForge
+    stats::load();
+    otp::load();
+    asic::set_vr_freq(cfg.vr_hz, false);  // used by the chip init below
+    if (cfg.autotune && cfg.tuned_freq) asic::set_chip_offsets(cfg.chip_off, false);  // the tuner's per-chip clocks
     layout_store::load();
 
 #if AF_HAS_LCD
@@ -140,11 +153,15 @@ extern "C" void app_main(void)
 #endif
     monitor::start();  // telemetry + fans + emergency cut-off, before any power-up
     wifi::start();
+    eth::start();
     captive::start();
+    notify::start();
+    bap::start();
     swarm::start();
     web::start();
     weather::start();
     mempool::start();
+    price::start();
 
     if (e != board::Error::None) {
         g_state.status = SysStatus::Fault;

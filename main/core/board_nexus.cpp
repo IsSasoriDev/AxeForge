@@ -156,7 +156,7 @@ Error power_up(uint16_t freq, uint16_t mv)
     set_core_mv(mv);
     s_freq = freq;
     g_state.freq_mhz = freq;
-    g_state.expected_ghs = freq * (float) asic::SMALL_CORES * chips / 1000.0f;
+    g_state.expected_ghs = (freq * chips + asic::offset_total()) * (float) asic::SMALL_CORES / 1000.0f;
     return Error::None;
 }
 
@@ -195,7 +195,7 @@ bool set_freq_mhz(uint16_t mhz)
     if (!asic::set_frequency(mhz)) return false;
     s_freq = mhz;
     g_state.freq_mhz = mhz;
-    g_state.expected_ghs = mhz * (float) asic::SMALL_CORES * g_state.chips_detected / 1000.0f;
+    g_state.expected_ghs = (mhz * g_state.chips_detected + asic::offset_total()) * (float) asic::SMALL_CORES / 1000.0f;
     return true;
 }
 

@@ -238,7 +238,7 @@ float chip_diode(int index)
 #else  // NerdQaxe family / Supra Hex
 
 // ---------------------------------------------------------------- EMC2302
-#if CONFIG_AF_BOARD_SUPRAHEX
+#if AF_HEX_FAMILY
 #define EMC_ADDR 0x2f  // EMC2302-2 variant
 #else
 #define EMC_ADDR 0x2e
@@ -304,8 +304,8 @@ uint16_t rpm(int channel)
 
 // ---------------------------------------------------------------- TMP1075
 #define TMP_BASE 0x48
-#if CONFIG_AF_BOARD_SUPRAHEX
-// Supra Hex: 0x4a and 0x4b sit next to the chips; the regulator reports its
+#if AF_HEX_FAMILY
+// Supra/Ultra Hex: 0x4a and 0x4b sit next to the chips; the regulator reports its
 // own temperature over PMBus.
 static const int ASIC_SENSOR_DEV[] = {2, 3};
 #define TMP_VR_INDEX -1

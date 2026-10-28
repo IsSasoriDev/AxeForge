@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "core/board_config.h"  // AF_NUM_ASICS
+
 #define AF_MAX_POOLS 4
 
 enum class PoolProto : uint8_t { V1 = 0, V1Tls = 1, V2 = 2 };
@@ -33,6 +35,14 @@ struct Settings {
     // last stable point found by the tuner, reused on boot
     uint16_t tuned_freq = 0;
     uint16_t tuned_mv = 0;
+    // what the tuner looks for: 0 = most hashrate, 1 = most hashrate under
+    // power_cap_w, 2 = best efficiency (J/TH)
+    uint8_t tune_goal = 0;
+    uint16_t power_cap_w = 0;      // 0 = the board's limit
+    // per-chip clocks: once locked, the tuner raises each chip on its own;
+    // chip_off is each chip's offset (MHz) from the chain clock
+    bool chip_tune = true;
+    int8_t chip_off[AF_NUM_ASICS] = {};
 
     uint8_t fan_target_c = 60;   // PID target for hottest chip
     uint8_t fan_min_pct = 30;
@@ -59,7 +69,44 @@ struct Settings {
     // mempool.space (or a self-hosted instance)
     bool mempool_on = true;
     char mempool_url[64] = "https://mempool.space";
+
+    // solo payout check: 0 = warn only, 1 = don't mine on a pool whose coinbase
+    // doesn't pay the address in its username (or keeps more than payout_max_fee %)
+    uint8_t payout_mode = 0;
+    uint8_t payout_max_fee = 100;  // percent; 100 = no fee limit
+
+    // advanced chip timing, 0 = the board's default
+    uint16_t job_ms = 0;           // new job for the chips every N ms
+    uint32_t vr_hz = 0;            // BM1370 version-rolling speed (Hz)
+
+    // notifications
+    char discord_url[160] = "";    // https://discord.com/api/webhooks/...
+    char tg_token[64] = "";        // Telegram bot token
+    char tg_chat[24] = "";         // Telegram chat id
+    uint8_t notify_events = 0x1f;  // NOTIFY_* bits
+
+    bool bap_on = true;            // Bitaxe accessory port
+    bool ble_setup = true;         // Bluetooth Wi-Fi setup while in setup mode
+
+    // after a web update, go back to the previous firmware if the new one
+    // crashes at start-up or doesn't mine within 10 minutes
+    bool ota_guard = true;
+
+    // electricity price: stop mining while the price is above price_max
+    bool price_on = false;
+    uint8_t price_src = 0;         // 0 = Energy-Charts day-ahead price, 1 = your own URL
+    char price_zone[12] = "DE-LU"; // Energy-Charts bidding zone
+    char price_url[128] = "";      // returns JSON with a number (or numeric string)
+    char price_path[40] = "";      // dotted path to it, e.g. "state" or "data.0.price"
+    float price_max = 15;          // ct/kWh for Energy-Charts, the URL's own unit otherwise
 };
+
+// notify_events bits
+#define NOTIFY_BLOCK 0x01
+#define NOTIFY_BEST 0x02
+#define NOTIFY_FAULT 0x04
+#define NOTIFY_POOL 0x08
+#define NOTIFY_BOOT 0x10
 
 namespace settings {
 void load();

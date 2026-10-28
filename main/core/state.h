@@ -26,6 +26,7 @@ enum class SysStatus : uint8_t {
     Mining,
     Fault,
     Overheat,
+    Paused,     // chips off on purpose (electricity price)
 };
 
 struct TunerState {
@@ -79,6 +80,7 @@ struct PoolState {
     uint32_t ping_ms = 0;        // submit -> response latency
     uint8_t payout = 0;          // Payout of this pool's latest template
     uint8_t payout_pct = 0;      // share of the coinbase paid to your address
+    bool payout_blocked = false; // payout check enforced: this pool gets no work
     char status[48] = "";        // last error / state text
 };
 

@@ -1,6 +1,7 @@
 #include "wifi.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "esp_event.h"
 #include "esp_log.h"
@@ -14,6 +15,8 @@
 
 #include "core/settings.h"
 #include "core/state.h"
+#include "net/ble_setup.h"
+#include "net/eth.h"
 
 static const char *TAG = "wifi";
 
@@ -52,7 +55,7 @@ static void pick_hostname()
 
 static void start_setup_ap()
 {
-    if (s_setup) return;
+    if (s_setup || eth::up()) return;  // on a cable the miner is reachable already
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
     wifi_config_t ap = {};
@@ -67,6 +70,7 @@ static void start_setup_ap()
     s_setup = true;
     g_state.status = SysStatus::SetupAP;
     ESP_LOGW(TAG, "setup AP %s up at 192.168.4.1", g_state.ap_ssid);
+    ble_setup::start();
 }
 
 static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
@@ -79,7 +83,7 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
         if (s_connected || s_retries % 8 == 0)
             ESP_LOGW(TAG, "disconnected, reason %d, rssi %d (retry %d)", ev->reason, ev->rssi, s_retries + 1);
         s_connected = false;
-        g_state.ip[0] = 0;
+        snprintf(g_state.ip, sizeof(g_state.ip), "%s", eth::ip());
         if (++s_retries == 8) start_setup_ap();  // keep retrying STA in the background
         esp_timer_stop(s_reconnect_timer);
         esp_timer_start_once(s_reconnect_timer, (s_retries < 8 ? 1000 : 10000) * 1000ULL);
@@ -135,7 +139,48 @@ void start()
     if (!s.wifi_ssid[0]) start_setup_ap();
 }
 
-bool connected() { return s_connected; }
+bool connected() { return s_connected || eth::up(); }
+
+void eth_changed()
+{
+    if (eth::up()) {
+        if (!s_connected) snprintf(g_state.ip, sizeof(g_state.ip), "%s", eth::ip());
+        if (s_setup && !ble_setup::active()) {
+            esp_wifi_set_mode(WIFI_MODE_STA);
+            s_setup = false;
+            if (g_state.status == SysStatus::SetupAP) g_state.status = SysStatus::Connecting;
+            ESP_LOGI(TAG, "setup network closed: reachable over Ethernet");
+        }
+    } else if (!s_connected) {
+        g_state.ip[0] = 0;
+        if (!settings::get().wifi_ssid[0]) start_setup_ap();
+    }
+}
+
+cJSON *scan()
+{
+    cJSON *a = cJSON_CreateArray();
+    wifi_scan_config_t sc = {};
+    sc.show_hidden = false;
+    if (esp_wifi_scan_start(&sc, true) != ESP_OK) return a;
+    uint16_t n = 24;
+    wifi_ap_record_t *recs = (wifi_ap_record_t *) calloc(n, sizeof(wifi_ap_record_t));
+    if (!recs) return a;
+    esp_wifi_scan_get_ap_records(&n, recs);  // sorted by signal
+    for (int i = 0; i < n; i++) {
+        if (!recs[i].ssid[0]) continue;
+        bool dup = false;  // one entry per name (mesh systems repeat it)
+        for (int k = 0; k < i && !dup; k++) dup = !strcmp((char *) recs[k].ssid, (char *) recs[i].ssid);
+        if (dup) continue;
+        cJSON *o = cJSON_CreateObject();
+        cJSON_AddStringToObject(o, "ssid", (char *) recs[i].ssid);
+        cJSON_AddNumberToObject(o, "rssi", recs[i].rssi);
+        cJSON_AddBoolToObject(o, "secure", recs[i].authmode != WIFI_AUTH_OPEN);
+        cJSON_AddItemToArray(a, o);
+    }
+    free(recs);
+    return a;
+}
 bool in_setup_mode() { return s_setup; }
 
 } // namespace wifi

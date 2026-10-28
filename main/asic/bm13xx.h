@@ -66,6 +66,23 @@ float frequency();
 void set_difficulty_mask(uint32_t difficulty);
 // Restricts version rolling to the pool's BIP-310 mask.
 void set_version_mask(uint32_t mask);
+// BM1370 version-rolling speed in Hz (0 = the board's default). Kept for every
+// later init; `write` also sends it now (only while the chips are up). False on
+// other chips.
+bool set_vr_freq(uint32_t hz, bool write);
+
+// Per-chip clocks: each chip may run some MHz above (or below) the chain clock.
+// Not on single-chip boards, and not on the BM1373 (untested addressing).
+#if AF_NUM_ASICS > 1 && !AF_ASIC_BM1373
+constexpr bool PER_CHIP_CLOCK = true;
+#else
+constexpr bool PER_CHIP_CLOCK = false;
+#endif
+// Stores the offsets (AF_NUM_ASICS entries); `write` also ramps the chips to them
+// now. Every later set_frequency() / init() keeps them.
+void set_chip_offsets(const int8_t *mhz, bool write);
+int chip_offset(int chip);  // what the chip runs at now, relative to the chain
+int offset_total();         // sum over the detected chips, for the expected hashrate
 
 // Returns the asic job id (slot) used.
 uint8_t send_job(uint32_t counter, AsicJob &job);

@@ -1,10 +1,10 @@
 # AxeForge
 
-Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Supra, Gamma and Naja Duo (see [Supported boards](#supported-boards)). On a Bitaxe it replaces AxeOS completely. It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize, on the stock LilyGo T-Display-S3 or a 3.5" 480×320 display.
+Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex, Supra, Gamma and Naja Duo (see [Supported boards](#supported-boards)). On a Bitaxe it replaces AxeOS completely. It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize, on the stock LilyGo T-Display-S3 or a 3.5" 480×320 display.
 
 > **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable). If that page is down, see [Flashing without the web flasher](#flashing-without-the-web-flasher).
 
-> ⚠️ **Young firmware.** The NerdQaxe++, the NerdAxe and the Supra Hex run it every day; the newer boards in the table below have not been tested on hardware yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Keep a backup of your stock flash so you can go back.
+> ⚠️ **Young firmware.** The NerdQaxe++, the NerdAxe and the Supra Hex run it every day, and the Bitaxe Supra has been tested; the newer boards in the table below have not been tested on hardware yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Keep a backup of your stock flash so you can go back.
 
 ## Supported boards
 
@@ -18,7 +18,8 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Supra, Ga
 | **NerdOctaxe-γ** | 8× BM1370 | TPS53647 4-phase, or TPS53667 6-phase from rev3.0 | 250 W / 300 W | `axeforge-nerdoctaxegamma.bin` | ⚠️ Not tested on hardware yet |
 | **NerdQX** | 4× BM1370 | TPS53647, 3-phase | 240 W | `axeforge-nerdqx.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Supra Hex** 701 / 702 | 6× BM1368 | TPS546, 3 stacked domains | 120 W | `axeforge-suprahex.bin` | ✅ Tested (702) |
-| **Bitaxe Supra** 400–403 | 1× BM1368 | TPS546 (402/403) or DS4432U (400/401), detected at boot | 40 W | `axeforge-supra.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Ultra Hex** 302 / 303 | 6× BM1366 | TPS546, 3 stacked domains | 90 W | `axeforge-ultrahex.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Supra** 400–403 | 1× BM1368 | TPS546 (402/403) or DS4432U (400/401), detected at boot | 40 W | `axeforge-supra.bin` | ✅ Tested |
 | **Bitaxe Gamma** 600–603 | 1× BM1370 | TPS546 | 40 W | `axeforge-gamma.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Naja Duo** 1201 | 2× BM1373 | TPS546 stack, 2 stacked domains | 60 W | `axeforge-naja.bin` | ⚠️ Not tested on hardware yet |
 | **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | build from source | ⚠️ Experimental (one board tested) |
@@ -27,7 +28,7 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Supra, Ga
 - The NerdQaxe++ revision and the NerdOctaxe-γ regulator are detected at boot.
 - The NerdQX and NerdOctaxe-γ read the real die temperature of every chip. The other boards use temperature sensors on the PCB next to the chips.
 - A NerdQX without its die sensors is treated as an unknown board and stays at 495 MHz / 1150 mV.
-- On a Bitaxe, AxeForge replaces AxeOS (see [Bitaxe](#bitaxe)). The Supra Hex, Supra and Gamma use the 128×32 OLED; the Naja Duo's color screen gets the full small-screen UI.
+- On a Bitaxe, AxeForge replaces AxeOS (see [Bitaxe](#bitaxe)). The Supra Hex, Ultra Hex, Supra and Gamma use the 128×32 OLED; the Naja Duo's color screen gets the full small-screen UI.
 - The Gamma and the Naja Duo read the chip's own temperature diode once it has power; the Supra 400/401 uses the fan controller's sensor next to the chip, as AxeOS does.
 - The Nexus S1 is experimental. BitLuck publishes no source or schematics, so its pins and power sequence were read from the stock firmware. Its limits stay close to stock (500 MHz, 1000 mV, 170 W), and there is no release file yet: build it with `sdkconfig.defaults.nexus`.
 - If you run one of the untested boards, please open an issue with your log (*System → Log*), working or not.
@@ -56,8 +57,13 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Supra, Ga
   2. If the hardware error rate goes above 1%, or hashrate drops below 92% of the theoretical value, it adds 10 mV (at most 4 times per frequency).
   3. It stops at the first wall: errors that voltage can't fix, the chip/VR temperature ceiling, the power ceiling, or the max frequency.
   4. **Trim:** at the best frequency, it lowers the voltage while the miner stays stable, then adds 10 mV back as a safety margin. This keeps the same hashrate with lower temps.
-  5. **Watch:** it saves the result to flash, re-checks every 10 min and drops 12 MHz if the miner drifts unstable (for example, when the room warms up).
-  - A full search takes about 1–2 hours. To start it again, hold **BTN2** or use the web UI.
+  5. **Per-chip clocks** (boards with more than one chip, except the Nexus): once locked, every chip that can go faster steps up 12 MHz at a time, up to +48 MHz over the chain clock. All chips are tried together and each one is judged by its own error count, so the weakest chip no longer holds the others back.
+  6. **Watch:** it saves the result to flash, re-checks every 10 min and drops 12 MHz if the miner drifts unstable (for example, when the room warms up). If a raised chip is the one with the errors, only that chip goes down a step.
+  - **Goal** (*Tuning → Mode*): most hashrate (the steps above), most hashrate under a power limit you set (the limit replaces the board's power ceiling), or best efficiency, which holds the voltage, climbs while J/TH keeps falling, then trims the voltage.
+  - A full search takes about 1–2 hours, plus up to 4 rounds of 5 min for the per-chip step. To start it again, hold **BTN2** or use the web UI.
+- **Electricity price** (*Tuning → Electricity price*): the chips switch off while the price is above your limit and start again when it drops, at most one change every 10 minutes. Prices come from the Energy-Charts day-ahead market for your bidding zone (Europe, no account or key), or from any URL that returns the price in JSON. If the price can't be read, the miner keeps mining.
+- **Power supply check:** the input voltage under load is compared with the supply's nominal 5 or 12 V. *System → Device* shows the drop and an estimate of the supply-plus-cable resistance; 5% low counts as weak and 8% as bad, with a notification once per boot. A failing supply or a warm barrel jack shows up here before it causes faults.
+- **Update rollback:** after a web update the new firmware is on probation. If it crashes at start-up twice, or is online but not mining 10 minutes after boot, the previous firmware starts again. It is kept after 2 minutes of normal mining. It works with any bootloader, including the stock Bitaxe one, and can be turned off in *System → Firmware update*.
 - **Safety (cannot be overridden from the UI):** the limits are compiled in through `idf.py menuconfig → AxeForge → Hard safety limits`. Each board has its own power limit (see [Supported boards](#supported-boards)). The NerdQaxe++ defaults:
 
   | Limit | Rev ≤ 6 | Rev7 |
@@ -78,12 +84,21 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Supra, Ga
   - A fan that has been spinning but drops under 300 rpm at 30 % duty or more for 10 s cuts power (`Fan N stalled`).
   - A chip that falls far below the others (or reports nonsense) for 15 s cuts power (`ASIC N stopped hashing`). On boards whose chips sit in series voltage domains, a chip that stops drawing current lets its domain's voltage climb.
   - Power is also cut if the core voltage drops below half its setting while powered (`Core voltage lost`), or no chip returns anything for 15 s while work is being sent (`No chip is hashing`).
-  - On boards with stacked voltage domains (Supra Hex, Naja Duo, NerdQaxe++ rev7), the miner won't run with a chip missing: its partner would get the whole domain's voltage.
+  - On boards with stacked voltage domains (Supra Hex, Ultra Hex, Naja Duo, NerdQaxe++ rev7), the miner won't run with a chip missing: its partner would get the whole domain's voltage.
   - Automatic recoveries (fault retries, overheat cool-down) re-detect the chips at the right baud rate, ramp them up from their reset clock, and stay at the lower clock afterwards until you change the settings.
   - The monitor that handles all of this runs on its own task, separate from the tuner.
 - **Swarm:** one page with every miner on your network (AxeForge, AxeOS/Bitaxe, NerdQAxe stock firmware): hashrate, temperature, power, shares, best difficulty and uptime, plus totals. *Scan network* finds them; you can also add an address by hand. This miner polls the others itself, so the API protection stays strict and no CORS is needed.
-- **Themes:** *Forge* (dark neon) or *Paper* (minimal, e-ink style: ink on paper, hairline rules, no glow). One setting changes both the screen and the web UI.
+- **Themes:** *Forge* (dark neon), *Paper* (minimal, e-ink style: ink on paper, hairline rules, no glow) or *Ember* (dark, Bitcoin orange). One setting changes both the screen and the web UI.
 - **Fans:** both fan headers are detected on boards that have two (one on the NerdAxe); a header counts as connected once its fan has been seen spinning. Each fan can run on *Auto* or a fixed *Manual* speed. A PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops. Within 3 °C of a tuner ceiling the fans go to 100 % regardless of the target, and both fan speeds are shown.
+- **Payout check that can act:** by default a coinbase that doesn't pay you is only shown in red. Under *Pools → Solo payout check* you can tell the miner to send that pool no work at all, and set the highest pool fee you accept. The other pools carry on; the pool gets work again as soon as a template pays you.
+- **Best shares and 24-hour charts:** the 10 best shares (difficulty, time, pool, chip), kept across reboots, and hashrate, chip temperature and power for the last 24 hours, one point per 5 minutes.
+- **Notifications:** Discord (webhook) and Telegram (bot) messages for a found block, a new best share, faults and power cuts, no pool for 5 minutes, and the miner starting. Pick which ones under *System → Notifications*.
+- **Self-test:** *System → Self-test* checks sensors, regulator, chips and fans, then measures hashrate, hardware errors and power for a minute while mining.
+- **Two-factor login:** optional. With it on, every change (settings, pools, firmware upload) needs a 6-digit code from an authenticator app; a login lasts 12 hours or until a reboot. If you lose the app, reflash with *Erase*.
+- **Setup without typing:** *Network* lists the Wi-Fi networks in range. While the setup network is open, the miner can also be set up over Bluetooth with Espressif's free "ESP BLE Provisioning" app (it shows up as `PROV_AXEFORGE_XXXX`). Bluetooth turns off and gives its memory back once Wi-Fi works.
+- **Ethernet (NerdQAxe family):** the W5500 Ethernet adapter that plugs onto the NerdQAxe header is found at boot. On the NerdQX and NerdOctaxe-γ with die sensors the header pins are taken, so Ethernet is skipped there.
+- **Accessory port (Bitaxe):** the AxeOS accessory protocol on the Bitaxe's accessory header (GPIO39/40, 115200 baud), so displays and controllers made for AxeOS work with AxeForge. Unlike AxeOS, it never sends the Wi-Fi password out.
+- **Advanced chip timing:** job interval and, on BM1370 boards, the version-rolling speed, under *Tuning*. Leave them at 0 for the board's defaults.
 
 ## Screen
 
@@ -108,7 +123,7 @@ Other controls and alerts:
 
 ## Web UI
 
-Open `http://<miner-ip>/`. The API only answers when it's reached by IP address or a LAN name (`.local`, `.lan`, a bare hostname, etc.), and any change has to come from the AxeForge page itself, so other web sites can't change settings or push firmware. Scripts that POST to the API need to send the header `X-AxeForge: 1`. The tabs are:
+Open `http://<miner-ip>/`. The API only answers when it's reached by IP address or a LAN name (`.local`, `.lan`, a bare hostname, etc.), and any change has to come from the AxeForge page itself, so other web sites can't change settings or push firmware. Scripts that POST to the API need to send the header `X-AxeForge: 1` (and `X-AxeForge-Session` with two-factor login on). The whole API is documented in [`docs/openapi.yaml`](docs/openapi.yaml). The tabs are:
 - **Dashboard**
 - **Pools**
 - **Tuning**
@@ -121,6 +136,7 @@ Open `http://<miner-ip>/`. The API only answers when it's reached by IP address 
 - **System**:
   - A live log console. Every change made through the API is logged with the client's address, and the next boot says who asked for the last restart.
   - Firmware update by uploading your board's `.bin` (see [Flashing](#flashing)), so later updates don't need USB.
+  - Self-test, notifications and two-factor login.
 
 ## Screens
 
@@ -187,6 +203,7 @@ If the web flasher is down (or you'd rather not use a browser), flash over USB w
 | NerdOctaxe-γ | `axeforge-nerdoctaxegamma.bin` | `axeforge-nerdoctaxegamma-factory.bin` |
 | NerdQX | `axeforge-nerdqx.bin` | `axeforge-nerdqx-factory.bin` |
 | Bitaxe Supra Hex | `axeforge-suprahex.bin` | `axeforge-suprahex-factory.bin` |
+| Bitaxe Ultra Hex | `axeforge-ultrahex.bin` | `axeforge-ultrahex-factory.bin` |
 | Bitaxe Supra | `axeforge-supra.bin` | `axeforge-supra-factory.bin` |
 | Bitaxe Gamma | `axeforge-gamma.bin` | `axeforge-gamma-factory.bin` |
 | Bitaxe Naja Duo | `axeforge-naja.bin` | `axeforge-naja-factory.bin` |
@@ -252,7 +269,7 @@ idf.py menuconfig   # optional: pins / limits
 idf.py build        # NerdQaxe++
 ```
 
-Every other board builds in its own directory from `sdkconfig.defaults.<board>` (`nerdaxe`, `nerdqaxeplus`, `nerdoctaxeplus`, `nerdoctaxegamma`, `nerdqx`, `suprahex`, `supra`, `gamma`, `naja`):
+Every other board builds in its own directory from `sdkconfig.defaults.<board>` (`nerdaxe`, `nerdqaxeplus`, `nerdoctaxeplus`, `nerdoctaxegamma`, `nerdqx`, `suprahex`, `ultrahex`, `supra`, `gamma`, `naja`):
 
 ```bash
 idf.py -B build_nerdqx -D SDKCONFIG=build_nerdqx/sdkconfig -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.nerdqx" build
@@ -284,10 +301,10 @@ A release tag also publishes the web flasher (`flasher/`) to GitHub Pages with t
 ## Not supported yet
 
 - One pool per ASIC: not possible on this hardware (see above).
-- Bitaxe models other than the Supra Hex, Supra, Gamma and Naja Duo (Ultra, Max, GT, Gamma Duo, Gamma Hex).
+- Bitaxe models other than the Supra Hex, Ultra Hex, Supra, Gamma and Naja Duo (Ultra, Max, GT, Gamma Duo, Gamma Hex).
 
 ## Credits / license
 
-The BM1366/BM1368/BM1370 register sequences, TPS53647/TPS53667 setup, the Bitaxe board definitions, TPS546 profiles, EMC2101/EMC2103 setup and BM1373 support (from [ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), GPL-3.0), TMP451 die sensor handling, board pinouts and limits and the Stratum V2 Noise/protocol component (`components/stratum_v2`) are based on the open-source [ESP-Miner-NerdQAxePlus](https://github.com/shufps/ESP-Miner-NerdQAxePlus) (GPL-3.0). The rev7 TPS546 profile comes from the same project's develop branch. For that reason AxeForge is also released under GPL-3.0.
+The BM1366/BM1368/BM1370 register sequences, TPS53647/TPS53667 setup, the Bitaxe board definitions, TPS546 profiles, EMC2101/EMC2103 setup and BM1373 support (from [ESP-Miner](https://github.com/bitaxeorg/ESP-Miner), GPL-3.0), TMP451 die sensor handling, board pinouts and limits and the Stratum V2 Noise/protocol component (`components/stratum_v2`) are based on the open-source [ESP-Miner-NerdQAxePlus](https://github.com/shufps/ESP-Miner-NerdQAxePlus) (GPL-3.0). The rev7 TPS546 profile and the W5500 Ethernet adapter's pin map come from the same project. The accessory port speaks AxeOS's BAP protocol. For that reason AxeForge is also released under GPL-3.0.
 
 Thanks to [@cbyam](https://github.com/cbyam) for many fixes and features since v1.2.0: SV2 latency and reconnects, fan safety, recovery, duplicate results, pool difficulty and version rolling, the tuner, the Swarm scan, the screen-off timer and the unit tests.

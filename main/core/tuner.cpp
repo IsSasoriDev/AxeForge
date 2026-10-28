@@ -7,6 +7,7 @@
 #include "freertos/task.h"
 #include "sdkconfig.h"
 
+#include "asic/bm13xx.h"
 #include "core/board.h"
 #include "core/settings.h"
 #include "core/state.h"
@@ -27,12 +28,17 @@ static const char *TAG = "tuner";
 #define MIN_EFFICIENCY 0.92f    // measured / theoretical hashrate
 #define THERMAL_MARGIN_C 2.0f   // stop climbing this close to the ceiling
 #define TRIM_MARGIN_MV 10       // added back after voltage trim
+#define CHIP_STEP 12            // MHz per per-chip raise
+#define CHIP_MAX_MHZ 48         // no chip more than this above the chain clock
+#define EFF_WORSE_STEPS 2       // efficiency goal: stop climbing after this many worse steps
+
+enum Goal : uint8_t { GOAL_HASHRATE = 0, GOAL_POWER_CAP = 1, GOAL_EFFICIENCY = 2 };
 
 enum class Verdict { Stable, Errors, Thermal, Power, Aborted };
 
 struct Result {
     Verdict verdict;
-    float ghs, err, worst_chip, tmax, vrmax, pmax;
+    float ghs, err, worst_chip, tmax, vrmax, pmax, pavg;
 };
 
 static volatile bool s_restart = false;
@@ -66,6 +72,41 @@ static void note(const char *fmt, float a = 0, float b = 0)
 
 static bool should_abort() { return s_restart || !settings::get().autotune || !board::is_powered(); }
 
+// The input power the tuner may use: the board's limit, or the user's cap below it.
+static float power_ceiling()
+{
+    const Settings &cfg = settings::get();
+    float lim = board::limits().max_power_w;
+    if (cfg.tune_goal == GOAL_POWER_CAP && cfg.power_cap_w > 0 && cfg.power_cap_w < lim) return cfg.power_cap_w;
+    return lim;
+}
+
+static float joules_per_th(const Result &r) { return r.ghs > 0 ? r.pavg / (r.ghs / 1000.0f) : 1e9f; }
+
+// Applies per-chip offsets, keeps them in the settings (saved by the caller) and
+// counts them in the expected hashrate the stability check compares against.
+static void set_offsets(const int8_t *off)
+{
+    Settings &cfg = settings::get();
+    if (off != cfg.chip_off) memcpy(cfg.chip_off, off, sizeof(cfg.chip_off));
+    asic::set_chip_offsets(cfg.chip_off, board::is_powered());
+    g_state.expected_ghs =
+        (board::freq_mhz() * g_state.chips_detected + asic::offset_total()) * (float) asic::SMALL_CORES / 1000.0f;
+}
+
+static bool any_offset()
+{
+    for (int i = 0; i < AF_NUM_ASICS; i++)
+        if (settings::get().chip_off[i]) return true;
+    return false;
+}
+
+static void clear_offsets()
+{
+    int8_t zero[AF_NUM_ASICS] = {};
+    set_offsets(zero);
+}
+
 // Applies a point in a safe order: voltage up before frequency up,
 // frequency down before voltage down.
 static bool apply(uint16_t freq, uint16_t mv)
@@ -83,12 +124,14 @@ static bool apply(uint16_t freq, uint16_t mv)
 
 static Result measure(int warmup_s, int window_s, float max_err, float max_chip_err)
 {
-    Result r = {Verdict::Stable, 0, 0, 0, 0, 0, 0};
+    Result r = {Verdict::Stable, 0, 0, 0, 0, 0, 0, 0};
     const float t_ceil = CONFIG_AF_MAX_CHIP_TEMP;
     const float vr_ceil = board::limits().vr_ceil_c;
-    const float p_ceil = board::limits().max_power_w;
+    const float p_ceil = power_ceiling();
     const int total = warmup_s + window_s;
     int hot = 0, watts = 0;
+    double psum = 0;
+    int pn = 0;
 
     for (int t = 0; t < total; t++) {
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -102,6 +145,10 @@ static Result measure(int warmup_s, int window_s, float max_err, float max_chip_
         if (g_state.chip_temp_max > r.tmax) r.tmax = g_state.chip_temp_max;
         if (g_state.vr_temp > r.vrmax) r.vrmax = g_state.vr_temp;
         if (g_state.pin > r.pmax) r.pmax = g_state.pin;
+        if (t >= warmup_s) {
+            psum += g_state.pin;
+            pn++;
+        }
 
         // fail fast on clear limit violations (sustained, not single spikes)
         // no reading counts as too hot: never climb blind
@@ -128,6 +175,7 @@ static Result measure(int warmup_s, int window_s, float max_err, float max_chip_
         }
     }
     miner::window_stats(&r.ghs, &r.err);
+    r.pavg = pn ? (float) (psum / pn) : 0;
     r.worst_chip = miner::window_worst_chip_err();
     float eff = g_state.expected_ghs > 0 ? r.ghs / g_state.expected_ghs : 0;
     // the weakest chip fails first; an average over four chips can hide it
@@ -154,6 +202,11 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
     uint16_t f = board::freq_mhz();
     uint16_t mv = board::core_mv();
     int bumps = 0;
+    // efficiency goal: hold the voltage (raising it costs more than it gains) and
+    // keep the point with the fewest joules per terahash
+    const bool eff_goal = settings::get().tune_goal == GOAL_EFFICIENCY;
+    float best_jth = 1e9f;
+    int worse = 0;
 
     while (true) {
         g_state.tuner.phase = TunerPhase::Measuring;
@@ -165,18 +218,25 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
                  verdict_text(r.verdict), r.ghs, r.err, r.worst_chip, r.tmax, r.vrmax, r.pmax);
 
         if (r.verdict == Verdict::Stable) {
-            if (r.ghs > best_ghs) {
+            bool better = eff_goal ? joules_per_th(r) < best_jth : r.ghs > best_ghs;
+            if (eff_goal) ESP_LOGI(TAG, "%u MHz: %.2f J/TH", f, joules_per_th(r));
+            if (better) {
                 best_f = f;
                 best_mv = mv;
                 best_ghs = r.ghs;
+                best_jth = joules_per_th(r);
+                worse = 0;
                 g_state.tuner.best_freq = f;
                 g_state.tuner.best_mv = mv;
                 g_state.tuner.best_ghs = r.ghs;
+            } else if (eff_goal && ++worse >= EFF_WORSE_STEPS) {
+                note("Efficiency peaked at %.0f MHz (%.1f J/TH)", best_f, best_jth);
+                return true;
             }
             bumps = 0;
             bool near_thermal = r.tmax > CONFIG_AF_MAX_CHIP_TEMP - THERMAL_MARGIN_C ||
                                 r.vrmax > board::limits().vr_ceil_c - THERMAL_MARGIN_C;
-            bool near_power = r.pmax > board::limits().max_power_w * 0.95f;
+            bool near_power = r.pmax > power_ceiling() * 0.95f;
             bool at_hold = held(f + FREQ_STEP) != f + FREQ_STEP;
             if (near_thermal || near_power || at_hold || f + FREQ_STEP > board::limits().max_freq_mhz) {
                 note(near_power ? "Power ceiling reached" : near_thermal ? "Thermal ceiling reached"
@@ -190,7 +250,7 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
             continue;
         }
 
-        if (r.verdict == Verdict::Errors && bumps < MAX_MV_BUMPS && mv + MV_STEP <= board::max_mv()) {
+        if (r.verdict == Verdict::Errors && !eff_goal && bumps < MAX_MV_BUMPS && mv + MV_STEP <= board::max_mv()) {
             // more voltage usually fixes errors at a given clock
             mv += MV_STEP;
             bumps++;
@@ -229,6 +289,80 @@ static bool trim(uint16_t f, uint16_t &mv, float &ghs)
     return true;
 }
 
+// Phase 2b: per-chip clocks. All chips that can go higher step up together; the
+// per-chip error counts say which ones held. A chip that fails goes back one step
+// and stays there. Returns false if aborted.
+static bool tune_chips(uint16_t f, float &ghs)
+{
+    Settings &cfg = settings::get();
+    if (!asic::PER_CHIP_CLOCK || !cfg.chip_tune || cfg.tune_goal == GOAL_EFFICIENCY || g_state.chips_detected < 2)
+        return true;
+    const int chips = g_state.chips_detected < AF_NUM_ASICS ? g_state.chips_detected : AF_NUM_ASICS;
+    const int fmax = board::limits().max_freq_mhz;
+    int8_t off[AF_NUM_ASICS];
+    memcpy(off, cfg.chip_off, sizeof(off));
+    bool frozen[AF_NUM_ASICS] = {};
+
+    for (int round = 0; round < CHIP_MAX_MHZ / CHIP_STEP; round++) {
+        bool raised[AF_NUM_ASICS] = {};
+        int n = 0;
+        for (int i = 0; i < chips; i++) {
+            if (frozen[i] || off[i] + CHIP_STEP > CHIP_MAX_MHZ || held(f) + off[i] + CHIP_STEP > fmax) continue;
+            off[i] += CHIP_STEP;
+            raised[i] = true;
+            n++;
+        }
+        if (!n) break;
+        g_state.tuner.phase = TunerPhase::Measuring;
+        snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Per-chip: %d chip%s up %d MHz", n, n > 1 ? "s" : "",
+                 CHIP_STEP);
+        ESP_LOGI(TAG, "%s", g_state.tuner.note);
+        set_offsets(off);
+        Result r = measure(WARMUP_S / 2, WINDOW_S, MAX_ERR_PCT, 100.0f);  // chips are judged one by one below
+        g_state.tuner.steps_done++;
+        bool stop = r.verdict == Verdict::Thermal || r.verdict == Verdict::Power || r.verdict == Verdict::Aborted;
+        int failed = 0;
+        for (int i = 0; i < chips; i++) {
+            if (!raised[i]) continue;
+            float e = miner::window_chip_err(i);
+            // a chip over its own limit fails; with the total over its limit, so does
+            // any raised chip above the total limit
+            bool bad = stop || e > WORST_CHIP_PCT || (r.verdict == Verdict::Errors && e > MAX_ERR_PCT);
+            if (bad) {
+                off[i] -= CHIP_STEP;
+                frozen[i] = true;
+                failed++;
+            }
+            ESP_LOGI(TAG, "chip %d at +%d MHz: %.2f%% errors%s", i + 1, off[i] + (bad ? CHIP_STEP : 0), e,
+                     bad ? ", back one step" : "");
+        }
+        if (r.verdict == Verdict::Errors && !failed) {
+            // the total failed without any one chip standing out: undo the round
+            for (int i = 0; i < chips; i++)
+                if (raised[i]) {
+                    off[i] -= CHIP_STEP;
+                    frozen[i] = true;
+                }
+            stop = true;
+        }
+        if (r.verdict == Verdict::Stable && !failed && r.ghs > ghs) ghs = r.ghs;
+        if (stop || failed) set_offsets(off);
+        if (r.verdict == Verdict::Aborted) {
+            settings::save();
+            return false;
+        }
+        if (stop) break;
+    }
+    set_offsets(off);
+    settings::save();
+    char line[8 * AF_NUM_ASICS + 1] = "";
+    for (int i = 0; i < chips; i++)
+        snprintf(line + strlen(line), sizeof(line) - strlen(line), "%s%+d", i ? " " : "", off[i]);
+    snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Per-chip offsets: %s MHz", line);
+    ESP_LOGI(TAG, "%s", g_state.tuner.note);
+    return true;
+}
+
 static void tuner_task(void *)
 {
     if (settings::get().autotune) {
@@ -248,6 +382,10 @@ static void tuner_task(void *)
             uint16_t want = s_hold && cfg.freq_mhz > s_hold ? s_hold : cfg.freq_mhz;
             g_state.tuner.phase = TunerPhase::Off;
             snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Manual: %u MHz @ %u mV", cfg.freq_mhz, cfg.core_mv);
+            if (any_offset() && board::is_powered()) {  // a manual clock means every chip at it
+                clear_offsets();
+                settings::save();
+            }
             if (board::is_powered() && (board::freq_mhz() != board::clamp_freq(want) ||
                                         board::core_mv() != board::clamp_mv(cfg.core_mv))) {
                 apply(cfg.freq_mhz, cfg.core_mv);
@@ -263,6 +401,7 @@ static void tuner_task(void *)
         if (s_restart) {
             s_restart = false;
             cfg.tuned_freq = cfg.tuned_mv = 0;
+            clear_offsets();
             settings::save();
             g_state.tuner = TunerState();
             apply(cfg.freq_mhz, cfg.core_mv);
@@ -272,6 +411,10 @@ static void tuner_task(void *)
         float best_ghs = 0;
 
         if (!cfg.tuned_freq) {
+            if (any_offset()) {  // a new search starts with every chip at the chain clock
+                clear_offsets();
+                settings::save();
+            }
             g_state.tuner.phase = TunerPhase::WarmUp;
             note("Starting search from %.0f MHz", best_f);
             if (!climb(best_f, best_mv, best_ghs)) continue;
@@ -291,6 +434,7 @@ static void tuner_task(void *)
             apply(best_f, best_mv);
             if (!trim(best_f, best_mv, best_ghs)) continue;
             lock_point(best_f, best_mv, best_ghs);
+            if (!tune_chips(best_f, best_ghs)) continue;
         } else {
             apply(cfg.tuned_freq, cfg.tuned_mv);
             best_f = held(cfg.tuned_freq);
@@ -307,6 +451,20 @@ static void tuner_task(void *)
             if (r.verdict == Verdict::Aborted) break;
             if (r.verdict == Verdict::Stable) {
                 if (r.ghs > 0) g_state.tuner.best_ghs = r.ghs;
+                continue;
+            }
+            int wc = -1;
+            miner::window_worst_chip_err(&wc);
+            if (r.verdict == Verdict::Errors && wc >= 0 && wc < AF_NUM_ASICS && cfg.chip_off[wc] > 0) {
+                // a raised chip is the likely cause: take it down a step, not the chain
+                int8_t off[AF_NUM_ASICS];
+                memcpy(off, cfg.chip_off, sizeof(off));
+                off[wc] = off[wc] > CHIP_STEP ? off[wc] - CHIP_STEP : 0;
+                set_offsets(off);
+                settings::save();
+                snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Drift: chip %d back to +%d MHz", wc + 1,
+                         off[wc]);
+                ESP_LOGW(TAG, "%s", g_state.tuner.note);
                 continue;
             }
             g_state.tuner.phase = TunerPhase::Backoff;

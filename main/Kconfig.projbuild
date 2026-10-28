@@ -20,6 +20,8 @@ menu "AxeForge"
             bool "NerdAxe (1x BM1366, T-Display-S3)"
         config AF_BOARD_SUPRAHEX
             bool "Bitaxe Supra Hex 701/702 (6x BM1368)"
+        config AF_BOARD_ULTRAHEX
+            bool "Bitaxe Ultra Hex 302/303 (6x BM1366)"
         config AF_BOARD_BITAXE_SUPRA
             bool "Bitaxe Supra 400-403 (1x BM1368)"
         config AF_BOARD_BITAXE_GAMMA
@@ -32,7 +34,7 @@ menu "AxeForge"
 
 
     menu "Big display (3.5in 480x320)"
-        depends on !AF_BOARD_SUPRAHEX && !AF_BOARD_BITAXE_SUPRA && !AF_BOARD_BITAXE_GAMMA
+        depends on !AF_BOARD_SUPRAHEX && !AF_BOARD_ULTRAHEX && !AF_BOARD_BITAXE_SUPRA && !AF_BOARD_BITAXE_GAMMA
         choice AF_LCD_BUS
             prompt "Interface"
             default AF_LCD_BUS_I80
@@ -144,6 +146,7 @@ menu "AxeForge"
             range 400 1250
             default 625 if AF_BOARD_SUPRAHEX || AF_BOARD_NERDQAXEPLUS || AF_BOARD_NERDOCTAXEPLUS
             default 600 if AF_BOARD_NERDAXE || AF_BOARD_BITAXE_SUPRA
+            default 575 if AF_BOARD_ULTRAHEX  # top of the reference firmware's BM1366 list
             default 1000 if AF_BOARD_NERDQX
             default 800 if AF_BOARD_BITAXE_GAMMA
             default 450 if AF_BOARD_NAJA
@@ -170,15 +173,16 @@ menu "AxeForge"
             default 80
         config AF_MAX_VR_TEMP
             int "Tuner VR temperature ceiling (C)"
-            default 95 if AF_BOARD_SUPRAHEX
+            default 95 if AF_BOARD_SUPRAHEX || AF_BOARD_ULTRAHEX
             default 85
         config AF_CRIT_VR_TEMP
             int "Emergency shutdown VR temperature (C)"
-            default 105 if AF_BOARD_SUPRAHEX
+            default 105 if AF_BOARD_SUPRAHEX || AF_BOARD_ULTRAHEX
             default 100
         config AF_MAX_POWER_W
             int "Max input power (W)"
             default 120 if AF_BOARD_SUPRAHEX
+            default 90 if AF_BOARD_ULTRAHEX  # reference firmware's max_power
             default 15 if AF_BOARD_NERDAXE
             default 40 if AF_BOARD_BITAXE_SUPRA || AF_BOARD_BITAXE_GAMMA
             default 60 if AF_BOARD_NAJA

@@ -42,12 +42,19 @@ static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x70, 0x00, 0x00};
 static SemaphoreHandle_t s_tx_lock;
 static float s_freq = 56.25f;
 static uint32_t s_diff_mask = 0xffffffff;
-static uint32_t s_version_mask = 0xffffffff;  // unknown: rewrite on next set_version_mask
+static uint32_t s_version_mask = 0xffffffff;
+#if !(AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373)
+static uint32_t s_vr_hz = 0;  // version rolling speed override, 0 = default
+#endif  // unknown: rewrite on next set_version_mask
 static uint8_t s_addr_interval = 64;   // chip address step: SETADDRESS, writes, register replies
 static uint8_t s_nonce_interval = 64;  // chip number in a nonce = nonce bits 17-24 / this
 #if AF_ASIC_BM1373
 static uint8_t s_cmd_interval = 4;     // the BM1373 addresses single-chip writes at 1/4 of its step
 #endif
+static SemaphoreHandle_t s_pll_lock;   // chain clock and per-chip offsets change together
+static int s_chips = 0;
+static int8_t s_off[AF_NUM_ASICS];      // wanted per-chip offsets (MHz)
+static int8_t s_applied[AF_NUM_ASICS];  // offsets the chips run at now
 
 // ------------------------------------------------------------------ CRC
 static uint8_t crc5(const uint8_t *data, int len)
@@ -137,7 +144,7 @@ static uint8_t reverse_bits(uint8_t v)
 #if AF_ASIC_BM1368 || AF_ASIC_BM1366
 // Reference PLL search for the BM1368 / BM1366: closest frequency, then lowest VCO,
 // then the smallest post divider product.
-static bool send_pll(float target)
+static bool send_pll(float target, int chip = -1)
 {
     float min_diff = 1e9f, min_vco = 1e9f, best_f = 0;
     int min_post = 1 << 16, best_ref = 0, best_fb = 0, best_p1 = 0, best_p2 = 0;
@@ -166,7 +173,7 @@ static bool send_pll(float target)
     }
 #else
 // PLL search identical in output to the S21 register dumps.
-static bool send_pll(float target)
+static bool send_pll(float target, int chip = -1)
 {
     float min_diff = 2.0f;
     int best_ref = 0, best_fb = 0, best_p1 = 0, best_p2 = 0, pmin = 255, p2min = 255;
@@ -197,10 +204,48 @@ static bool send_pll(float target)
     }
     uint8_t d[6] = {0x00, 0x08, (uint8_t) ((best_fb * 25 / best_ref >= 2400) ? 0x50 : 0x40), (uint8_t) best_fb,
                     (uint8_t) best_ref, (uint8_t) ((((best_p1 - 1) & 0xf) << 4) | ((best_p2 - 1) & 0xf))};
+    if (chip >= 0) {
+#if AF_ASIC_BM1373
+        d[0] = (uint8_t) (chip * s_cmd_interval);
+#else
+        d[0] = (uint8_t) (chip * s_addr_interval);
+#endif
+        send(CMD_WRITE_SINGLE, d, 6);
+        return true;
+    }
     send(CMD_WRITE_ALL, d, 6);
     s_freq = target;
     ESP_LOGD(TAG, "PLL %.2f MHz (actual %.2f)", target, best_f);
     return true;
+}
+
+// One chip from one clock to another in 6.25 MHz steps, like the chain ramp.
+static void ramp_chip(int chip, float from, float to)
+{
+    while (fabsf(to - from) > 0.01f) {
+        float d = fminf(6.25f, fabsf(to - from));
+        from += (to > from) ? d : -d;
+        send_pll(from, chip);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+static void apply_offsets()
+{
+    for (int i = 0; i < s_chips && i < AF_NUM_ASICS; i++) {
+        if (s_applied[i] == s_off[i]) continue;
+        ramp_chip(i, s_freq + s_applied[i], s_freq + s_off[i]);
+        s_applied[i] = s_off[i];
+    }
+}
+
+static void clear_applied()
+{
+    for (int i = 0; i < s_chips && i < AF_NUM_ASICS; i++) {
+        if (!s_applied[i]) continue;
+        ramp_chip(i, s_freq + s_applied[i], s_freq);
+        s_applied[i] = 0;
+    }
 }
 
 static void set_version_mask_all()
@@ -214,6 +259,7 @@ namespace asic {
 void uart_init()
 {
     s_tx_lock = xSemaphoreCreateMutex();
+    s_pll_lock = xSemaphoreCreateRecursiveMutex();
     uart_config_t cfg = {};
     cfg.baud_rate = 115200;
     cfg.data_bits = UART_DATA_8_BITS;
@@ -233,6 +279,8 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     // found no chips unless the port is set back first.
     uart_set_baudrate(UART, 115200);
     uart_flush(UART);
+    s_chips = 0;
+    memset(s_applied, 0, sizeof(s_applied));  // reset chips run the chain clock
     // The chips just came out of reset at their default PLL. Ramping from the
     // clock they ran at before a power cut would jump them from ~56 MHz to full
     // speed in one step; on the Supra Hex that surge trips the regulator's
@@ -271,6 +319,7 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     if (chips == expected_chips) ESP_LOGI(TAG, "%d %s chips detected", chips, MODEL);
     else ESP_LOGE(TAG, "%d chips detected, expected %d", chips, expected_chips);
     if (!chips) return 0;
+    s_chips = chips;
 
 #if AF_ASIC_BM1373 && AF_BM1373_SHUFPS_INIT
     // BM1373 sequence from shufps' NerdQAxe firmware (components/bm1397/bm1373.cpp),
@@ -348,7 +397,9 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0xA8, 0x00, 0x07, 0x00, 0x00);
     write_all(0x18, 0xFF, 0x0F, 0xC1, 0x00);  // misc control
     send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
-    s_addr_interval = 256 / next_pow2(chips);
+    // 256 / chips as the reference firmware does (42 on the 6-chip Ultra Hex);
+    // the same as a power-of-two stride for the 1 and 4 chip boards
+    s_addr_interval = 256 / chips;
     for (int i = 0; i < chips; i++) send2(TYPE_CMD | CMD_SETADDRESS, i * s_addr_interval, 0x00);
     write_all(0x3C, 0x80, 0x00, 0x85, 0x40);  // core register control
     write_all(0x3C, 0x80, 0x00, 0x80, 0x20);
@@ -429,17 +480,34 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0x10, 0x00, 0x00, 0x15, 0x1C);  // hash counting (S19XP stock value)
 #elif AF_ASIC_BM1368
     write_all(0x10, 0x00, 0x00, 0x15, 0xA4);  // hash counting (S21 stock value)
-#elif defined(AF_VR_FREQ_HZ)
-    {
-        // reg = 65536 * 3000 Hz (15 MHz IO clock / 5000) / rolling frequency
-        uint32_t v = (uint32_t) ((65536ull * 3000 + AF_VR_FREQ_HZ / 2) / AF_VR_FREQ_HZ);
-        write_all(0x10, v >> 24, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff);
-    }
 #else
-    write_all(0x10, 0x00, 0x00, 0x1E, 0xB5);  // version rolling speed (stock value)
+    set_vr_freq(s_vr_hz, true);  // version rolling speed: the user's, the board's or stock
 #endif
     set_version_mask_all();
     return chips;
+}
+
+bool set_vr_freq(uint32_t hz, bool write)
+{
+#if AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373
+    (void) hz;
+    (void) write;
+    return false;  // register 0x10 sets the nonce space on these chips, not a rolling speed
+#else
+    s_vr_hz = hz;
+    if (!write) return true;
+#ifdef AF_VR_FREQ_HZ
+    if (!hz) hz = AF_VR_FREQ_HZ;
+#endif
+    if (!hz) {
+        write_all(0x10, 0x00, 0x00, 0x1E, 0xB5);  // version rolling speed (stock value, ~25 kHz)
+        return true;
+    }
+    // reg = 65536 * 3000 Hz (15 MHz IO clock / 5000) / rolling frequency
+    uint32_t v = (uint32_t) ((65536ull * 3000 + hz / 2) / hz);
+    write_all(0x10, v >> 24, (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff);
+    return true;
+#endif
 }
 
 void switch_to_fast_baud()
@@ -453,7 +521,7 @@ void switch_to_fast_baud()
     uart_flush(UART);
 }
 
-bool set_frequency(float target)
+static bool ramp_chain(float target)
 {
     const float step = 6.25f;
     float cur = s_freq;
@@ -470,6 +538,47 @@ bool set_frequency(float target)
     }
     ESP_LOGI(TAG, "frequency %.2f MHz", target);
     return send_pll(target);
+}
+
+bool set_frequency(float target)
+{
+    // chips with an offset come back to the chain clock first, so the whole chain
+    // ramps from one clock, then they step out to their own again
+    xSemaphoreTakeRecursive(s_pll_lock, portMAX_DELAY);
+    clear_applied();
+    bool ok = ramp_chain(target);
+    if (ok) apply_offsets();
+    xSemaphoreGiveRecursive(s_pll_lock);
+    return ok;
+}
+
+void set_chip_offsets(const int8_t *mhz, bool write)
+{
+    if (!s_pll_lock) {  // at boot, before uart_init(): only remembered for the chip init
+        for (int i = 0; i < AF_NUM_ASICS; i++) s_off[i] = PER_CHIP_CLOCK ? mhz[i] : 0;
+        return;
+    }
+    xSemaphoreTakeRecursive(s_pll_lock, portMAX_DELAY);
+    for (int i = 0; i < AF_NUM_ASICS; i++) s_off[i] = PER_CHIP_CLOCK ? mhz[i] : 0;
+    if (write) {
+        apply_offsets();
+        int8_t on[AF_NUM_ASICS];
+        memcpy(on, s_applied, sizeof(on));
+        char line[8 * AF_NUM_ASICS + 1] = "";
+        for (int i = 0; i < s_chips && i < AF_NUM_ASICS; i++)
+            snprintf(line + strlen(line), sizeof(line) - strlen(line), "%s%+d", i ? " " : "", on[i]);
+        ESP_LOGI(TAG, "per-chip offsets (MHz): %s", line);
+    }
+    xSemaphoreGiveRecursive(s_pll_lock);
+}
+
+int chip_offset(int chip) { return chip >= 0 && chip < AF_NUM_ASICS ? s_applied[chip] : 0; }
+
+int offset_total()
+{
+    int t = 0;
+    for (int i = 0; i < s_chips && i < AF_NUM_ASICS; i++) t += s_applied[i];
+    return t;
 }
 
 float frequency() { return s_freq; }

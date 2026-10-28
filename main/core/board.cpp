@@ -17,6 +17,7 @@
 #include "sdkconfig.h"
 
 #include "asic/bm13xx.h"
+#include "core/settings.h"
 #include "core/state.h"
 #include "hw/i2c_bus.h"
 #include "hw/sensors.h"
@@ -31,6 +32,8 @@ static const char *TAG = "board";
 #define PIN_ASIC_RST GPIO_NUM_1
 
 #define PIN_VR_DETECT GPIO_NUM_3  // NerdOctaxe-g rev3.0+: strapped high for a TPS53667
+#define G67_4PH_FREQ 600          // settings.cpp's NerdOctaxe-g defaults
+#define G67_4PH_MV 1150
 
 #define START_DIFFICULTY AF_ASIC_DIFF_MAX
 #if AF_ASIC_BM1368
@@ -130,6 +133,13 @@ Error init_hardware()
         s_vr_offset = 8;
         s_limits.max_power_w = CONFIG_AF_G67_MAX_POWER_W;
         s_limits.max_freq_mhz = CONFIG_AF_G67_MAX_FREQ_MHZ;
+        // the stock firmware's 6-phase starting point; only while the settings
+        // still hold the 4-phase defaults, a point the user picked is kept
+        Settings &c = settings::get();
+        if (c.freq_mhz == G67_4PH_FREQ && c.core_mv == G67_4PH_MV) {
+            c.freq_mhz = 700;
+            c.core_mv = 1210;
+        }
         ESP_LOGI(TAG, "TPS53667 board (6 phases) - limits %u MHz / %.0f W", s_limits.max_freq_mhz, s_limits.max_power_w);
     } else {
         ESP_LOGI(TAG, "TPS53647 board (4 phases) - limits %u MHz / %.0f W", s_limits.max_freq_mhz, s_limits.max_power_w);
@@ -151,9 +161,29 @@ Error init_hardware()
     return Error::None;
 }
 
+static Error power_up_once(uint16_t freq, uint16_t mv, bool last_try);
+
+// A chip that misses the count still hashes, but without an address of its own it
+// shares chip 1's: repeated nonces and a nonsense hash counter. Seen when powering
+// back up after a cut; a fresh power cycle finds all of them again.
+#define POWER_UP_TRIES 3
+
 Error power_up(uint16_t freq, uint16_t mv)
 {
     Guard g;
+    for (int i = 1;; i++) {
+        Error e = power_up_once(freq, mv, i == POWER_UP_TRIES);
+        bool short_chain = e == Error::ChipMissing || (e == Error::None && g_state.chips_detected < AF_NUM_ASICS);
+        if (!short_chain || i == POWER_UP_TRIES) return e;
+        ESP_LOGW(TAG, "%d of %d chips answered: power cycling (try %d of %d)", g_state.chips_detected, AF_NUM_ASICS,
+                 i + 1, POWER_UP_TRIES);
+        shutdown();
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+static Error power_up_once(uint16_t freq, uint16_t mv, bool last_try)
+{
     freq = clamp_freq(freq);
     mv = clamp_mv(mv);
 
@@ -213,6 +243,7 @@ Error power_up(uint16_t freq, uint16_t mv)
         shutdown();
         return Error::NoChips;
     }
+    if (chips != AF_NUM_ASICS && !last_try) return Error::None;  // power_up() cycles and tries again
     // rev7 stacks the chips in two series domains: a missing chip overvolts its partner
     if (s_rev7 && chips != AF_NUM_ASICS) {
         ESP_LOGE(TAG, "only %d of %d chips answered: not powering a broken stack", chips, AF_NUM_ASICS);
@@ -226,7 +257,7 @@ Error power_up(uint16_t freq, uint16_t mv)
     set_core_mv(mv);
     s_freq = freq;
     g_state.freq_mhz = freq;
-    g_state.expected_ghs = freq * (float) asic::SMALL_CORES * chips / 1000.0f;
+    g_state.expected_ghs = (freq * chips + asic::offset_total()) * (float) asic::SMALL_CORES / 1000.0f;
     return Error::None;
 }
 
@@ -269,7 +300,7 @@ bool set_freq_mhz(uint16_t mhz)
     if (!asic::set_frequency(mhz)) return false;
     s_freq = mhz;
     g_state.freq_mhz = mhz;
-    g_state.expected_ghs = mhz * (float) asic::SMALL_CORES * g_state.chips_detected / 1000.0f;
+    g_state.expected_ghs = (mhz * g_state.chips_detected + asic::offset_total()) * (float) asic::SMALL_CORES / 1000.0f;
     return true;
 }
 

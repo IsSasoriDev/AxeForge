@@ -215,9 +215,14 @@ void load()
     s.core_mv = 1000;
     s.display_type = 1;  // ST7789 320x170, the T-Display-S3 screen
 #endif
-#if CONFIG_AF_BOARD_SUPRAHEX
+#if AF_HEX_FAMILY
+#if CONFIG_AF_BOARD_ULTRAHEX
+    s.freq_mhz = 485;  // BM1366 stock point
+    s.core_mv = 1200;
+#else
     s.freq_mhz = 490;  // BM1368 stock point
     s.core_mv = 1166;
+#endif
     // two board sensors for six chips: keep real airflow over the unsensed ones
     s.fan_min_pct = 45;
 #endif
@@ -261,6 +266,14 @@ void load()
     get_bool(h, "atune", s.autotune);
     get_u16(h, "tfreq", s.tuned_freq);
     get_u16(h, "tmv", s.tuned_mv);
+    get_u8(h, "tgoal", s.tune_goal);
+    get_u16(h, "pcap", s.power_cap_w);
+    get_bool(h, "chiptune", s.chip_tune);
+    {
+        size_t n = sizeof(s.chip_off);
+        if (nvs_get_blob(h, "chipoff", s.chip_off, &n) != ESP_OK || n != sizeof(s.chip_off))
+            memset(s.chip_off, 0, sizeof(s.chip_off));
+    }
     get_u8(h, "fantgt", s.fan_target_c);
     get_u8(h, "fanmin", s.fan_min_pct);
     get_u8(h, "fmode0", s.fan_mode[0]);
@@ -282,6 +295,23 @@ void load()
     get_bool(h, "h24", s.clock_24h);
     get_bool(h, "mempool", s.mempool_on);
     get_str(h, "mpurl", s.mempool_url, sizeof(s.mempool_url));
+    get_u8(h, "paymode", s.payout_mode);
+    get_u8(h, "payfee", s.payout_max_fee);
+    get_u16(h, "jobms", s.job_ms);
+    nvs_get_u32(h, "vrhz", &s.vr_hz);
+    get_str(h, "discord", s.discord_url, sizeof(s.discord_url));
+    get_str(h, "tgtoken", s.tg_token, sizeof(s.tg_token));
+    get_str(h, "tgchat", s.tg_chat, sizeof(s.tg_chat));
+    get_u8(h, "notify", s.notify_events);
+    get_bool(h, "bap", s.bap_on);
+    get_bool(h, "blesetup", s.ble_setup);
+    get_bool(h, "otaguard", s.ota_guard);
+    get_bool(h, "priceon", s.price_on);
+    get_u8(h, "pricesrc", s.price_src);
+    get_str(h, "pricezone", s.price_zone, sizeof(s.price_zone));
+    get_str(h, "priceurl", s.price_url, sizeof(s.price_url));
+    get_str(h, "pricepath", s.price_path, sizeof(s.price_path));
+    get_float(h, "pricemax", s.price_max);
     nvs_close(h);
 }
 
@@ -305,6 +335,10 @@ void save()
     nvs_set_u8(h, "atune", s.autotune);
     nvs_set_u16(h, "tfreq", s.tuned_freq);
     nvs_set_u16(h, "tmv", s.tuned_mv);
+    nvs_set_u8(h, "tgoal", s.tune_goal);
+    nvs_set_u16(h, "pcap", s.power_cap_w);
+    nvs_set_u8(h, "chiptune", s.chip_tune);
+    nvs_set_blob(h, "chipoff", s.chip_off, sizeof(s.chip_off));
     nvs_set_u8(h, "fantgt", s.fan_target_c);
     nvs_set_u8(h, "fanmin", s.fan_min_pct);
     nvs_set_u8(h, "fmode0", s.fan_mode[0]);
@@ -326,6 +360,23 @@ void save()
     nvs_set_u8(h, "h24", s.clock_24h);
     nvs_set_u8(h, "mempool", s.mempool_on);
     nvs_set_str(h, "mpurl", s.mempool_url);
+    nvs_set_u8(h, "paymode", s.payout_mode);
+    nvs_set_u8(h, "payfee", s.payout_max_fee);
+    nvs_set_u16(h, "jobms", s.job_ms);
+    nvs_set_u32(h, "vrhz", s.vr_hz);
+    nvs_set_str(h, "discord", s.discord_url);
+    nvs_set_str(h, "tgtoken", s.tg_token);
+    nvs_set_str(h, "tgchat", s.tg_chat);
+    nvs_set_u8(h, "notify", s.notify_events);
+    nvs_set_u8(h, "bap", s.bap_on);
+    nvs_set_u8(h, "blesetup", s.ble_setup);
+    nvs_set_u8(h, "otaguard", s.ota_guard);
+    nvs_set_u8(h, "priceon", s.price_on);
+    nvs_set_u8(h, "pricesrc", s.price_src);
+    nvs_set_str(h, "pricezone", s.price_zone);
+    nvs_set_str(h, "priceurl", s.price_url);
+    nvs_set_str(h, "pricepath", s.price_path);
+    set_float(h, "pricemax", s.price_max);
     nvs_commit(h);
     nvs_close(h);
 }

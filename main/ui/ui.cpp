@@ -672,6 +672,7 @@ static void refresh_header()
     case SysStatus::Mining: set_status("MINING", C_GREEN); break;
     case SysStatus::Fault: set_status("FAULT", C_RED); break;
     case SysStatus::Overheat: set_status("OVERHEAT", C_RED); break;
+    case SysStatus::Paused: set_status("PAUSED", C_CYAN); break;
     }
     lv_label_set_text_fmt(s_ip_lbl, LV_SYMBOL_WIFI " %s", s.ip[0] ? s.ip : (s.ap_ssid[0] ? "192.168.4.1" : "--"));
     uint32_t u = s.uptime_s;

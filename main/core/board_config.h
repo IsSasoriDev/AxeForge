@@ -19,17 +19,29 @@
 #define AF_ASIC_DIFF_MIN 64
 #define AF_ASIC_DIFF_MAX 256
 #define AF_KEEP_STOCK_NVS 1
-#elif CONFIG_AF_BOARD_SUPRAHEX
-#define AF_BOARD_NAME "Bitaxe Supra Hex"
-#define AF_BOARD_ID "suprahex"
+#elif CONFIG_AF_BOARD_SUPRAHEX || CONFIG_AF_BOARD_ULTRAHEX
+// The Hex boards (board_suprahex.cpp): 6 chips in 3 stacked domains on one
+// TPS546, EMC2302 fans, two TMP1075s, 128x32 OLED. Only the chip differs.
+#define AF_HEX_FAMILY 1
 #define AF_NUM_ASICS 6
-#define AF_ASIC_BM1368 1
 #define AF_PIN_I2C_SDA 47
 #define AF_PIN_I2C_SCL 48
 #define AF_HAS_LCD 0  // 128x32 SSD1306 OLED instead
-#define AF_JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
 #define AF_VOLTAGE_DOMAINS 3
 #define AF_KEEP_STOCK_NVS 1
+#if CONFIG_AF_BOARD_ULTRAHEX
+#define AF_BOARD_NAME "Bitaxe Ultra Hex"
+#define AF_BOARD_ID "ultrahex"
+#define AF_ASIC_BM1366 1
+#define AF_JOB_INTERVAL_MS (2000 / 8)  // reference firmware: BM1366 timeout / next power of two of the chips
+#define AF_ASIC_DIFF_MIN 256
+#define AF_ASIC_DIFF_MAX 1024
+#else
+#define AF_BOARD_NAME "Bitaxe Supra Hex"
+#define AF_BOARD_ID "suprahex"
+#define AF_ASIC_BM1368 1
+#define AF_JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
+#endif
 #elif CONFIG_AF_BOARD_BITAXE_SUPRA || CONFIG_AF_BOARD_BITAXE_GAMMA || CONFIG_AF_BOARD_NAJA
 // Single-regulator Bitaxes (board_bitaxe.cpp): a TPS546, or on the Supra 400/401
 // the 5 V DS4432U path, found at boot. One EMC2101/EMC2103 for fan and diodes.

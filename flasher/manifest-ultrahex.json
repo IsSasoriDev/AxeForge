@@ -1,0 +1,16 @@
+{
+  "name": "AxeForge for Bitaxe Ultra Hex",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "ultrahex/bootloader.bin", "offset": 0 },
+        { "path": "ultrahex/partition-table.bin", "offset": 32768 },
+        { "path": "ultrahex/axeforge.bin", "offset": 65536 },
+        { "path": "ultrahex/ota_data_initial.bin", "offset": 12648448 }
+      ]
+    }
+  ]
+}

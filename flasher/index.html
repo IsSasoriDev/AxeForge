@@ -4,55 +4,101 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AxeForge Flasher</title>
-<meta name="description" content="Install AxeForge on a NerdQaxe, NerdOctaxe, NerdQX, NerdAxe or Bitaxe (Supra Hex, Supra, Gamma, Naja Duo) straight from the browser over USB.">
+<meta name="description" content="Install AxeForge on a NerdQaxe, NerdOctaxe, NerdQX, NerdAxe or Bitaxe (Supra Hex, Ultra Hex, Supra, Gamma, Naja Duo) straight from the browser over USB.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070a10'/%3E%3Cpath d='M9 23 16 7l7 16h-4l-3-7-3 7z' fill='%23ff9f1c'/%3E%3C/svg%3E">
 <script type="module" src="https://unpkg.com/esp-web-tools@10.1.1/dist/web/install-button.js?module"></script>
 <style>
 :root{
-  --bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;
-  --text:#e6edf6;--dim:#9aa8bd;--accent:#ff9f1c;--accent2:#00e5ff;--ok:#2bff88;--bad:#ff3b5c;
+  --bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--line2:#2a3850;
+  --text:#e6edf6;--dim:#9aa8bd;--accent:#ff9f1c;--accent2:#00e5ff;--ok:#2bff88;--warn:#ffc53d;--bad:#ff3b5c;
   --radius:14px;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{color-scheme:dark}
 body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#13213a 0,transparent 60%),var(--bg);color:var(--text);
   font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
 a{color:var(--accent2)}
 code{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--bg2);border:1px solid var(--line);
   padding:1px 6px;border-radius:6px;word-break:break-all}
-.wrap{max-width:880px;margin:0 auto;padding:40px 16px 64px}
+.wrap{max-width:1040px;margin:0 auto;padding:40px 16px 64px}
 header{display:flex;align-items:center;gap:14px;margin-bottom:8px}
 .logo{width:42px;height:42px;flex:none}
 h1{font-size:28px;margin:0;letter-spacing:-.02em}
 h1 span{color:var(--accent)}
-.lead{color:var(--dim);margin:6px 0 28px;max-width:60ch}
+.lead{color:var(--dim);margin:6px 0 26px;max-width:62ch}
 .badge{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;
   background:rgba(255,159,28,.12);color:var(--accent);border:1px solid rgba(255,159,28,.35);margin-left:auto;white-space:nowrap}
 .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:var(--radius);
   padding:22px;margin-bottom:18px}
-.board{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
-.board h2{margin:0 0 4px;font-size:20px}
-.board p{margin:0;color:var(--dim)}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
+/* step labels */
+.step{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--dim)}
+.step b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#1a1000;
+  font-size:12px;letter-spacing:0}
+
+/* picker */
+.picker{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.tools{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--bg2);border:1px solid var(--line);border-radius:11px}
+.tabs button{appearance:none;border:0;background:none;color:var(--dim);font:600 13px system-ui,sans-serif;padding:7px 12px;
+  border-radius:8px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+.search{flex:1 1 180px;min-width:0;appearance:none;background:var(--bg2);border:1px solid var(--line);border-radius:11px;
+  color:var(--text);font:14px system-ui,sans-serif;padding:9px 12px}
+.search:focus,.tabs button:focus-visible,.tile:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+.group{margin:0 0 8px;font-size:12px;color:var(--dim);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:18px}
+.tile{appearance:none;text-align:left;cursor:pointer;color:var(--text);font:inherit;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:12px 13px;display:flex;flex-direction:column;gap:4px;
+  transition:border-color .12s,background .12s,transform .12s}
+.tile:hover{border-color:var(--line2);transform:translateY(-1px)}
+.tile[aria-pressed="true"]{border-color:var(--accent);background:linear-gradient(180deg,rgba(255,159,28,.10),var(--panel));
+  box-shadow:0 0 0 1px var(--accent) inset}
+.tile .name{font-weight:650;font-size:15px}
+.tile .sub{font-size:12.5px;color:var(--dim)}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.status.ok::before{background:var(--ok)}
+.empty{color:var(--dim);font-size:14px;padding:8px 2px}
+
+/* detail panel */
+.detail{position:sticky;top:16px}
+.detail h2{margin:0 0 2px;font-size:22px}
+.detail .spec{color:var(--dim);margin:0 0 12px}
+.detail p{margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px}
 .chip{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);color:var(--dim)}
-esp-web-install-button button,.btn{appearance:none;border:0;cursor:pointer;font:600 15px system-ui,sans-serif;
-  padding:12px 20px;border-radius:11px;background:var(--accent);color:#1a1000;box-shadow:0 6px 22px rgba(255,159,28,.25);
+.chip.ok{color:var(--ok);border-color:rgba(43,255,136,.3)}
+.chip.warn{color:var(--warn);border-color:rgba(255,197,61,.3)}
+.files{font-size:13px;color:var(--dim);margin:14px 0 0;border-top:1px solid var(--line);padding-top:12px}
+.files div{display:flex;justify-content:space-between;gap:8px;margin:3px 0}
+esp-web-install-button{display:block}
+esp-web-install-button button,.btn{appearance:none;border:0;cursor:pointer;font:600 15px system-ui,sans-serif;width:100%;
+  padding:13px 20px;border-radius:11px;background:var(--accent);color:#1a1000;box-shadow:0 6px 22px rgba(255,159,28,.25);
   transition:transform .12s,box-shadow .12s}
 esp-web-install-button button:hover,.btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(255,159,28,.35)}
-.note{display:block;font-size:13px;color:var(--bad);max-width:28ch}
+.note{display:block;font-size:13px;color:var(--bad)}
+.placeholder{color:var(--dim);text-align:center;padding:30px 10px}
+
 h3{margin:0 0 12px;font-size:16px}
 ol,ul{margin:0;padding-left:20px}
 li{margin:6px 0}
 li::marker{color:var(--accent)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .dim{color:var(--dim)}
-.warn{border-color:rgba(255,59,92,.35);background:linear-gradient(180deg,rgba(255,59,92,.08),var(--panel))}
+.warnbox{border-color:rgba(255,59,92,.35);background:linear-gradient(180deg,rgba(255,59,92,.08),var(--panel))}
 footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
+@media (max-width:820px){
+  .picker{grid-template-columns:1fr}
+  .detail{position:static}
+}
 @media (max-width:680px){
   .wrap{padding-top:28px}
-  .board{grid-template-columns:1fr}
   .grid{grid-template-columns:1fr}
   .badge{display:none}
+  .tiles{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 }
 </style>
 </head>
@@ -65,145 +111,38 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
   </header>
   <p class="lead">Install AxeForge from this page over USB. Nothing to download and no tools to set up. You need Chrome or Edge on a desktop or laptop.</p>
 
-  <section class="card board">
-    <div>
-      <h2>NerdQaxe++</h2>
-      <p>4× BM1370. The board revision is detected at boot.</p>
-      <div class="chips">
-        <span class="chip">rev5.1</span><span class="chip">rev6</span><span class="chip">rev7 (TPS546)</span>
-        <span class="chip">3.5" 480×320 or T-Display-S3</span>
+  <div class="picker">
+    <section>
+      <div class="step"><b>1</b> Pick your miner</div>
+      <div class="tools">
+        <div class="tabs" role="group" aria-label="Filter by family">
+          <button type="button" data-family="all" aria-pressed="true">All</button>
+          <button type="button" data-family="nerd" aria-pressed="false">NerdQAxe family</button>
+          <button type="button" data-family="bitaxe" aria-pressed="false">Bitaxe</button>
+        </div>
+        <input class="search" id="q" type="search" placeholder="Search: name, chip or board number (e.g. 303)" aria-label="Search boards">
       </div>
-    </div>
-    <esp-web-install-button manifest="manifest-nerdqaxe.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
+      <div id="list"></div>
+    </section>
 
-  <section class="card board">
-    <div>
-      <h2>NerdAxe</h2>
-      <p>1× BM1366 on a LilyGo T-Display-S3.</p>
-      <div class="chips"><span class="chip">BM1366</span><span class="chip">1.9" T-Display-S3</span><span class="chip">5 V</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-nerdaxe.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>NerdQAxe+</h2>
-      <p>4× BM1368. Same board design as the NerdQaxe++, older chips.</p>
-      <div class="chips"><span class="chip">BM1368</span><span class="chip">2-phase TPS53647</span><span class="chip">Not tested on hardware yet</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-nerdqaxeplus.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>NerdOctaxe+</h2>
-      <p>8× BM1368.</p>
-      <div class="chips"><span class="chip">BM1368</span><span class="chip">3-phase TPS53647</span><span class="chip">Not tested on hardware yet</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-nerdoctaxeplus.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>NerdOctaxe-γ</h2>
-      <p>8× BM1370. The regulator (TPS53647 or, from rev3.0, TPS53667) and the per-chip die sensors are detected at boot.</p>
-      <div class="chips"><span class="chip">BM1370</span><span class="chip">die temperature per chip</span><span class="chip">Not tested on hardware yet</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-nerdoctaxegamma.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>NerdQX</h2>
-      <p>4× BM1370 with a die temperature sensor on every chip.</p>
-      <div class="chips"><span class="chip">BM1370</span><span class="chip">die temperature per chip</span><span class="chip">Not tested on hardware yet</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-nerdqx.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>Bitaxe Supra Hex</h2>
-      <p>6× BM1368 in three stacked voltage domains. Replaces AxeOS; your AxeOS Wi-Fi and pool settings carry over.</p>
-      <div class="chips"><span class="chip">701 / 702</span><span class="chip">128×32 OLED</span><span class="chip">Tested</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-suprahex.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>Bitaxe Supra</h2>
-      <p>1× BM1368. The regulator (TPS546 on 402/403, DS4432U on 400/401) is detected at boot.</p>
-      <div class="chips"><span class="chip">400–403</span><span class="chip">128×32 OLED</span><span class="chip">Not tested on hardware yet</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-supra.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>Bitaxe Gamma</h2>
-      <p>1× BM1370 with the chip temperature read from its own diode.</p>
-      <div class="chips"><span class="chip">600–603</span><span class="chip">128×32 OLED</span><span class="chip">Not tested on hardware yet</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-gamma.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
-
-  <section class="card board">
-    <div>
-      <h2>Bitaxe Naja Duo</h2>
-      <p>2× BM1373 in two stacked voltage domains, color screen.</p>
-      <div class="chips"><span class="chip">1201</span><span class="chip">ST7789 320×170</span><span class="chip">Not tested on hardware yet</span></div>
-    </div>
-    <esp-web-install-button manifest="manifest-naja.json">
-      <button slot="activate">Install AxeForge</button>
-      <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
-      <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
-    </esp-web-install-button>
-  </section>
+    <aside class="card detail" id="detail" aria-live="polite">
+      <div class="step"><b>2</b> Install</div>
+      <div id="info"><p class="placeholder">Choose a board on the left.</p></div>
+      <esp-web-install-button id="install" hidden>
+        <button slot="activate">Install AxeForge</button>
+        <span slot="unsupported" class="note">This browser can't talk to USB devices. Open the page in Chrome or Edge on a computer.</span>
+        <span slot="not-allowed" class="note">The flasher only works over https. Open the GitHub Pages address.</span>
+      </esp-web-install-button>
+      <div class="files" id="files" hidden></div>
+    </aside>
+  </div>
 
   <div class="grid">
     <section class="card">
       <h3>How to install</h3>
       <ol>
         <li>Connect the miner's ESP32 USB-C port to this computer. The 12 V supply can stay off.</li>
-        <li>Press <b>Install AxeForge</b> and pick the serial port (usually "USB JTAG/serial debug unit").</li>
+        <li>Pick your board, press <b>Install AxeForge</b> and choose the serial port (usually "USB JTAG/serial debug unit").</li>
         <li>If no port shows up, hold <b>BOOT</b>, tap <b>RESET</b>, release BOOT, then try again.</li>
         <li>When it's done, join the Wi-Fi called <code>AxeForge-XXXX</code> and open <code>http://192.168.4.1</code> to set up Wi-Fi and your pool.</li>
       </ol>
@@ -212,14 +151,14 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
       <h3>Good to know</h3>
       <ul>
         <li>The flasher writes the firmware pieces only, so saved Wi-Fi and pool settings survive. Tick <b>Erase</b> for a clean start.</li>
-        <li>The <code>axeforge-factory.bin</code> file on the Releases page is a full image: writing it at <code>0x0</code> resets all settings.</li>
-        <li>Later updates don't need this page: upload the board's <code>.bin</code> under <i>System → Firmware</i> in the miner's web UI (<code>axeforge.bin</code> for the NerdQaxe++, <code>axeforge-&lt;board&gt;.bin</code> for the others, for example <code>axeforge-nerdaxe.bin</code>). A file for the wrong board is refused.</li>
+        <li>On a Bitaxe, AxeForge replaces AxeOS, and AxeOS's Wi-Fi, pool and clock settings carry over.</li>
+        <li>Later updates don't need this page: upload the board's update file under <i>System → Firmware</i> in the miner's web UI. A file for the wrong board is refused.</li>
         <li>To go back to stock, flash the stock factory image the same way, or with <code>esptool.py write_flash 0x0 &lt;file&gt;</code>.</li>
       </ul>
     </section>
   </div>
 
-  <section class="card warn">
+  <section class="card warnbox">
     <h3>Before you flash</h3>
     <p class="dim" style="margin:0">Installing replaces the firmware on the miner. To keep a copy of the current one, back it up first:<br>
       <code>esptool.py --chip esp32s3 read_flash 0 0x1000000 backup.bin</code></p>
@@ -231,5 +170,96 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
     Flashing by <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a>
   </footer>
 </div>
+
+<script>
+// One entry per firmware image. id = the manifest-<id>.json / axeforge-<id>.bin name.
+const BOARDS = [
+  {id:'nerdqaxe', family:'nerd', name:'NerdQaxe++', chips:'4× BM1370', models:'rev5.1 · rev6 · rev7', tested:true,
+   text:'The board revision is detected at boot (rev7 runs the TPS546 stack).', tags:['3.5" 480×320 or T-Display-S3'], file:'axeforge'},
+  {id:'nerdaxe', family:'nerd', name:'NerdAxe', chips:'1× BM1366', models:'T-Display-S3', tested:true,
+   text:'One BM1366 on a LilyGo T-Display-S3, 5 V.', tags:['1.9" T-Display-S3']},
+  {id:'nerdqaxeplus', family:'nerd', name:'NerdQAxe+', chips:'4× BM1368', models:'2-phase TPS53647',
+   text:'Same board design as the NerdQaxe++, older chips.', tags:['2-phase TPS53647']},
+  {id:'nerdoctaxeplus', family:'nerd', name:'NerdOctaxe+', chips:'8× BM1368', models:'3-phase TPS53647',
+   text:'Eight BM1368s on a 3-phase regulator.', tags:['3-phase TPS53647']},
+  {id:'nerdoctaxegamma', family:'nerd', name:'NerdOctaxe-γ', chips:'8× BM1370', models:'TPS53647 / TPS53667',
+   text:'The regulator (TPS53647 or, from rev3.0, TPS53667) and the per-chip die sensors are detected at boot.', tags:['die temperature per chip']},
+  {id:'nerdqx', family:'nerd', name:'NerdQX', chips:'4× BM1370', models:'die sensors',
+   text:'A die temperature sensor on every chip.', tags:['die temperature per chip']},
+  {id:'suprahex', family:'bitaxe', name:'Bitaxe Supra Hex', chips:'6× BM1368', models:'701 · 702', tested:true,
+   text:'Three stacked voltage domains. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'ultrahex', family:'bitaxe', name:'Bitaxe Ultra Hex', chips:'6× BM1366', models:'302 · 303',
+   text:'Three stacked voltage domains. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'supra', family:'bitaxe', name:'Bitaxe Supra', chips:'1× BM1368', models:'400 · 401 · 402 · 403', tested:true,
+   text:'The regulator (TPS546 on 402/403, DS4432U on 400/401) is detected at boot. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'gamma', family:'bitaxe', name:'Bitaxe Gamma', chips:'1× BM1370', models:'600 · 601 · 602 · 603',
+   text:'Chip temperature read from its own diode. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'naja', family:'bitaxe', name:'Bitaxe Naja Duo', chips:'2× BM1373', models:'1201',
+   text:'Two stacked voltage domains and a color screen. Replaces AxeOS.', tags:['ST7789 320×170']},
+];
+const GROUPS = {nerd:'NerdQAxe family', bitaxe:'Bitaxe'};
+
+const list = document.getElementById('list');
+const info = document.getElementById('info');
+const files = document.getElementById('files');
+const install = document.getElementById('install');
+const q = document.getElementById('q');
+let family = 'all', selected = null;
+
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
+function status(b){ return b.tested ? '<span class="status ok">Tested</span>' : '<span class="status">Not tested yet</span>'; }
+
+function render(){
+  const term = q.value.trim().toLowerCase();
+  const match = b => (family === 'all' || b.family === family) &&
+    (!term || [b.name, b.chips, b.models, b.id].join(' ').toLowerCase().includes(term));
+  let html = '';
+  for (const g of Object.keys(GROUPS)) {
+    const shown = BOARDS.filter(b => b.family === g && match(b));
+    if (!shown.length) continue;
+    html += `<div class="group">${GROUPS[g]}</div><div class="tiles">` + shown.map(b =>
+      `<button type="button" class="tile" data-id="${b.id}" aria-pressed="${b.id === selected}">
+         <span class="name">${esc(b.name)}</span>
+         <span class="sub">${esc(b.chips)} · ${esc(b.models)}</span>
+         ${status(b)}
+       </button>`).join('') + '</div>';
+  }
+  list.innerHTML = html || '<p class="empty">No board matches. Check the board number printed on the PCB.</p>';
+}
+
+function select(id, push){
+  const b = BOARDS.find(x => x.id === id);
+  if (!b) return;
+  selected = id;
+  const file = b.file || 'axeforge-' + b.id;
+  info.innerHTML = `<h2>${esc(b.name)}</h2>
+    <p class="spec">${esc(b.chips)} · ${esc(b.models)}</p>
+    <p>${esc(b.text)}</p>
+    <div class="chips">${b.tags.map(t => `<span class="chip">${esc(t)}</span>`).join('')}
+      <span class="chip ${b.tested ? 'ok' : 'warn'}">${b.tested ? 'Tested on hardware' : 'Not tested on hardware yet'}</span></div>
+    ${b.tested ? '' : '<p class="dim" style="font-size:13px">If you run it, please open an issue with your log (System → Log), working or not.</p>'}`;
+  install.setAttribute('manifest', `manifest-${b.id}.json`);
+  install.hidden = false;
+  files.hidden = false;
+  files.innerHTML = `<div><span>Update file</span><code>${file}.bin</code></div>
+    <div><span>Full image</span><code>${file}-factory.bin</code></div>`;
+  if (push) history.replaceState(null, '', '#' + id);
+  render();
+  if (push && matchMedia('(max-width:820px)').matches) document.getElementById('detail').scrollIntoView({behavior:'smooth'});
+}
+
+list.addEventListener('click', e => { const t = e.target.closest('.tile'); if (t) select(t.dataset.id, true); });
+document.querySelectorAll('.tabs button').forEach(btn => btn.addEventListener('click', () => {
+  family = btn.dataset.family;
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-pressed', x === btn));
+  render();
+}));
+q.addEventListener('input', render);
+
+render();
+// a link such as .../#ultrahex opens with that board chosen
+if (location.hash) select(location.hash.slice(1), false);
+addEventListener('hashchange', () => select(location.hash.slice(1), false));
+</script>
 </body>
 </html>

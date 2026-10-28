@@ -17,6 +17,8 @@
 #include "mining/work.h"
 #include "core/settings.h"
 #include "stratum/pools.h"
+#include "mining/stats.h"
+#include "net/notify.h"
 
 static const char *TAG = "miner";
 
@@ -31,6 +33,8 @@ static const char *TAG = "miner";
 #define ASIC_DIFF_MAX AF_ASIC_DIFF_MAX
 #define COUNTER_PERIOD_MS 5000
 #define HISTORY_EVERY 6  // counter periods per chart point (30 s)
+#define STATS_EVERY 12   // counter periods per 24-hour sample (60 s)
+#define BEST_NOTIFY_GAP_S 600  // at most one "new best" message per 10 minutes
 
 static SemaphoreHandle_t s_work_lock;
 static Work s_work[NUM_SLOTS];
@@ -80,6 +84,19 @@ static void note_payout(int p, const BlockTemplate &t)
 {
     PoolState &ps = g_state.pools[p];
     uint8_t pct = t.total_sats ? (uint8_t) (100.0 * t.payout_sats / t.total_sats + 0.5) : 0;
+    // with the payout check set to enforce, a pool that doesn't pay you (or keeps
+    // more than the fee limit) gets no work until its next template does
+    const Settings &cfg = settings::get();
+    bool blocked = cfg.payout_mode == 1 &&
+                   (t.payout == Payout::NotYou || (t.payout == Payout::PaysYou && pct + cfg.payout_max_fee < 100));
+    if (blocked != ps.payout_blocked) {
+        ps.payout_blocked = blocked;
+        if (blocked)
+            ESP_LOGW(TAG, "pool %d gets no work: its coinbase %s", p + 1,
+                     t.payout == Payout::NotYou ? "doesn't pay your address" : "keeps more than your fee limit");
+        else
+            ESP_LOGI(TAG, "pool %d pays you again, mining on it", p + 1);
+    }
     if ((uint8_t) t.payout == ps.payout && pct == ps.payout_pct) return;
     ps.payout = (uint8_t) t.payout;
     ps.payout_pct = pct;
@@ -111,6 +128,7 @@ static int pick_pool(PoolSlot *slots)
     for (int i = 0; i < AF_MAX_POOLS; i++) {
         ok[i] = slots[i].have && pools::ready(i) && cfg.pools[i].enabled;
         if (cfg.pool_mode == PoolMode::Split && cfg.pools[i].weight == 0) ok[i] = false;
+        if (g_state.pools[i].payout_blocked) ok[i] = false;
         if (ok[i]) total += cfg.pools[i].weight;
     }
     if (cfg.pool_mode == PoolMode::Failover) {
@@ -154,6 +172,17 @@ static void job_task(void *)
                 s.have = true;
                 if (pools::take_clean_flag(i)) invalidate_pool(i);
             }
+            if (s.have && s.shown_gen != s.gen) {
+                // decode each pool's template once per new job: the payout check
+                // has to see it before the pool is picked
+                s.decoded = BlockTemplate();
+                char user[sizeof(settings::get().pools[i].user)];
+                settings::pool_user(i, user, sizeof(user));
+                work::describe_template(s.tmpl, s.info.en1, s.info.en2_len, s.decoded, user);
+                s.decoded.pool = i;
+                s.shown_gen = s.gen;
+                note_payout(i, s.decoded);
+            }
             if (s.have && pools::ready(i)) {
                 if (s.info.difficulty < min_diff) min_diff = s.info.difficulty;
                 roll_mask &= s.info.version_mask;
@@ -167,16 +196,6 @@ static void job_task(void *)
             continue;
         }
         PoolSlot &s = slots[p];
-        if (s.shown_gen != s.gen) {
-            // decode each pool's template once per new job, not on every switch
-            s.decoded = BlockTemplate();
-            char user[sizeof(settings::get().pools[p].user)];
-            settings::pool_user(p, user, sizeof(user));
-            work::describe_template(s.tmpl, s.info.en1, s.info.en2_len, s.decoded, user);
-            s.decoded.pool = p;
-            s.shown_gen = s.gen;
-            note_payout(p, s.decoded);
-        }
         if (p != last_pool || g_state.tmpl.height != s.decoded.height) {
             g_state.tmpl = s.decoded;
             g_state.block_height = s.decoded.height;
@@ -207,7 +226,8 @@ static void job_task(void *)
         g_state.pool_diff = (uint32_t) ceil(s.info.difficulty);
 
         // a new block wakes us early so stale work is replaced immediately
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(JOB_INTERVAL_MS));
+        uint16_t job_ms = settings::get().job_ms;
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(job_ms ? job_ms : JOB_INTERVAL_MS));
     }
 }
 
@@ -296,7 +316,17 @@ static void result_task(void *)
         double diff = work::nonce_difficulty(w, r.nonce, version, hash);
         g_state.hashes_checked++;
         if (diff > g_state.session_best) g_state.session_best = diff;
-        if (diff > g_state.best_diff) g_state.best_diff = diff;
+        if (diff > g_state.best_diff) {
+            static uint32_t last_best_msg = 0;
+            double prev = g_state.best_diff;
+            g_state.best_diff = diff;
+            // not for the first shares after a reset, every one of those is a "best"
+            if (prev >= 1e6 && (!last_best_msg || g_state.uptime_s - last_best_msg >= BEST_NOTIFY_GAP_S)) {
+                last_best_msg = g_state.uptime_s;
+                notify::post(NOTIFY_BEST, "new best share: difficulty %.0f (was %.0f)", diff, prev);
+            }
+        }
+        stats::offer(diff, w.pool, r.chip);
         PoolState &ps = g_state.pools[w.pool];
         if (diff > ps.best) ps.best = diff;
 
@@ -317,6 +347,8 @@ static void result_task(void *)
             if (diff >= work::nbits_to_difficulty(w.nbits)) {
                 g_state.blocks_found++;
                 ESP_LOGW(TAG, "!!! BLOCK FOUND !!! diff %.0f on pool %d", diff, w.pool);
+                notify::post(NOTIFY_BLOCK, "BLOCK FOUND at height %lu, difficulty %.0f, pool %d",
+                             (unsigned long) g_state.block_height, diff, w.pool + 1);
             }
         }
     }
@@ -404,6 +436,7 @@ static void counter_task(void *)
             ESP_LOGI(TAG, "chips GH/s:%s | %.1fW %.3fV %.1fA", line, g_state.pin, g_state.vout, g_state.iout);
         }
 
+        if (n % STATS_EVERY == STATS_EVERY - 1) stats::tick();
         if (++n % HISTORY_EVERY == 0) {
             g_state.history[g_state.history_head] = g_state.hashrate_ghs;
             g_state.history_head = (g_state.history_head + 1) % AF_HISTORY_LEN;
@@ -467,16 +500,31 @@ float window_stats(float *ghs, float *err_pct)
     return (float) ((esp_timer_get_time() - start) / 1000000.0);
 }
 
-float window_worst_chip_err()
+float window_worst_chip_err(int *chip)
 {
     double worst = 0;
+    int at = -1;
     portENTER_CRITICAL(&s_win_mux);
     for (int i = 0; i < AF_NUM_ASICS; i++) {
         double n = s_win_valid[i] + s_win_err[i];
-        if (n > 0 && 100.0 * s_win_err[i] / n > worst) worst = 100.0 * s_win_err[i] / n;
+        if (n > 0 && 100.0 * s_win_err[i] / n > worst) {
+            worst = 100.0 * s_win_err[i] / n;
+            at = i;
+        }
     }
     portEXIT_CRITICAL(&s_win_mux);
+    if (chip) *chip = at;
     return (float) worst;
+}
+
+float window_chip_err(int chip)
+{
+    if (chip < 0 || chip >= AF_NUM_ASICS) return 0;
+    portENTER_CRITICAL(&s_win_mux);
+    double n = s_win_valid[chip] + s_win_err[chip];
+    double e = s_win_err[chip];
+    portEXIT_CRITICAL(&s_win_mux);
+    return n > 0 ? (float) (100.0 * e / n) : 0;
 }
 
 } // namespace miner

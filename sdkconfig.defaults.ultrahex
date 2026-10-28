@@ -1,0 +1,7 @@
+# Bitaxe Ultra Hex 302/303 build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_ultrahex -D SDKCONFIG=build_ultrahex/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.ultrahex" build
+CONFIG_AF_BOARD_ULTRAHEX=y
+# small bitmap font for the 128x32 OLED
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-hex"

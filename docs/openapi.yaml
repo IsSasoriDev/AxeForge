@@ -1,0 +1,355 @@
+openapi: 3.0.3
+info:
+  title: AxeForge miner API
+  version: 1.4.2
+  description: |
+    The HTTP API every AxeForge miner serves at `http://<miner-ip>/api/...`. The web UI uses
+    exactly these calls.
+
+    **Rules for every request**
+    - The `Host` header has to name the miner: an IP address or a LAN name (`.local`, `.lan`,
+      a bare hostname and so on). Requests through a public domain name are refused (403).
+    - Anything that is not a GET needs the header `X-AxeForge: 1`. If the browser sends `Origin`
+      or `Sec-Fetch-Site`, they have to point at the miner itself.
+    - With two-factor login on, every non-GET request (except `/api/otp`) also needs
+      `X-AxeForge-Session: <token>` from `POST /api/otp`. Without it the answer is 401 with
+      `{"login":true}`.
+    - Every change is logged with the caller's address (see `/api/logs`).
+
+    Example: `curl -X POST -H 'X-AxeForge: 1' --data-binary @axeforge-nerdaxe.bin http://192.168.1.50/api/ota`
+servers:
+  - url: http://{miner}
+    variables:
+      miner:
+        default: 192.168.1.50
+components:
+  securitySchemes:
+    csrf:
+      type: apiKey
+      in: header
+      name: X-AxeForge
+      description: Always "1" on requests that change something.
+    session:
+      type: apiKey
+      in: header
+      name: X-AxeForge-Session
+      description: Only while two-factor login is on.
+  responses:
+    Text:
+      description: A short, human-readable result ("Saved.", "Rebooting...")
+      content:
+        text/plain:
+          schema: {type: string}
+    LoginNeeded:
+      description: Two-factor login is on and the session is missing or expired.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              login: {type: boolean, example: true}
+              error: {type: string}
+security:
+  - csrf: []
+  - csrf: []
+    session: []
+paths:
+  /api/status:
+    get:
+      summary: Everything the dashboard shows
+      description: |
+        Hashrate (GH/s), temperatures, power, fans (also in the AxeOS-style `fans` list), per-chip
+        data, pools, the block template being mined and its payout check, mempool data, auto-tune
+        state, weather, Ethernet state.
+      security: []
+      responses:
+        '200':
+          description: Live state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [booting, no wifi, setup, connecting, mining, fault, overheat]}
+                  hashrate: {type: number, description: GH/s}
+                  expected: {type: number, description: theoretical GH/s at the current clock}
+                  errorPct: {type: number}
+                  chipTemp: {type: number}
+                  vrTemp: {type: number}
+                  power: {type: number, description: W at the input}
+                  vin: {type: number}
+                  vout: {type: number}
+                  freq: {type: number}
+                  coreMv: {type: number}
+                  version: {type: string}
+                  hostname: {type: string}
+                  ip: {type: string}
+                  eth: {type: object, properties: {up: {type: boolean}, ip: {type: string}}}
+                  pools:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        host: {type: string}
+                        connected: {type: boolean}
+                        accepted: {type: integer}
+                        rejected: {type: integer}
+                        payout: {type: integer, description: '0 unknown, 1 username is not an address, 2 pays you, 3 does not'}
+                        payoutPct: {type: integer}
+                        payoutBlocked: {type: boolean, description: the payout check holds work back from this pool}
+                  chips:
+                    type: array
+                    items: {type: object, properties: {ghs: {type: number}, errGhs: {type: number}, temp: {type: number}}}
+  /api/history:
+    get:
+      summary: Hashrate of the last hour (120 points, 30 s apart, GH/s, oldest first)
+      security: []
+      responses:
+        '200': {description: Array of numbers, content: {application/json: {schema: {type: array, items: {type: number}}}}}
+  /api/stats:
+    get:
+      summary: The last 24 hours, one point per 5 minutes, since boot
+      security: []
+      responses:
+        '200':
+          description: Series, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  step: {type: integer, example: 300}
+                  hashrate: {type: array, items: {type: number}}
+                  temp: {type: array, items: {type: number}}
+                  power: {type: array, items: {type: number}}
+  /api/scoreboard:
+    get:
+      summary: The 10 best shares, best first (kept across reboots)
+      security: []
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    diff: {type: number}
+                    time: {type: integer, description: unix time, 0 if the clock was not set}
+                    uptime: {type: integer}
+                    pool: {type: integer, description: 0-based}
+                    chip: {type: integer, description: 0-based}
+    post:
+      summary: Clear the list and the best difficulty
+      requestBody:
+        content: {application/json: {schema: {type: object, properties: {reset: {type: boolean, example: true}}}}}
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+        '401': {$ref: '#/components/responses/LoginNeeded'}
+  /api/settings:
+    get:
+      summary: All settings plus the board's compiled-in limits
+      description: The Discord webhook and the Telegram token are never returned; `discordSet` / `tgSet` say whether they are saved.
+      security: []
+      responses:
+        '200': {description: Settings, content: {application/json: {schema: {type: object}}}}
+    post:
+      summary: Change any subset of settings
+      description: |
+        Send only the keys to change. Keys: `ssid`, `wpass`, `hostname`, `atune`, `freq`, `mv`,
+        `fantgt`, `fanmin`, `fmode0`, `fmode1`, `fman0`, `fman1`, `theme`, `bright`, `scroff`,
+        `defpage`, `rotate`, `rot180`, `city`, `fahr`, `h24`, `pages`, `disptype`, `mempool`,
+        `mpurl`, `paymode` (0 warn, 1 hold back work), `payfee` (0-100), `jobms` (0 = default),
+        `vrhz` (0 = default, BM1370 only), `discord`, `tgtoken`, `tgchat`, `notify` (bits: 1 block,
+        2 best share, 4 faults, 8 no pool, 16 started), `notifyClear`, `bap`, `blesetup`,
+        `tgoal` (0 hashrate, 1 power limit, 2 efficiency), `pcap` (W, 0 = board limit), `chiptune`,
+        `otaguard`, `priceon`, `pricesrc` (0 Energy-Charts, 1 URL), `pricezone`, `priceurl`,
+        `pricepath`, `pricemax`. A new goal, limit or `chiptune` starts a new tuner search.
+        Wi-Fi, hostname, theme, screen type and the accessory port reboot the miner; the rest
+        applies right away.
+      requestBody:
+        content: {application/json: {schema: {type: object}, example: {freq: 600, mv: 1150, atune: false}}}
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+        '401': {$ref: '#/components/responses/LoginNeeded'}
+  /api/pools:
+    get:
+      summary: Pool list and mode
+      security: []
+      responses:
+        '200':
+          description: Up to 4 pools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode: {type: string, enum: [split, failover]}
+                  pools:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        enabled: {type: boolean}
+                        url: {type: string}
+                        port: {type: integer}
+                        user: {type: string}
+                        pass: {type: string}
+                        proto: {type: integer, description: '0 Stratum V1, 1 V1 + TLS, 2 Stratum V2'}
+                        weight: {type: integer, description: percent of the work in split mode}
+                        sv2key: {type: string}
+    post:
+      summary: Save pools and reconnect (no reboot)
+      requestBody: {content: {application/json: {schema: {type: object}}}}
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+        '401': {$ref: '#/components/responses/LoginNeeded'}
+  /api/wifi/scan:
+    get:
+      summary: Wi-Fi networks in range, strongest first (takes 2-3 s)
+      security: []
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {type: object, properties: {ssid: {type: string}, rssi: {type: integer}, secure: {type: boolean}}}
+  /api/selftest:
+    get:
+      summary: Self-test progress and results
+      security: []
+      responses:
+        '200':
+          description: Steps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running: {type: boolean}
+                  done: {type: boolean}
+                  passed: {type: boolean}
+                  steps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: {type: string}
+                        state: {type: string, enum: [wait, run, pass, warn, fail]}
+                        detail: {type: string}
+    post:
+      summary: Start a self-test (about a minute, mining keeps running)
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+        '401': {$ref: '#/components/responses/LoginNeeded'}
+  /api/notify:
+    post:
+      summary: Send a test message to the configured Discord / Telegram
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+        '401': {$ref: '#/components/responses/LoginNeeded'}
+  /api/otp:
+    get:
+      summary: Two-factor login state
+      security: []
+      responses:
+        '200':
+          description: State
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: {type: boolean}
+                  session: {type: boolean, description: the X-AxeForge-Session sent is valid}
+                  clock: {type: boolean, description: the miner has internet time, needed for codes}
+    post:
+      summary: Set up, log in, log out or turn off two-factor login
+      description: |
+        - `setup`: (when off) returns `secret`, `uri` (otpauth://) and `svg` (a QR code). Nothing changes yet.
+        - `confirm` + `code`: turns it on and returns a session `token`.
+        - `login` + `code`: returns a session `token`, valid for 12 hours or until a reboot.
+        - `logout`: ends the session sent in the header.
+        - `disable` + `code`: needs a valid session as well.
+
+        Codes are 6-digit TOTP (30 s, SHA-1), each accepted once. Five wrong codes lock it for a minute.
+      security:
+        - csrf: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action: {type: string, enum: [setup, confirm, login, logout, disable]}
+                code: {type: string, example: '123456'}
+      responses:
+        '200': {description: Result, content: {application/json: {schema: {type: object}}}}
+        '400': {description: '{"error": "..."}'}
+  /api/retune:
+    post:
+      summary: Start a new auto-tune search
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/ota/keep:
+    post:
+      summary: Keep the firmware that is on probation after an update (no rollback)
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/restart:
+    post:
+      summary: Reboot the miner
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/ota:
+    post:
+      summary: Install a firmware update (the board's axeforge-<board>.bin, not the factory image)
+      description: The raw .bin as the body. A file built for another board is refused (400).
+      requestBody:
+        content: {application/octet-stream: {schema: {type: string, format: binary}}}
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+        '400': {description: Wrong board or not an app image}
+  /api/logs:
+    get:
+      summary: Log lines since a position
+      security: []
+      parameters:
+        - {name: since, in: query, schema: {type: integer}, description: '`next` from the previous call, 0 for everything kept'}
+      responses:
+        '200': {description: '{"next": n, "text": "..."}', content: {application/json: {schema: {type: object}}}}
+  /api/screen.bmp:
+    get:
+      summary: The screen as it is now (16-bit BMP; LCD boards only)
+      security: []
+      responses:
+        '200': {description: Image, content: {image/bmp: {}}}
+  /api/page:
+    post:
+      summary: 'Change the page on the screen: {"dir":1|-1} or {"kind":"d"}'
+      responses:
+        '200': {description: '{"kind": "d"}'}
+  /api/layout:
+    get:
+      summary: The two custom screen layouts
+      security: []
+      responses:
+        '200': {description: Layouts, content: {application/json: {schema: {type: object}}}}
+    post:
+      summary: Save the custom layouts
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/swarm:
+    get:
+      summary: Other miners on the network and totals
+      security: []
+      responses:
+        '200': {description: Swarm, content: {application/json: {schema: {type: object}}}}
+    post:
+      summary: '{"add":"192.168.1.20"}, {"remove":"192.168.1.20"} or {"scan":true}'
+      responses:
+        '200': {$ref: '#/components/responses/Text'}

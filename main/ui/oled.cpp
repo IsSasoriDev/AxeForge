@@ -180,6 +180,12 @@ static void render()
         }
         return;
     }
+    if (s.status == SysStatus::Paused) {
+        text(sm, 0, 0, "PAUSED", 1);
+        text(sm, 0, 12, "power price", 1);
+        text(sm, 0, 24, "above limit", 1);
+        return;
+    }
     if (s.status == SysStatus::SetupAP) {
         text(sm, 0, 0, "Wi-Fi setup", 1);
         text(sm, 0, 12, s.ap_ssid, 1);

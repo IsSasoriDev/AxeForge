@@ -1,6 +1,6 @@
 ## AxeForge v1.4.2
 
-### New, and not in AxeOS or NerdOS
+### New
 - **Per-chip clocks**: after the tuner locks, each chip that can go faster gets its own higher clock (12 MHz steps, up to +48 MHz), judged by its own error count. A chip that slips later goes down a step on its own instead of taking the whole chain with it. Boards with more than one chip; re-tune to use it.
 - **Tuning goals**: most hashrate, most hashrate under a power limit you set, or best efficiency (J/TH).
 - **Electricity price mode**: stops mining while power costs more than your limit. Energy-Charts day-ahead prices for European bidding zones (no key needed), or any URL that returns a price in JSON.
@@ -15,7 +15,7 @@ The Bitaxe Supra (v1.4.1) has now been run on hardware and is marked as tested i
 ### Fixes
 - NerdQAxe family: when a chip missed the count while powering back up (after a fault or a price pause), it kept hashing without an address of its own and clashed with chip 1 (repeated nonces, a nonsense hashrate). The miner now power-cycles and counts again, up to 3 times, before running with fewer chips.
 
-### What AxeOS and NerdOS had, now in AxeForge too
+### now in AxeForge too
 - **Notifications** to Discord and Telegram: found block, new best share, faults and power cuts, no pool for 5 minutes, miner started (*System → Notifications*).
 - **Two-factor login** (optional): changes need a 6-digit code from an authenticator app. Setup shows a QR code; a login lasts 12 hours.
 - **Self-test**: sensors, regulator, chips and fans, then a minute of hashrate, error and power measurement, while mining.

@@ -19,6 +19,7 @@ int width();
 int height();
 void set_brightness(uint8_t pct);
 void set_rotation(bool rotate_180);
+void rebuild_ui();     // any task: rebuild the screen UI under the current theme
 // Grabs the current screen as RGB565 (LVGL byte-swapped). Any task; blocks
 // until the display task has rendered it. Free with free_snapshot().
 lv_img_dsc_t *snapshot(int timeout_ms);

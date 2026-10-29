@@ -149,6 +149,7 @@ html[data-theme=ember] .btn.warn{background:var(--red);color:#fff;border:0}
 html[data-theme=paper] .btn{background:var(--text);color:var(--bg)}
 html[data-theme=paper] .btn.alt{background:transparent;color:var(--text);border:1.5px solid var(--line)}
 html[data-theme=paper] .btn.warn{background:var(--red);color:#fff}
+html[data-theme=paper] .seg button.on{color:var(--bg)}
 html[data-theme=paper] .tg{background:#cfcbc0}html[data-theme=paper] .tg:checked{background:var(--text)}
 html[data-theme=paper] .tg::after{background:var(--bg)}
 html[data-theme=paper] .bar{background:#dcd8ce}
@@ -340,7 +341,6 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <label style="margin-top:0">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
 <label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option></select>
-<p class="note">Changing the theme reboots the miner so the screen is rebuilt with the new palette.</p>
 <label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <label>Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
 <div class="row"><div><label>Start page</label><select name="defpage" id="defpage"></select></div>

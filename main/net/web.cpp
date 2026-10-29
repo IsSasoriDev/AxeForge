@@ -572,7 +572,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 2);
     if (theme != c.theme) {
         c.theme = theme;
-        reboot = true;  // the screen UI is built with the theme's palette
+        display::rebuild_ui();  // the screen UI is built with the theme's palette
     }
 
     // display: applied immediately

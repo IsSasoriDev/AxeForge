@@ -630,7 +630,9 @@ void build()
     load_order();
     if (settings::get().wifi_ssid[0]) show_page(settings::get().default_page % s_order_n);
     else show_kind(K_SYSTEM);
-    lv_timer_create(refresh_cb, 500, NULL);
+    static lv_timer_t *refresh = nullptr;  // one per screen build: a rebuild replaces it
+    if (refresh) lv_timer_del(refresh);
+    refresh = lv_timer_create(refresh_cb, 500, NULL);
     refresh_cb(NULL);
 }
 

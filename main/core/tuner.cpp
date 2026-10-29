@@ -1,5 +1,6 @@
 #include "tuner.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "esp_log.h"
@@ -31,6 +32,7 @@ static const char *TAG = "tuner";
 #define CHIP_STEP 12            // MHz per per-chip raise
 #define CHIP_MAX_MHZ 48         // no chip more than this above the chain clock
 #define EFF_WORSE_STEPS 2       // efficiency goal: stop climbing after this many worse steps
+#define EFF_MARGIN 0.01f        // a J/TH difference smaller than this is window noise, not a trend
 
 enum Goal : uint8_t { GOAL_HASHRATE = 0, GOAL_POWER_CAP = 1, GOAL_EFFICIENCY = 2 };
 
@@ -39,6 +41,7 @@ enum class Verdict { Stable, Errors, Thermal, Power, Aborted };
 struct Result {
     Verdict verdict;
     float ghs, err, worst_chip, tmax, vrmax, pmax, pavg;
+    float chip_w;  // average regulator output power: what the chips draw, without the fans
 };
 
 static volatile bool s_restart = false;
@@ -81,7 +84,13 @@ static float power_ceiling()
     return lim;
 }
 
-static float joules_per_th(const Result &r) { return r.ghs > 0 ? r.pavg / (r.ghs / 1000.0f) : 1e9f; }
+// From the chips' own power where the regulator reports it: input power also
+// carries the fans, whose speed changes between steps more than one clock step does.
+static float joules_per_th(const Result &r)
+{
+    float w = r.chip_w > 0 ? r.chip_w : r.pavg;
+    return r.ghs > 0 ? w / (r.ghs / 1000.0f) : 1e9f;
+}
 
 // Applies per-chip offsets, keeps them in the settings (saved by the caller) and
 // counts them in the expected hashrate the stability check compares against.
@@ -124,14 +133,14 @@ static bool apply(uint16_t freq, uint16_t mv)
 
 static Result measure(int warmup_s, int window_s, float max_err, float max_chip_err)
 {
-    Result r = {Verdict::Stable, 0, 0, 0, 0, 0, 0, 0};
+    Result r = {Verdict::Stable, 0, 0, 0, 0, 0, 0, 0, 0};
     const float t_ceil = CONFIG_AF_MAX_CHIP_TEMP;
     const float vr_ceil = board::limits().vr_ceil_c;
     const float p_ceil = power_ceiling();
     const int total = warmup_s + window_s;
     int hot = 0, watts = 0;
-    double psum = 0;
-    int pn = 0;
+    double psum = 0, csum = 0;
+    int pn = 0, cn = 0;
 
     for (int t = 0; t < total; t++) {
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -148,6 +157,11 @@ static Result measure(int warmup_s, int window_s, float max_err, float max_chip_
         if (t >= warmup_s) {
             psum += g_state.pin;
             pn++;
+            float cw = g_state.vout * g_state.iout;
+            if (!isnan(cw) && g_state.vout > 0.3f && g_state.iout > 0.1f) {
+                csum += cw;
+                cn++;
+            }
         }
 
         // fail fast on clear limit violations (sustained, not single spikes)
@@ -176,6 +190,7 @@ static Result measure(int warmup_s, int window_s, float max_err, float max_chip_
     }
     miner::window_stats(&r.ghs, &r.err);
     r.pavg = pn ? (float) (psum / pn) : 0;
+    r.chip_w = cn > pn / 2 ? (float) (csum / cn) : 0;  // only if the regulator reported most of the window
     r.worst_chip = miner::window_worst_chip_err();
     float eff = g_state.expected_ghs > 0 ? r.ghs / g_state.expected_ghs : 0;
     // the weakest chip fails first; an average over four chips can hide it
@@ -218,18 +233,22 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
                  verdict_text(r.verdict), r.ghs, r.err, r.worst_chip, r.tmax, r.vrmax, r.pmax);
 
         if (r.verdict == Verdict::Stable) {
-            bool better = eff_goal ? joules_per_th(r) < best_jth : r.ghs > best_ghs;
-            if (eff_goal) ESP_LOGI(TAG, "%u MHz: %.2f J/TH", f, joules_per_th(r));
+            float jth = joules_per_th(r);
+            // a step only counts as better or worse beyond the noise of one window;
+            // in between, the climb goes on without counting it either way
+            bool better = eff_goal ? jth < best_jth * (1 - EFF_MARGIN) : r.ghs > best_ghs;
+            bool clearly_worse = eff_goal && jth > best_jth * (1 + EFF_MARGIN);
+            if (eff_goal) ESP_LOGI(TAG, "%u MHz: %.2f J/TH (%s power)", f, jth, r.chip_w > 0 ? "chip" : "input");
             if (better) {
                 best_f = f;
                 best_mv = mv;
                 best_ghs = r.ghs;
-                best_jth = joules_per_th(r);
+                best_jth = jth;
                 worse = 0;
                 g_state.tuner.best_freq = f;
                 g_state.tuner.best_mv = mv;
                 g_state.tuner.best_ghs = r.ghs;
-            } else if (eff_goal && ++worse >= EFF_WORSE_STEPS) {
+            } else if (clearly_worse && ++worse >= EFF_WORSE_STEPS) {
                 note("Efficiency peaked at %.0f MHz (%.1f J/TH)", best_f, best_jth);
                 return true;
             }

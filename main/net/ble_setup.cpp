@@ -55,7 +55,7 @@ static void on_prov(void *, esp_event_base_t, int32_t id, void *data)
 
 namespace ble_setup {
 
-void start()
+void start(const char *pop)
 {
     if (s_active || s_ended || !settings::get().ble_setup) return;
     wifi_prov_mgr_config_t cfg = {};
@@ -68,12 +68,12 @@ void start()
     esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, on_prov, NULL);
     // "no_pop": the app doesn't ask for a PIN; "wifi_scan": it lists networks
     static const char *caps[] = {"wifi_scan", "no_pop"};
-    wifi_prov_mgr_set_app_info("axeforge", "v1", caps, 2);
+    wifi_prov_mgr_set_app_info("axeforge", "v1", caps, pop ? 1 : 2);
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
     snprintf(s_name, sizeof(s_name), "PROV_AXEFORGE_%02X%02X", mac[4], mac[5]);
     wifi_prov_mgr_disable_auto_stop(1000);  // stop shortly after success, not right away
-    esp_err_t err = wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1, NULL, s_name, NULL);
+    esp_err_t err = wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1, pop, s_name, NULL);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "provisioning start failed: %s", esp_err_to_name(err));
         wifi_prov_mgr_deinit();

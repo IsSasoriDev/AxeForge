@@ -69,6 +69,8 @@ static const bool HAS_ETH = false;
 extern const char index_html_start[] asm("_binary_index_html_start");
 extern const char index_html_end[] asm("_binary_index_html_end");
 
+static bool via_setup_ap(httpd_req_t *req);
+
 static esp_err_t send_json(httpd_req_t *req, cJSON *root)
 {
     char *out = cJSON_PrintUnformatted(root);
@@ -531,6 +533,19 @@ static esp_err_t settings_post(httpd_req_t *req)
     cJSON *j = json_parse(body);
     if (!j) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad json");
 
+    if (via_setup_ap(req)) {
+        // from the setup network: Wi-Fi and hostname only, whatever else was sent
+        static const char *const KEEP[] = {"ssid", "wpass", "hostname"};
+        cJSON *it = j->child;
+        while (it) {
+            cJSON *next = it->next;
+            bool keep = false;
+            for (const char *k : KEEP) keep |= it->string && strcmp(it->string, k) == 0;
+            if (!keep) cJSON_Delete(cJSON_DetachItemViaPointer(j, it));
+            it = next;
+        }
+    }
+
     Settings &c = settings::get();
     bool reboot = false;
     // network / pool: applied after a reboot
@@ -791,6 +806,13 @@ static esp_err_t ota_post(httpd_req_t *req)
         snprintf(msg, sizeof(msg), "Upload refused: that firmware is for the %s build, this miner needs the %s build.",
                  other, AF_BOARD_ID);
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+    }
+    if (ok && !other[0]) {
+        // every AxeForge image carries its board tag; one without it isn't ours
+        esp_ota_abort(h);
+        ESP_LOGE(TAG, "OTA refused: no AxeForge board tag in the image");
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                                   "Upload refused: that file is not an AxeForge firmware for this miner.");
     }
     if (!ok || esp_ota_end(h) != ESP_OK || esp_ota_set_boot_partition(part) != ESP_OK) {
         if (ok) ESP_LOGE(TAG, "OTA validation failed");
@@ -1145,6 +1167,37 @@ static bool host_is_local(const char *host)
     return false;
 }
 
+// True when the request reached the miner through its own setup network (the
+// soft-AP at 192.168.4.1) rather than the LAN.
+static bool via_setup_ap(httpd_req_t *req)
+{
+    struct sockaddr_storage a;
+    socklen_t al = sizeof(a);
+    if (getsockname(httpd_req_to_sockfd(req), (struct sockaddr *) &a, &al) != 0) return false;
+    const uint8_t *b;
+    if (a.ss_family == AF_INET) {
+        b = (const uint8_t *) &((struct sockaddr_in *) &a)->sin_addr;
+    } else if (a.ss_family == AF_INET6) {
+        static const uint8_t mapped[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+        b = ((struct sockaddr_in6 *) &a)->sin6_addr.s6_addr;
+        if (memcmp(b, mapped, 12) != 0) return false;
+        b += 12;
+    } else {
+        return false;
+    }
+    return b[0] == 192 && b[1] == 168 && b[2] == 4 && b[3] == 1;
+}
+
+// On the setup network only what the Wi-Fi form needs: no pool credentials,
+// logs or firmware upload for whoever is in radio range.
+static bool setup_ap_allows(httpd_req_t *req)
+{
+    size_t n = strcspn(req->uri, "?");
+    auto is = [&](const char *p) { return strlen(p) == n && strncmp(req->uri, p, n) == 0; };
+    if (req->method == HTTP_GET) return is("/api/status") || is("/api/settings") || is("/api/wifi/scan");
+    return req->method == HTTP_POST && is("/api/settings");  // settings_post keeps only the Wi-Fi keys
+}
+
 // Origin is "scheme://host[:port]" and must name the host the request went to.
 static bool origin_matches(const char *origin, const char *host)
 {
@@ -1166,6 +1219,10 @@ static esp_err_t api_guard(httpd_req_t *req)
 {
     char host[96], v[128];
     if (get_hdr(req, "Host", host, sizeof(host)) != 1 || !host_is_local(host)) return deny(req, "foreign Host");
+    if (via_setup_ap(req) && !setup_ap_allows(req)) {
+        httpd_resp_set_status(req, "403 Forbidden");
+        return httpd_resp_sendstr(req, "Not available on the setup network: connect the miner to your Wi-Fi first.");
+    }
     if (req->method != HTTP_GET) {
         if (get_hdr(req, "X-AxeForge", v, sizeof(v)) != 1) return deny(req, "missing X-AxeForge header");
         int o = get_hdr(req, "Origin", v, sizeof(v));

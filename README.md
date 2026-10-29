@@ -260,7 +260,7 @@ To go back to AxeOS, flash a stock factory image from the [ESP-Miner releases](h
 Installed over stock with the web flasher (without *Erase*), boards other than the NerdQaxe++ take over the stock firmware's Wi-Fi and pool settings and go straight to mining. The full image wipes them.
 
 Coming from the stock firmware, or after a clean install, on first boot:
-1. Join the `AxeForge-XXXX` Wi-Fi network (or scan the QR code on the screen). Phones and laptops open the setup page by themselves (captive portal).
+1. Join the `AxeForge-XXXX` Wi-Fi network (or scan the QR code on the screen). Phones and laptops open the setup page by themselves (captive portal). On first setup the network is open. If a miner that already has Wi-Fi saved can't connect for 5 minutes, it opens the same network with a password, shown on its screen, and on that network it only offers the Wi-Fi form.
 2. Open http://192.168.4.1.
 3. Enter your Wi-Fi, pool and worker (BTC address), then save.
 

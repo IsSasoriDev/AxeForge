@@ -796,11 +796,18 @@ static void refresh_system()
     const MinerState &s = g_state;
     char qr[192];
     if (s.ap_ssid[0] && !s.ip[0]) {
-        snprintf(qr, sizeof(qr), "WIFI:T:nopass;S:%s;;", s.ap_ssid);
         lv_label_set_text(s_sys_title, "SETUP");
-        lv_label_set_text_fmt(s_sys_lines,
-                              "1. Scan to join Wi-Fi\n#00e5ff %s#\n2. Open #ff2bd6 http://192.168.4.1#\n3. Enter Wi-Fi + pool,\n    then Save",
-                              s.ap_ssid);
+        if (s.ap_pass[0]) {
+            snprintf(qr, sizeof(qr), "WIFI:T:WPA;S:%s;P:%s;;", s.ap_ssid, s.ap_pass);
+            lv_label_set_text_fmt(s_sys_lines,
+                                  "1. Scan to join Wi-Fi\n#00e5ff %s#\n    password #00e5ff %s#\n2. Open #ff2bd6 http://192.168.4.1#\n3. Enter Wi-Fi, then Save",
+                                  s.ap_ssid, s.ap_pass);
+        } else {
+            snprintf(qr, sizeof(qr), "WIFI:T:nopass;S:%s;;", s.ap_ssid);
+            lv_label_set_text_fmt(s_sys_lines,
+                                  "1. Scan to join Wi-Fi\n#00e5ff %s#\n2. Open #ff2bd6 http://192.168.4.1#\n3. Enter Wi-Fi + pool,\n    then Save",
+                                  s.ap_ssid);
+        }
     } else {
         snprintf(qr, sizeof(qr), "http://%s/", s.ip);
         lv_label_set_text(s_sys_title, "SYSTEM");

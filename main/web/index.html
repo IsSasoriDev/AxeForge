@@ -368,7 +368,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <label>Hostname</label><input name="hostname" id="hostin" maxlength="32" pattern="[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?" placeholder="automatic">
 <div class="kv" style="margin-top:16px"><div>IP address</div><div id="nip">--</div><div>Signal</div><div id="nrssi">--</div></div>
 <p class="note">The name this miner gives your router, and the one other miners' Swarm pages show. Leave it empty to keep the name the stock firmware used, or axeforge-XXXX.</p>
-<p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect, it opens the AxeForge-XXXX setup network again.</p></div>
+<p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect for 5 minutes, it opens the AxeForge-XXXX setup network, with the password shown on the miner's screen.</p></div>
 <div class="card"><h3>Other connections</h3>
 <div class="kv" id="ethrow"><div>Ethernet</div><div id="neth">--</div></div>
 <p class="note" id="ethnote">A W5500 Ethernet adapter on the NerdQAxe header is found at boot. With a cable plugged in, the miner gets an address over the wire as well, and the setup Wi-Fi stays closed.</p>

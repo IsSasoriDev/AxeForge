@@ -189,7 +189,12 @@ static void render()
     if (s.status == SysStatus::SetupAP) {
         text(sm, 0, 0, "Wi-Fi setup", 1);
         text(sm, 0, 12, s.ap_ssid, 1);
-        text(sm, 0, 24, "192.168.4.1", 1);
+        if (s.ap_pass[0]) {
+            snprintf(a, sizeof(a), "pw %s", s.ap_pass);  // 192.168.4.1 opens by itself on joining
+            text(sm, 0, 24, a, 1);
+        } else {
+            text(sm, 0, 24, "192.168.4.1", 1);
+        }
         return;
     }
 

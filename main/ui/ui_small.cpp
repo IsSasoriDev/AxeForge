@@ -551,9 +551,15 @@ static void refresh_system()
     const MinerState &s = g_state;
     char qr[96];
     if (s.ap_ssid[0] && !s.ip[0]) {
-        snprintf(qr, sizeof(qr), "WIFI:T:nopass;S:%s;;", s.ap_ssid);
-        lv_label_set_text_fmt(s_sys, "#00e5ff SETUP#\n1. Join Wi-Fi\n#00e5ff %s#\n2. Open\n#ff2bd6 http://192.168.4.1#\n3. Enter Wi-Fi + pool",
-                              s.ap_ssid);
+        if (s.ap_pass[0]) {
+            snprintf(qr, sizeof(qr), "WIFI:T:WPA;S:%s;P:%s;;", s.ap_ssid, s.ap_pass);
+            lv_label_set_text_fmt(s_sys, "#00e5ff SETUP#\n1. Join Wi-Fi\n#00e5ff %s#\npw #00e5ff %s#\n2. Open\n#ff2bd6 http://192.168.4.1#",
+                                  s.ap_ssid, s.ap_pass);
+        } else {
+            snprintf(qr, sizeof(qr), "WIFI:T:nopass;S:%s;;", s.ap_ssid);
+            lv_label_set_text_fmt(s_sys, "#00e5ff SETUP#\n1. Join Wi-Fi\n#00e5ff %s#\n2. Open\n#ff2bd6 http://192.168.4.1#\n3. Enter Wi-Fi + pool",
+                                  s.ap_ssid);
+        }
     } else {
         snprintf(qr, sizeof(qr), "http://%s/", s.ip);
         lv_label_set_text_fmt(s_sys, "#00e5ff SYSTEM#\n#9aa8bd Web UI#\nhttp://%s\n#9aa8bd Wi-Fi# %s\n#9aa8bd FW# AxeForge %s\n#9aa8bd Chips# %d x %s",

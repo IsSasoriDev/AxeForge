@@ -848,6 +848,7 @@ static esp_err_t logs_get(httpd_req_t *req)
     uint32_t next = logbuf::read(since, text, max);
     cJSON *r = cJSON_CreateObject();
     cJSON_AddNumberToObject(r, "next", next);
+    cJSON_AddNumberToObject(r, "ms", esp_log_timestamp());  // the log prefix clock, so the page can show wall time
     cJSON_AddStringToObject(r, "text", text);
     free(text);
     return send_json(req, r);

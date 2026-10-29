@@ -109,7 +109,7 @@ background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),line
 .seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}.seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:7px;font-weight:700;font-size:13px;color:var(--dim)}.seg button.on{background:var(--cyan);color:#001318}
 /* logs */
 .console{background:var(--console);border:1px solid var(--line);border-radius:10px;height:420px;overflow:auto;padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
-.console .E{color:var(--red)}.console .W{color:var(--orange)}.console .I{color:#9fb0c6}.console .D{color:var(--dim)}
+.console .lt{color:var(--dim)}.console .E{color:var(--red)}.console .W{color:var(--orange)}.console .I{color:#9fb0c6}.console .D{color:var(--dim)}
 @media(max-width:1000px){.g4{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}.g3{grid-template-columns:1fr 1fr}.ed-wrap{grid-template-columns:1fr}}
 @media(max-width:720px){.app{grid-template-columns:1fr}
 nav{position:fixed;bottom:0;top:auto;height:auto;width:100%;display:flex;flex-direction:row;overflow-x:auto;padding:6px;border-right:0;border-top:1px solid var(--line);z-index:5}
@@ -687,13 +687,19 @@ async function saveLayout(){await act('/api/layout',JSON.stringify(L));const k=e
 function clearLayout(){if(confirm('Remove all widgets from this page?')){L.pages[ep]=[];sel=-1;drawCanvas()}}
 
 /* ---------------- logs */
-let logSince=0,logLines=[],logPaused=false,logTimer;
+let logSince=0,logLines=[],logPaused=false,logTimer,logBoot=0;
+// "I (1234) tag: ..." carries milliseconds since boot. With the miner's current
+// uptime from the same poll, that becomes a clock time, which is shorter than the
+// raw counter after the first day and readable on a phone. The full date is on hover.
+function logStamp(l){const m=l.match(/^([EWID]) \((\d+)\) /);if(!m||!logBoot)return{cls:(m||[])[1]||'',html:esc(l)};
+ const d=new Date(logBoot+ +m[2]),t=d.toTimeString().slice(0,8);
+ return{cls:m[1],html:`<span class="lt" title="${d.toLocaleString()}">${t}</span> ${m[1]} ${esc(l.slice(m[0].length))}`}}
 function renderLog(){const f=$('logf').value.toLowerCase(),c=$('console'),stick=c.scrollTop+c.clientHeight>=c.scrollHeight-30;
- c.innerHTML=logLines.filter(l=>!f||l.toLowerCase().includes(f)).slice(-800).map(l=>`<div class="${(l.match(/^([EWID]) \(/)||[])[1]||''}">${esc(l)}</div>`).join('');
+ c.innerHTML=logLines.filter(l=>!f||l.toLowerCase().includes(f)).slice(-800).map(l=>{const s=logStamp(l);return `<div class="${s.cls}">${s.html}</div>`}).join('');
  if(stick)c.scrollTop=c.scrollHeight}
 $('logf').oninput=renderLog;
 async function pollLogs(){clearTimeout(logTimer);if(cur!='system')return;
- if(!logPaused){try{const r=await (await fetch('/api/logs?since='+logSince)).json();if(r.text){const parts=r.text.split('\n');
+ if(!logPaused){try{const r=await (await fetch('/api/logs?since='+logSince)).json();if(r.ms)logBoot=Date.now()-r.ms;if(r.text){const parts=r.text.split('\n');
   if(logLines.length&&logSince)logLines[logLines.length-1]+=parts.shift();logLines.push(...parts);if(logLines.length>2000)logLines=logLines.slice(-1500);renderLog()}logSince=r.next}catch(e){}}
  logTimer=setTimeout(pollLogs,1000)}
 

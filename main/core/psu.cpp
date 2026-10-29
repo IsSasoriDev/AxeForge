@@ -40,14 +40,14 @@ void tick()
     static bool told = false;
 
     float v = g_state.vin;
-    if (isnan(v) || v < 1.0f) return;  // no reading on this board (yet)
-    if (s_st.nominal == 0) s_st.nominal = v > 8.0f ? 12.0f : 5.0f;
-
+    bool readable = !isnan(v) && v >= 1.0f;  // some boards can't read it with the chips off
     if (!board::is_powered()) {
         powered_s = 0;
-        s_st.idle_v = v;
+        if (readable) s_st.idle_v = v;
         return;
     }
+    if (!readable) return;
+    if (s_st.nominal == 0) s_st.nominal = v > 8.0f ? 12.0f : 5.0f;
     if (++powered_s < SETTLE_S) return;
     if (s_st.min_v == 0 || v < s_st.min_v) s_st.min_v = v;
     sum_v += v;

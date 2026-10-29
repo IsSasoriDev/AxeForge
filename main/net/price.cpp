@@ -164,10 +164,13 @@ static void price_task(void *)
     uint32_t next_fetch = 0, switched_s = 0;
     uint8_t last_src = 0xff;
     char last_zone[sizeof(Settings::price_zone)] = "";
+    char last_url[sizeof(Settings::price_url)] = "", last_path[sizeof(Settings::price_path)] = "";
+    bool was_on = false;
     while (true) {
         const Settings &cfg = settings::get();
         uint32_t up = g_state.uptime_s;
         if (!cfg.price_on) {
+            was_on = false;
             s_pause = false;
             s_have = false;
             s_now = NAN;
@@ -175,13 +178,19 @@ static void price_task(void *)
             ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(30000));
             continue;
         }
-        if (cfg.price_src != last_src || strcmp(cfg.price_zone, last_zone) != 0) {  // new source: start over
+        // turned on, or a new source: fetch now, and the first stop needn't wait
+        if (!was_on || cfg.price_src != last_src || strcmp(cfg.price_zone, last_zone) != 0 ||
+            strcmp(cfg.price_url, last_url) != 0 || strcmp(cfg.price_path, last_path) != 0) {
+            was_on = true;
             last_src = cfg.price_src;
             snprintf(last_zone, sizeof(last_zone), "%s", cfg.price_zone);
+            snprintf(last_url, sizeof(last_url), "%s", cfg.price_url);
+            snprintf(last_path, sizeof(last_path), "%s", cfg.price_path);
             s_have = false;
             s_n = 0;
             s_now = NAN;
             next_fetch = 0;
+            switched_s = 0;
         }
         bool ec = cfg.price_src == SRC_ENERGY_CHARTS;
         if (!wifi::connected() || (ec && !g_state.time_synced)) {
@@ -249,13 +258,15 @@ cJSON *json()
         cJSON_AddNumberToObject(r, "step", s_step);
         cJSON *a = cJSON_AddArrayToObject(r, "slots");
         if (i >= 0) {
-            portENTER_CRITICAL(&s_mux);
-            int n = s_n;
+            float slots[96];
+            int m = 0;
+            portENTER_CRITICAL(&s_mux);  // one consistent copy: the price task may be refreshing
             uint32_t first = s_first, step = s_step;
+            for (int k = i; k < s_n && m < 96; k++) slots[m++] = s_slot[k];
             portEXIT_CRITICAL(&s_mux);
             cJSON_AddNumberToObject(r, "start", (double) first + (double) i * step);
-            for (int k = i; k < n && k < i + 96; k++) {
-                float p = s_slot[k];
+            for (int k = 0; k < m; k++) {
+                float p = slots[k];
                 cJSON_AddItemToArray(a, isnan(p) ? cJSON_CreateNull() : cJSON_CreateNumber(round((double) p * 100) / 100));
             }
         }

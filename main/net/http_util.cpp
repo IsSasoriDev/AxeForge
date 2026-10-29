@@ -1,6 +1,7 @@
 #include "http_util.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
@@ -36,10 +37,11 @@ char *get(const char *url, size_t max_len, int timeout_ms, bool quiet)
                 total += n;
             if (buf) buf[total] = 0;
         } else {
-            if (!quiet) ESP_LOGW(TAG, "HTTP %d for %s", status, url);
+            // never the query: it may carry a token
+            if (!quiet) ESP_LOGW(TAG, "HTTP %d for %.*s", status, (int) strcspn(url, "?"), url);
         }
     } else {
-        if (!quiet) ESP_LOGW(TAG, "request failed: %s", url);
+        if (!quiet) ESP_LOGW(TAG, "request failed: %.*s", (int) strcspn(url, "?"), url);
     }
     esp_http_client_cleanup(c);
     return buf;

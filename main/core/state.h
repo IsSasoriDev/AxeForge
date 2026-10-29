@@ -198,6 +198,7 @@ struct MinerState {
     char hostname[33] = "";      // the name this miner gives DHCP
     int8_t rssi = 0;
     char ap_ssid[33] = "";
+    char ap_pass[16] = "";       // setup network password, "" = open (first setup)
 
     uint32_t uptime_s = 0;
     char reset_reason[16] = "";

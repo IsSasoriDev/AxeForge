@@ -517,6 +517,16 @@ float window_worst_chip_err(int *chip)
     return (float) worst;
 }
 
+float window_chip_ghs(int chip)
+{
+    if (chip < 0 || chip >= AF_NUM_ASICS) return 0;
+    portENTER_CRITICAL(&s_win_mux);
+    double valid = s_win_valid[chip];
+    int64_t us = s_win_us[chip];
+    portEXIT_CRITICAL(&s_win_mux);
+    return us > 0 ? (float) (valid * 4294967296.0 / (double) us / 1000.0) : 0;
+}
+
 float window_chip_err(int chip)
 {
     if (chip < 0 || chip >= AF_NUM_ASICS) return 0;

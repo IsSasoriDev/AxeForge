@@ -6,6 +6,34 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 _Nothing yet._
 
+## AxeForge v1.4.3
+
+### Safety
+- **Per-chip clocks are off on boards with chips stacked in series**: the Supra Hex, Ultra Hex, Naja Duo and the NerdQaxe++ rev7. There, one chip clocked higher than its partner shifts the shared voltage onto the others. They stay on for boards whose chips share one voltage (NerdQaxe++ rev5.1/6, NerdQAxe+, NerdOctaxe, NerdQX).
+- **Per-chip clocks judge each chip by its hashrate too**, not only by its errors: a chip that drops work at the higher clock without reporting errors goes back a step, during the search and later in the watch.
+
+### Setup network and updates (#38)
+- **A miner that has Wi-Fi saved no longer opens an open setup network after a few failed reconnects.** It waits 5 minutes (a router restart is shorter), then opens `AxeForge-XXXX` with WPA2 and a password of its own, shown on the screen with a QR code. On first setup, with no Wi-Fi saved yet, the network stays open as before.
+- **On the setup network the miner only answers the Wi-Fi form**: status, network scan and the Wi-Fi/hostname fields. Pools, logs, firmware upload and every other setting need the miner on your network.
+- **Bluetooth setup asks for the same password as its PIN** when Wi-Fi was saved before.
+- **A web update without an AxeForge board tag is refused.** Before, only a file for a different board was.
+
+### Tuner
+- **Best efficiency goal** (#32): J/TH now comes from the regulator's output power where the board reports it, so a fan speeding up between steps no longer looks like a less efficient clock, and a step only counts as better or worse when it differs by more than 1%. The climb no longer stops early on noise.
+- Switching to manual and back keeps the per-chip clocks.
+
+### Fixes
+- The price URL is no longer sent back by the web API or written to the log (it may carry a token).
+- Swarm: a miner that stopped answering is asked every 5 minutes instead of every 15 seconds, which also ends the error lines it filled the log with.
+- Price mode: turning it on, or changing its source, fetches the price at once and may stop mining at once.
+- A failed power-up after a price pause tries again 5 times, then hands over to fault recovery with a fresh set of retries.
+- Power supply check: the settle time after power-up also applies on boards that can't read their input voltage with the chips off.
+
+### From contributors (@cbyam)
+- Live logs show clock time (#37), the Paper theme fixes (#36), Stratum V2 Noise framing as SRI does it (#39), and the repository files: SECURITY.md, issue and PR templates, CONTRIBUTING.md, Dependabot (#43).
+
+Tested on a NerdQaxe++ rev6: per-chip hashrate check (chip 4 went back to the chain clock on its own), swarm back-off, price URL hidden. The setup network and Bluetooth changes and the efficiency goal are not tested on hardware yet.
+
 ## AxeForge v1.4.2
 
 ### New

@@ -44,7 +44,14 @@ struct Peer {
     uint32_t accepted, rejected;
     bool online;
     uint32_t seen_s;    // our uptime when it last answered
+    uint8_t misses;     // polls in a row without an answer
+    uint32_t next_s;    // after OFFLINE_MISSES misses: not polled again before this uptime
 };
+
+// A member that stopped answering is asked every OFFLINE_POLL_S instead of every
+// POLL_S: each failed connect blocks the task and ESP-IDF logs it as an error.
+#define OFFLINE_MISSES 3
+#define OFFLINE_POLL_S 300
 
 static Peer s_peers[MAX_PEERS];
 static int s_count = 0;
@@ -227,6 +234,7 @@ static bool fetch(const char *ip, Peer &p, const char *known_kind = "")
 static void poll_all()
 {
     char ips[MAX_PEERS][16], kinds[MAX_PEERS][12];
+    bool skip[MAX_PEERS];
     int n;
     {
         Lock l;
@@ -234,9 +242,11 @@ static void poll_all()
         for (int i = 0; i < n; i++) {
             strcpy(ips[i], s_peers[i].ip);
             strcpy(kinds[i], s_peers[i].kind);
+            skip[i] = s_peers[i].next_s && g_state.uptime_s < s_peers[i].next_s;
         }
     }
     for (int i = 0; i < n; i++) {
+        if (skip[i]) continue;
         Peer p = {};
         strcpy(p.ip, ips[i]);
         bool ok = fetch(ips[i], p, kinds[i]);
@@ -249,6 +259,8 @@ static void poll_all()
                 s_peers[k] = p;
             } else {
                 s_peers[k].online = false;  // keep the last known name/model
+                if (s_peers[k].misses < 255) s_peers[k].misses++;
+                if (s_peers[k].misses >= OFFLINE_MISSES) s_peers[k].next_s = g_state.uptime_s + OFFLINE_POLL_S;
             }
         }
     }

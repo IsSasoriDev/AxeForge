@@ -6,6 +6,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_random.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
@@ -53,9 +54,38 @@ static void pick_hostname()
     }
 }
 
+// A miner that has Wi-Fi saved only opens its setup network after this long
+// without a connection (a router restart takes a minute or two), and then with a
+// password: anyone in radio range can force a disconnect.
+#define SETUP_AFTER_S 300
+static int64_t s_down_since_us = 0;
+
+// The setup network's password on a configured miner: random, made once and kept
+// in NVS, shown on the screen. Never logged (the log is readable on the LAN).
+static void setup_password(char *out, size_t len)
+{
+    static const char CHARS[] = "abcdefghjkmnpqrstuvwxyz23456789";  // nothing that reads as 0/o or 1/l
+    const size_t want = 10;
+    out[0] = 0;
+    if (len <= want) return;
+    nvs_handle_t h;
+    if (nvs_open("af_boot", NVS_READWRITE, &h) != ESP_OK) return;
+    size_t n = len;
+    if (nvs_get_str(h, "appass", out, &n) != ESP_OK || strlen(out) != want) {
+        for (size_t i = 0; i < want; i++) out[i] = CHARS[esp_random() % (sizeof(CHARS) - 1)];
+        out[want] = 0;
+        nvs_set_str(h, "appass", out);
+        nvs_commit(h);
+    }
+    nvs_close(h);
+}
+
 static void start_setup_ap()
 {
     if (s_setup || eth::up()) return;  // on a cable the miner is reachable already
+    // first setup: open, there is nothing on the miner yet. Later: WPA2, and the
+    // web server answers only the Wi-Fi form on this network (web.cpp)
+    bool configured = settings::get().wifi_ssid[0] != 0;
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
     wifi_config_t ap = {};
@@ -64,13 +94,20 @@ static void start_setup_ap()
     ap.ap.channel = 1;
     ap.ap.max_connection = 4;
     ap.ap.authmode = WIFI_AUTH_OPEN;
+    g_state.ap_pass[0] = 0;
+    if (configured) setup_password(g_state.ap_pass, sizeof(g_state.ap_pass));
+    if (g_state.ap_pass[0]) {
+        snprintf((char *) ap.ap.password, sizeof(ap.ap.password), "%s", g_state.ap_pass);
+        ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    }
     esp_wifi_set_mode(WIFI_MODE_APSTA);
     esp_wifi_set_config(WIFI_IF_AP, &ap);
     strncpy(g_state.ap_ssid, (char *) ap.ap.ssid, sizeof(g_state.ap_ssid) - 1);
     s_setup = true;
     g_state.status = SysStatus::SetupAP;
-    ESP_LOGW(TAG, "setup AP %s up at 192.168.4.1", g_state.ap_ssid);
-    ble_setup::start();
+    ESP_LOGW(TAG, "setup AP %s up at 192.168.4.1 (%s)", g_state.ap_ssid,
+             g_state.ap_pass[0] ? "WPA2, password on the screen" : "open");
+    ble_setup::start(g_state.ap_pass[0] ? g_state.ap_pass : nullptr);
 }
 
 static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
@@ -84,7 +121,10 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
             ESP_LOGW(TAG, "disconnected, reason %d, rssi %d (retry %d)", ev->reason, ev->rssi, s_retries + 1);
         s_connected = false;
         snprintf(g_state.ip, sizeof(g_state.ip), "%s", eth::ip());
-        if (++s_retries == 8) start_setup_ap();  // keep retrying STA in the background
+        if (s_retries == 0) s_down_since_us = esp_timer_get_time();
+        ++s_retries;
+        if (esp_timer_get_time() - s_down_since_us >= SETUP_AFTER_S * 1000000LL)
+            start_setup_ap();  // keeps retrying STA in the background
         esp_timer_stop(s_reconnect_timer);
         esp_timer_start_once(s_reconnect_timer, (s_retries < 8 ? 1000 : 10000) * 1000ULL);
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {

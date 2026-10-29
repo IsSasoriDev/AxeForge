@@ -28,6 +28,8 @@ static const char *TAG = "monitor";
 #define RECOVERY_FREQ_DROP 50
 #define MAX_FAULT_RETRIES 3
 #define MAX_OVERHEAT_RETRIES 3
+#define MAX_RESUME_TRIES 5   // power-ups after a price pause before it counts as a fault
+#define RESUME_WAIT_S 60
 #define RECOVERY_WAIT_S 30  // between recovery attempts, so a failing power-up is not hammered
 #define SENSOR_LOSS_S 3  // consecutive failed temperature reads before cutting power
 // Over-temperature and over-power cut-offs need this many consecutive readings:
@@ -106,6 +108,7 @@ static void monitor_task(void *)
     int powered_s = 0, vout_low = 0;
     int stall[2] = {0, 0};
     bool price_paused = false;
+    int resume_fails = 0, resume_wait = 0;
     char why[64];
 
     while (true) {
@@ -249,18 +252,30 @@ static void monitor_task(void *)
             }
             g_state.fan_pct = (uint8_t) d;
             g_state.status = wifi::in_setup_mode() ? SysStatus::SetupAP : SysStatus::Paused;
-            if (!price::want_pause()) {
-                price_paused = false;
+            if (resume_wait > 0) {
+                resume_wait--;
+            } else if (!price::want_pause()) {
                 uint16_t f = cfg.autotune && cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz;
                 uint16_t mv = cfg.autotune && cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
                 ESP_LOGI(TAG, "electricity price back under the limit: powering up at %u MHz", f);
                 board::Error e = board::power_up(f, mv);
+                snprintf(g_state.fault, sizeof(g_state.fault), "%s", e == board::Error::None ? "" : board::error_text(e));
                 if (e == board::Error::None) {
+                    price_paused = false;
+                    resume_fails = 0;
                     g_state.status = SysStatus::Connecting;
                     miner::pause(false);
+                } else if (++resume_fails < MAX_RESUME_TRIES) {
+                    ESP_LOGW(TAG, "power-up after the price pause failed (%d/%d), again in %d s", resume_fails,
+                             MAX_RESUME_TRIES, RESUME_WAIT_S);
+                    resume_wait = RESUME_WAIT_S;
                 } else {
-                    g_state.status = SysStatus::Fault;  // the fault retries take it from here
-                    snprintf(g_state.fault, sizeof(g_state.fault), "%s", board::error_text(e));
+                    // the fault retries take it from here, with their own budget: the
+                    // ones used earlier in a long uptime must not leave it off for good
+                    price_paused = false;
+                    resume_fails = 0;
+                    fault_retries = 0;
+                    g_state.status = SysStatus::Fault;
                 }
             }
         } else if (g_state.status == SysStatus::Overheat && overheat_retries < MAX_OVERHEAT_RETRIES) {

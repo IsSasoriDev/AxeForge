@@ -81,14 +81,12 @@ uint32_t mempool_fee_rgb(float fee)
     return MEMPOOL_FEE_COLORS[i];
 }
 
+// Read live: a theme change rebuilds the screen (display::rebuild_ui) rather
+// than rebooting, so every colour lookup during the rebuild must see the new one.
 Id current()
 {
-    static int t = -1;
-    if (t < 0) {
-        uint8_t s = settings::get().theme;
-        t = s == PAPER ? PAPER : s == EMBER ? EMBER : FORGE;
-    }
-    return (Id) t;
+    uint8_t s = settings::get().theme;
+    return s == PAPER ? PAPER : s == EMBER ? EMBER : FORGE;
 }
 
 bool paper() { return current() == PAPER; }
@@ -166,7 +164,12 @@ void apply_lvgl_theme(lv_disp_t *disp)
                                                        LV_FONT_DEFAULT));
         return;
     }
-    if (!paper()) return;
+    if (!paper()) {  // Forge: LVGL's own defaults, re-applied when switching back from another theme
+        lv_disp_set_theme(disp, lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_BLUE),
+                                                      lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_DARK,
+                                                      LV_FONT_DEFAULT));
+        return;
+    }
     lv_theme_t *t = lv_theme_default_init(disp, lv_color_hex(PAPER_INK), lv_color_hex(PAPER_RED), false,
                                           LV_FONT_DEFAULT);
     lv_disp_set_theme(disp, t);

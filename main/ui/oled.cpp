@@ -313,6 +313,7 @@ void set_rotation(bool rotate_180)
 }
 lv_img_dsc_t *snapshot(int) { return nullptr; }  // no LCD to capture
 void free_snapshot(lv_img_dsc_t *) {}
+void rebuild_ui() {}  // the OLED is monochrome: no theme to apply
 }
 
 namespace ui {

@@ -11,7 +11,7 @@ namespace theme {
 
 enum Id : uint8_t { FORGE = 0, PAPER = 1, EMBER = 2 };
 
-Id current();         // from settings, read once (a theme change reboots)
+Id current();         // from settings, read live (a theme change rebuilds the screen)
 bool paper();
 bool ember();
 // mempool.space fee colour for a fee rate (sat/vB); Ember draws blocks with it

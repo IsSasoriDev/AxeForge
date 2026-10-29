@@ -132,7 +132,8 @@ html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a
 --g1:#f7931a;--g2:#ffb35c;--chart:#f7931a;--track:#232328;--axis:#9a9aa3}
 html[data-theme=paper]{color-scheme:light;--bg:#f3f1ea;--bg2:#f3f1ea;--panel:#fbfaf5;--panel2:#ece9e0;--pend:#fbfaf5;--line:#1b1b1b;
 --text:#141414;--dim:#5e5e5a;--cyan:#141414;--mag:#141414;--green:#141414;--orange:#141414;--red:#b3261e;--violet:#141414;
---input:#fffffc;--navbg:#f3f1ea;--console:#fbfaf5;--glow:transparent;--r:3px}
+--input:#fffffc;--navbg:#f3f1ea;--console:#fbfaf5;--glow:transparent;--r:3px;
+--g1:#141414;--g2:#141414;--chart:#141414;--track:#dcd8ce;--axis:#5e5e5a}
 html[data-theme=paper] *{box-shadow:none!important;text-shadow:none!important;animation:none!important}
 html[data-theme=paper] [filter]{filter:none}
 html[data-theme=paper] body{background:var(--bg)}
@@ -149,6 +150,7 @@ html[data-theme=ember] .btn.warn{background:var(--red);color:#fff;border:0}
 html[data-theme=paper] .btn{background:var(--text);color:var(--bg)}
 html[data-theme=paper] .btn.alt{background:transparent;color:var(--text);border:1.5px solid var(--line)}
 html[data-theme=paper] .btn.warn{background:var(--red);color:#fff}
+html[data-theme=paper] .seg button.on{color:var(--bg)}
 html[data-theme=paper] .tg{background:#cfcbc0}html[data-theme=paper] .tg:checked{background:var(--text)}
 html[data-theme=paper] .tg::after{background:var(--bg)}
 html[data-theme=paper] .bar{background:#dcd8ce}
@@ -158,11 +160,7 @@ html[data-theme=paper] .dot.ok{background:var(--text)}html[data-theme=paper] .do
 html[data-theme=paper] .hash em{color:var(--text);font-weight:800;text-decoration:underline}
 html[data-theme=paper] .cube .f{background:var(--panel)!important;color:var(--text);border:1.5px solid var(--line)}
 html[data-theme=paper] .sep{background:var(--line)}
-html[data-theme=paper] #gg stop,html[data-theme=paper] #cf stop{stop-color:var(--text)}
-html[data-theme=paper] #garcbg{stroke:#dcd8ce}
-html[data-theme=paper] .chart polyline{stroke:var(--text)}
-html[data-theme=paper] .chart line{stroke:#d3cfc4}html[data-theme=paper] .chart text{fill:var(--dim)}
-html[data-theme=paper] .console .I{color:var(--text)}html[data-theme=paper] .console .W{color:#7a5a00}
+html[data-theme=paper] .console .I{color:var(--text)}html[data-theme=paper] .console .W,html[data-theme=paper] .console .E{color:var(--text);font-weight:700}
 html[data-theme=paper] .canvas{background-image:linear-gradient(rgba(0,0,0,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.08) 1px,transparent 1px)}
 html[data-theme=paper] .screen{background:#fff}
 html[data-theme=paper] .prog i{background:var(--text)}
@@ -340,7 +338,6 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <label style="margin-top:0">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
 <label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option></select>
-<p class="note">Changing the theme reboots the miner so the screen is rebuilt with the new palette.</p>
 <label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <label>Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
 <div class="row"><div><label>Start page</label><select name="defpage" id="defpage"></select></div>

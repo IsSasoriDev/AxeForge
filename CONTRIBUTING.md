@@ -32,7 +32,7 @@ They cover the code that does not touch hardware: difficulty, coinbase and merkl
 - Title prefix: `fix:` for bugs, `enhance:` for features, `security:` for security fixes.
 - Say in the description what the change does and why, in plain words.
 - End with what you ran it on, for example "Tested on a NerdQaxe++ rev6 on v1.4.2". If you could not test on hardware, say so; a build-only PR is still useful.
-- Keep the README's board table and the release notes in step if the change affects users.
+- If users will notice the change, add a line under **Unreleased** in `RELEASE_NOTES.md`, and keep the README's board table in step. At release time the maintainer renames that heading to the version.
 
 ## Code
 

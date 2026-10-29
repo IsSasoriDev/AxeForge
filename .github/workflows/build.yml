@@ -122,7 +122,7 @@ jobs:
 
       - name: Upload flasher for Pages
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 

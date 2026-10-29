@@ -91,6 +91,7 @@ static void screen_idle_check()
 }
 static volatile int s_pending_rot = -1;
 static volatile bool s_snap_req = false;
+static volatile bool s_rebuild_req = false;  // rebuild the screen UI (theme change)
 static lv_img_dsc_t *s_snap = nullptr;
 static SemaphoreHandle_t s_snap_done;  // set from other tasks, applied by the display task
 
@@ -354,6 +355,15 @@ static void display_task(void *)
             }
             lv_obj_invalidate(lv_scr_act());
         }
+        if (s_rebuild_req) {
+            // theme change: every colour was mapped when the widgets were built,
+            // so drop them all and build again under the new palette
+            s_rebuild_req = false;
+            lv_obj_clean(lv_scr_act());
+            theme::apply_lvgl_theme(lv_disp_get_default());
+            if (s_type == DisplayType::TDisplay) ui_small::build();
+            else ui::build();
+        }
         if (s_snap_req) {
             s_snap = lv_snapshot_take(lv_scr_act(), LV_IMG_CF_TRUE_COLOR);
             s_snap_req = false;
@@ -399,6 +409,7 @@ void free_snapshot(lv_img_dsc_t *img)
 }
 
 void set_rotation(bool rotate_180) { s_pending_rot = rotate_180 ? 1 : 0; }
+void rebuild_ui() { s_rebuild_req = true; }
 
 // From outside (boot, a settings save, the long-press toggle): counts as activity,
 // and 0 means asleep so the next press wakes the screen.

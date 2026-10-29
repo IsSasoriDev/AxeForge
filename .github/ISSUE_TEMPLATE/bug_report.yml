@@ -1,0 +1,38 @@
+name: Bug report
+description: Something does not work as described
+title: "fix: "
+labels: [bug]
+body:
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      placeholder: NerdQaxe++ rev6, Bitaxe Supra 402, ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version
+      description: From System, or the boot log.
+      placeholder: v1.4.2
+    validations:
+      required: true
+  - type: input
+    id: pool
+    attributes:
+      label: Pool and protocol
+      placeholder: public-pool.io:23331, Stratum V2
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The relevant lines from System > Logs, or the serial console. The first lines after boot help with crashes.
+      render: text

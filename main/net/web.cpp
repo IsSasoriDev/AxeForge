@@ -572,7 +572,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 2);
     if (theme != c.theme) {
         c.theme = theme;
-        reboot = true;  // the screen UI is built with the theme's palette
+        display::rebuild_ui();  // the screen UI is built with the theme's palette
     }
 
     // display: applied immediately
@@ -848,6 +848,7 @@ static esp_err_t logs_get(httpd_req_t *req)
     uint32_t next = logbuf::read(since, text, max);
     cJSON *r = cJSON_CreateObject();
     cJSON_AddNumberToObject(r, "next", next);
+    cJSON_AddNumberToObject(r, "ms", esp_log_timestamp());  // the log prefix clock, so the page can show wall time
     cJSON_AddStringToObject(r, "text", text);
     free(text);
     return send_json(req, r);

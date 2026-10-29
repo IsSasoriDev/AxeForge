@@ -1,6 +1,6 @@
 // Host-side unit tests for code that doesn't touch hardware: share and block
 // difficulty, coinbase and merkle building, template decoding and the SV2
-// message parsers. Known answers come from the Bitcoin genesis block.
+// message parsers and Noise payload chunking. Known answers come from the Bitcoin genesis block.
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,6 +10,8 @@
 #include "core/json_util.h"
 #include "mining/payout.h"
 #include "mining/work.h"
+#include "mbedtls/sha256.h"
+#include "sv2_aead.h"
 #include "sv2_protocol.h"
 
 static int s_failed = 0, s_checks = 0;
@@ -344,6 +346,43 @@ static void test_sv2_frames()
     CHECK(sv2_parse_close_channel(cc, 4, &ch, reason, sizeof(reason)) != 0);
 }
 
+// Noise transport: a payload over 65519 bytes goes out in chunks of at most
+// 65535 bytes, each with its own MAC under the next nonce, as SRI does.
+static void test_sv2_noise_chunks()
+{
+    CHECK(sv2_noise_payload_ct_len(0) == 0);
+    CHECK(sv2_noise_payload_ct_len(1) == 17);
+    CHECK(sv2_noise_payload_ct_len(65519) == 65535);   // exactly one full chunk
+    CHECK(sv2_noise_payload_ct_len(65520) == 65552);   // one byte spills into a second
+    CHECK(sv2_noise_payload_ct_len(140000) == 140048);
+
+    const size_t len = 140000;
+    uint8_t key[32];
+    for (int i = 0; i < 32; i++) key[i] = (uint8_t) i;
+    std::string pt(len, '\0'), ct(sv2_noise_payload_ct_len(len), '\0'), back(len, '\0');
+    for (size_t i = 0; i < len; i++) pt[i] = (char) ((i * 131 + 7) & 0xff);
+
+    uint64_t n = 1;
+    CHECK(sv2_noise_seal_payload(key, &n, (const uint8_t *) pt.data(), len, (uint8_t *) &ct[0]) == 0);
+    CHECK(n == 4);  // three chunks
+    // Known answer from an independent ChaCha20-Poly1305 (Python cryptography),
+    // chunked the way SRI's codec_sv2 encoder does it
+    uint8_t digest[32];
+    char hex[65];
+    mbedtls_sha256((const uint8_t *) ct.data(), ct.size(), digest, 0);
+    work::bin2hex(digest, 32, hex);
+    CHECK(strcmp(hex, "ff8f953f7d709db1e55f6504c0ec7bc7c477e0d88b8b48666b62f61d64560503") == 0);
+
+    n = 1;
+    CHECK(sv2_noise_open_payload(key, &n, (const uint8_t *) ct.data(), len, (uint8_t *) &back[0]) == 0);
+    CHECK(n == 4 && back == pt);
+
+    // a flipped bit in the last chunk fails its MAC
+    ct[ct.size() - 20] ^= 1;
+    n = 1;
+    CHECK(sv2_noise_open_payload(key, &n, (const uint8_t *) ct.data(), len, (uint8_t *) &back[0]) != 0);
+}
+
 int main()
 {
     test_hex();
@@ -358,6 +397,7 @@ int main()
     test_json_depth();
     test_sv2_targets();
     test_sv2_frames();
+    test_sv2_noise_chunks();
     printf("%d checks, %d failed\n", s_checks, s_failed);
     return s_failed ? 1 : 0;
 }

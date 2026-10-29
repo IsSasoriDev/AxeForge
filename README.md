@@ -1,5 +1,10 @@
 # AxeForge
 
+[![Build](https://github.com/IsSasoriDev/AxeForge/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/IsSasoriDev/AxeForge/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/IsSasoriDev/AxeForge?display_name=tag)](https://github.com/IsSasoriDev/AxeForge/releases/latest)
+[![License: GPL-3.0](https://img.shields.io/github/license/IsSasoriDev/AxeForge)](LICENSE)
+[![Flash in browser](https://img.shields.io/badge/flash-in%20browser-blue)](https://issasoridev.github.io/AxeForge/)
+
 Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex, Supra, Gamma and Naja Duo (see [Supported boards](#supported-boards)). On a Bitaxe it replaces AxeOS completely. It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize, on the stock LilyGo T-Display-S3 or a 3.5" 480×320 display.
 
 > **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable). If that page is down, see [Flashing without the web flasher](#flashing-without-the-web-flasher).

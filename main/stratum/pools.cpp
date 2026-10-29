@@ -638,6 +638,10 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
             }
             last_rx = esp_timer_get_time();
             sv2_parse_frame_header(hdr, &fh);
+            // A message from a protocol extension reuses mining message types,
+            // so it must not be read as one. Pools only send them after
+            // RequestExtensions, which we never send: skip them.
+            if ((fh.extension_type & ~SV2_CHANNEL_MSG_FLAG) != 0) continue;
             v2_message(p, fh.msg_type, buf, len);
         }
     }

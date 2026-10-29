@@ -72,8 +72,11 @@ void set_version_mask(uint32_t mask);
 bool set_vr_freq(uint32_t hz, bool write);
 
 // Per-chip clocks: each chip may run some MHz above (or below) the chain clock.
-// Not on single-chip boards, and not on the BM1373 (untested addressing).
-#if AF_NUM_ASICS > 1 && !AF_ASIC_BM1373
+// Not on single-chip boards, not on the BM1373 (untested addressing), and not
+// where chips are stacked in series: a faster chip would shift the stack's
+// voltage onto its partners. The NerdQaxe++ rev7 is stacked too; the tuner
+// checks that at run time.
+#if AF_NUM_ASICS > 1 && !AF_ASIC_BM1373 && AF_VOLTAGE_DOMAINS == 1
 constexpr bool PER_CHIP_CLOCK = true;
 #else
 constexpr bool PER_CHIP_CLOCK = false;

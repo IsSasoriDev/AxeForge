@@ -13,6 +13,8 @@ float window_stats(float *ghs, float *err_pct);
 // Highest per-chip error rate (percent) over the current window.
 // `chip` (optional) gets its index, -1 when no chip has errors.
 float window_worst_chip_err(int *chip = nullptr);
+// One chip's hashrate (GH/s) over the current window.
+float window_chip_ghs(int chip);
 // One chip's error rate (percent) over the current window.
 float window_chip_err(int chip);
 }

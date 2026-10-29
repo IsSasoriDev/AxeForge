@@ -289,13 +289,40 @@ static bool trim(uint16_t f, uint16_t &mv, float &ghs)
     return true;
 }
 
+// What one chip should hash at the chain clock plus its offset.
+static float chip_expected_ghs(uint16_t f, int off) { return (held(f) + off) * (float) asic::SMALL_CORES / 1000.0f; }
+
+// Takes one raised chip down a step (watch phase), keeping the chain where it is.
+static void lower_chip(int chip, const char *why)
+{
+    Settings &cfg = settings::get();
+    int8_t off[AF_NUM_ASICS];
+    memcpy(off, cfg.chip_off, sizeof(off));
+    off[chip] = off[chip] > CHIP_STEP ? off[chip] - CHIP_STEP : 0;
+    set_offsets(off);
+    settings::save();
+    snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "%s: chip %d back to +%d MHz", why, chip + 1, off[chip]);
+    ESP_LOGW(TAG, "%s", g_state.tuner.note);
+}
+
+// A raised chip hashing below MIN_EFFICIENCY of its own clock over the last window, or -1.
+static int slow_raised_chip(uint16_t f)
+{
+    const Settings &cfg = settings::get();
+    for (int i = 0; i < g_state.chips_detected && i < AF_NUM_ASICS; i++)
+        if (cfg.chip_off[i] > 0 && miner::window_chip_ghs(i) < MIN_EFFICIENCY * chip_expected_ghs(f, cfg.chip_off[i]))
+            return i;
+    return -1;
+}
+
 // Phase 2b: per-chip clocks. All chips that can go higher step up together; the
 // per-chip error counts say which ones held. A chip that fails goes back one step
 // and stays there. Returns false if aborted.
 static bool tune_chips(uint16_t f, float &ghs)
 {
     Settings &cfg = settings::get();
-    if (!asic::PER_CHIP_CLOCK || !cfg.chip_tune || cfg.tune_goal == GOAL_EFFICIENCY || g_state.chips_detected < 2)
+    if (!asic::PER_CHIP_CLOCK || board::is_rev7() || !cfg.chip_tune || cfg.tune_goal == GOAL_EFFICIENCY ||
+        g_state.chips_detected < 2)
         return true;
     const int chips = g_state.chips_detected < AF_NUM_ASICS ? g_state.chips_detected : AF_NUM_ASICS;
     const int fmax = board::limits().max_freq_mhz;
@@ -325,16 +352,20 @@ static bool tune_chips(uint16_t f, float &ghs)
         for (int i = 0; i < chips; i++) {
             if (!raised[i]) continue;
             float e = miner::window_chip_err(i);
+            float ghs = miner::window_chip_ghs(i);
+            float want = chip_expected_ghs(f, off[i]);
             // a chip over its own limit fails; with the total over its limit, so does
-            // any raised chip above the total limit
-            bool bad = stop || e > WORST_CHIP_PCT || (r.verdict == Verdict::Errors && e > MAX_ERR_PCT);
+            // any raised chip above the total limit. A chip that drops work without
+            // reporting errors fails on its hashrate.
+            bool bad = stop || e > WORST_CHIP_PCT || ghs < MIN_EFFICIENCY * want ||
+                       (r.verdict == Verdict::Errors && e > MAX_ERR_PCT);
             if (bad) {
                 off[i] -= CHIP_STEP;
                 frozen[i] = true;
                 failed++;
             }
-            ESP_LOGI(TAG, "chip %d at +%d MHz: %.2f%% errors%s", i + 1, off[i] + (bad ? CHIP_STEP : 0), e,
-                     bad ? ", back one step" : "");
+            ESP_LOGI(TAG, "chip %d at +%d MHz: %.0f of %.0f GH/s, %.2f%% errors%s", i + 1, off[i] + (bad ? CHIP_STEP : 0),
+                     ghs, want, e, bad ? ", back one step" : "");
         }
         if (r.verdict == Verdict::Errors && !failed) {
             // the total failed without any one chip standing out: undo the round
@@ -382,9 +413,12 @@ static void tuner_task(void *)
             uint16_t want = s_hold && cfg.freq_mhz > s_hold ? s_hold : cfg.freq_mhz;
             g_state.tuner.phase = TunerPhase::Off;
             snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Manual: %u MHz @ %u mV", cfg.freq_mhz, cfg.core_mv);
-            if (any_offset() && board::is_powered()) {  // a manual clock means every chip at it
-                clear_offsets();
-                settings::save();
+            if (asic::offset_total() != 0 && board::is_powered()) {
+                // a manual clock means every chip at it; the tuned offsets stay saved
+                // and come back with auto-tune
+                int8_t zero[AF_NUM_ASICS] = {};
+                asic::set_chip_offsets(zero, true);
+                g_state.expected_ghs = board::freq_mhz() * g_state.chips_detected * (float) asic::SMALL_CORES / 1000.0f;
             }
             if (board::is_powered() && (board::freq_mhz() != board::clamp_freq(want) ||
                                         board::core_mv() != board::clamp_mv(cfg.core_mv))) {
@@ -436,6 +470,7 @@ static void tuner_task(void *)
             lock_point(best_f, best_mv, best_ghs);
             if (!tune_chips(best_f, best_ghs)) continue;
         } else {
+            set_offsets(cfg.chip_off);  // back from manual mode: the saved per-chip clocks again
             apply(cfg.tuned_freq, cfg.tuned_mv);
             best_f = held(cfg.tuned_freq);
             best_mv = cfg.tuned_mv;
@@ -451,20 +486,14 @@ static void tuner_task(void *)
             if (r.verdict == Verdict::Aborted) break;
             if (r.verdict == Verdict::Stable) {
                 if (r.ghs > 0) g_state.tuner.best_ghs = r.ghs;
+                int slow = slow_raised_chip(best_f);
+                if (slow >= 0) lower_chip(slow, "Slow");
                 continue;
             }
             int wc = -1;
             miner::window_worst_chip_err(&wc);
             if (r.verdict == Verdict::Errors && wc >= 0 && wc < AF_NUM_ASICS && cfg.chip_off[wc] > 0) {
-                // a raised chip is the likely cause: take it down a step, not the chain
-                int8_t off[AF_NUM_ASICS];
-                memcpy(off, cfg.chip_off, sizeof(off));
-                off[wc] = off[wc] > CHIP_STEP ? off[wc] - CHIP_STEP : 0;
-                set_offsets(off);
-                settings::save();
-                snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Drift: chip %d back to +%d MHz", wc + 1,
-                         off[wc]);
-                ESP_LOGW(TAG, "%s", g_state.tuner.note);
+                lower_chip(wc, "Drift");  // a raised chip is the likely cause: not the chain
                 continue;
             }
             g_state.tuner.phase = TunerPhase::Backoff;

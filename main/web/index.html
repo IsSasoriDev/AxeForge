@@ -583,7 +583,8 @@ async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setThem
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[L.maxPower+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
- $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();$('ethrow').style.display=$('ethnote').style.display=cfg.hasEth?'':'none';
+ $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;
+ {const pu=document.querySelector('[name=priceurl]');pu.value='';pu.placeholder=cfg.priceurlSet?'saved (hidden) · type to replace':'https://example.com/price.json'}$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();$('ethrow').style.display=$('ethnote').style.display=cfg.hasEth?'':'none';
  notifyForm();pagesFrom(cfg.pages)}
 document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const d={};
  f.querySelectorAll('[name]').forEach(el=>{d[el.name]=el.type=='checkbox'?el.checked:(el.type=='range'||el.type=='number'||el.tagName=='SELECT')?Number(el.value):el.value});

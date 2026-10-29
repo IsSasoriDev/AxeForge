@@ -400,7 +400,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "priceon", c.price_on);
     cJSON_AddNumberToObject(r, "pricesrc", c.price_src);
     cJSON_AddStringToObject(r, "pricezone", c.price_zone);
-    cJSON_AddStringToObject(r, "priceurl", c.price_url);
+    cJSON_AddBoolToObject(r, "priceurlSet", c.price_url[0] != 0);  // may hold a token: never sent back
     cJSON_AddStringToObject(r, "pricepath", c.price_path);
     cJSON_AddNumberToObject(r, "pricemax", c.price_max);
     cJSON_AddNumberToObject(r, "fantgt", c.fan_target_c);
@@ -659,8 +659,8 @@ static esp_err_t settings_post(httpd_req_t *req)
     }
     char purl[sizeof(c.price_url)];
     snprintf(purl, sizeof(purl), "%s", c.price_url);
-    if (copy_str(j, "priceurl", purl, sizeof(purl))) {
-        if (!purl[0] || valid_base_url(purl)) snprintf(c.price_url, sizeof(c.price_url), "%s", purl);
+    if (copy_str(j, "priceurl", purl, sizeof(purl)) && purl[0]) {  // empty keeps the saved one
+        if (valid_base_url(purl)) snprintf(c.price_url, sizeof(c.price_url), "%s", purl);
         else ESP_LOGW(TAG, "price URL ignored: needs http:// or https:// and a host");
     }
     copy_str(j, "pricepath", c.price_path, sizeof(c.price_path));

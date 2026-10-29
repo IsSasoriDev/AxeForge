@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security problem
+    url: https://github.com/IsSasoriDev/AxeForge/security/advisories/new
+    about: Report privately. Please do not open a public issue.
+  - name: Question or idea
+    url: https://github.com/IsSasoriDev/AxeForge/discussions
+    about: Not sure it is a bug? Ask in Discussions.

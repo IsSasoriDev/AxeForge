@@ -1,3 +1,11 @@
+# Release notes
+
+Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workflow puts that section on the GitHub release page. Changes that are merged but not yet released go under **Unreleased**.
+
+## Unreleased
+
+_Nothing yet._
+
 ## AxeForge v1.4.2
 
 ### New
@@ -55,3 +63,247 @@ All eight tabs now fit across the bottom bar on a phone, the Swarm table keeps t
 - **Web flasher**: https://issasoridev.github.io/AxeForge/. Keeps your settings unless you tick *Erase*.
 - Each board has an update file (`axeforge-<board>.bin`, for *System → Firmware* in the web UI) and a full image (`axeforge-<board>-factory.bin`, resets settings). The NerdQaxe++ keeps the plain names `axeforge.bin` / `axeforge-factory.bin`.
 - Board names in the files: `nerdaxe`, `nerdqaxeplus`, `nerdoctaxeplus`, `nerdoctaxegamma`, `nerdqx`, `suprahex`, `ultrahex`, `supra`, `gamma`, `naja`. A file for another board is refused.
+
+## AxeForge v1.4.1
+
+### More Bitaxes, as full firmware
+AxeForge now replaces AxeOS on a Bitaxe completely: install it with the web flasher like any other board. AxeOS's Wi-Fi, pool and clock settings carry over.
+
+| Board | Chips | Notes |
+|---|---|---|
+| **Bitaxe Supra Hex** 701/702 | 6× BM1368 | Tested on a 702, now a full install as well |
+| **Bitaxe Supra** 400–403 | 1× BM1368 | TPS546 (402/403) or DS4432U (400/401) found at boot. **Not tested on hardware yet** |
+| **Bitaxe Gamma** 600–603 | 1× BM1370 | Chip temperature from its own diode. **Not tested on hardware yet** |
+| **Bitaxe Naja Duo** 1201 | 2× BM1373 | New BM1373 driver, two stacked domains, color screen. **Not tested on hardware yet** |
+
+If you run one of the untested boards, please open an issue with your log (*System → Log*), working or not.
+
+Hex owners who installed 1.4 through AxeOS's update page can keep updating as before; flash the full image once to switch to the standalone layout.
+
+### Also new (@cbyam, #27-#30)
+- **Ember theme:** near-black with Bitcoin orange, for the web UI and both screens. Status colours keep their meaning (green, amber, red), and mempool blocks use mempool.space's fee colours (#29).
+- **Hostname setting** on the Network page. Left empty, a miner flashed from stock keeps its old name. Swarm now shows other miners' hostnames and worker names (#28).
+- **Nexus S1** (BitLuck, 4× BM1373), experimental: tested on one board, built from source with `sdkconfig.defaults.nexus`, no release file yet. Its BM1373 numbers (6912 cores, hash counter 0x90) also improve the Naja Duo support (#30).
+- The version in the web UI's menu links to its source on GitHub (#27).
+
+### Security fixes (reported privately by @cbyam, thank you)
+Update soon if you mine on a pool you don't run yourself, or over plain (non-TLS) Stratum V1.
+- **A pool could corrupt the miner's memory** with an invalid extranonce size. Extranonce sizes from the pool (Stratum V1 and V2) are now checked, a pool that sends a bad one is disconnected, and the coinbase builder never trusts the size either.
+- **A pool could stop mining until a reboot** with a crafted coinbase. Every length in it is now checked against the data that's left.
+- **Deeply nested JSON could crash the miner** (from a pool, a Swarm peer on the LAN, weather/mempool replies or the web API). All of it is now refused above 16 levels of nesting before it's parsed.
+
+### Other fixes from a code review of 1.4.0
+- NerdOctaxe-γ: the regulator setup from the GPIO3 strap is now checked against the regulator actually fitted; a mismatch refuses to power up instead of running a TPS53647 with a TPS53667's limits.
+- After a fault retry, the auto-tuner no longer saves a clock it never ran.
+- A fault flag from one power-up can't cut the next one.
+- A failed core-voltage read no longer looks like a lost rail (and the NerdAxe without ADC calibration no longer reads 0 V).
+- The payout check reads the pool username safely while the web UI saves it, and handles regtest taproot addresses.
+- Board sensors are read once per second instead of twice on die-sensor boards.
+
+### Also in this release (from v1.4.0)
+- NerdQAxe+, NerdOctaxe+, NerdOctaxe-γ and NerdQX support, the solo payout check, the screen-off timer, Swarm scan fixes and safer fault recovery.
+
+### Files
+- **Web flasher**: https://issasoridev.github.io/AxeForge/. Keeps your settings unless you tick *Erase*.
+- Each board has an update file (`axeforge-<board>.bin`, for *System → Firmware* in the web UI) and a full image (`axeforge-<board>-factory.bin`, resets settings). The NerdQaxe++ keeps the plain names `axeforge.bin` / `axeforge-factory.bin`.
+- Board names in the files: `nerdaxe`, `nerdqaxeplus`, `nerdoctaxeplus`, `nerdoctaxegamma`, `nerdqx`, `suprahex`, `supra`, `gamma`, `naja`. A file for another board is refused.
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/compare/v1.4.0...v1.4.1
+
+## AxeForge v1.4.0
+
+### New boards
+Four more boards from the NerdQAxe family, each with its own image and web flasher card. **They are new and not yet tested on hardware**, so please report how yours runs.
+
+| Board | Chips | Notes |
+|---|---|---|
+| **NerdQAxe+** | 4× BM1368 | 2-phase TPS53647, 70 W limit |
+| **NerdOctaxe+** | 8× BM1368 | 3-phase TPS53647, 130 W limit |
+| **NerdOctaxe-γ** | 8× BM1370 | 4-phase TPS53647 (250 W) or, from rev3.0, 6-phase TPS53667 (300 W), detected at boot. Die temperature per chip where the board has the TMP451 sensors. |
+| **NerdQX** | 4× BM1370 | Die temperature per chip, up to 1000 MHz. Without its die sensors it stays at 495 MHz / 1150 mV. |
+
+- Coming from the stock NerdQAxe firmware, these boards keep your Wi-Fi and pool settings.
+- On boards with die sensors, the chip temperature is the real die reading. Before the chips have power, or if a die reading drops out, the board sensors stand in.
+- The screen and web UI show chip count and model per board. With 8 chips the chip page uses two rows.
+
+### Bitaxe Supra Hex
+The first Bitaxe: the **Supra Hex 701 / 702** (6× BM1368, three stacked voltage domains, 128×32 OLED), tested on a 702.
+- Installed through AxeOS's own **Update** page (rename `axeforge-suprahex.bin` to `esp-miner.bin`). AxeOS stays on the miner: going back is one upload, and three crashed boots in a row start AxeOS by itself.
+- Takes over AxeOS's Wi-Fi, pool and clock settings.
+
+### Safer fault recovery (all boards)
+Found while bringing up the Hex, where a chip that stops hashing now and then made every retry fail:
+- A retry after a power cut ramped the chips from the clock they ran at before, so freshly reset chips jumped from ~56 MHz to full speed in one step. On the Hex that tripped the regulator's over-current shutdown every time. Chips now ramp up from their reset clock.
+- A missing chip in a stacked voltage domain (Supra Hex, NerdQaxe++ rev7) is a fault, not a smaller miner: its partner would get the whole domain's voltage.
+- New cut-offs: core voltage lost while powered, and no chip hashing at all while work is being sent.
+- After a fault retry at a lower clock, neither manual mode nor the tuner goes straight back up.
+- Chip numbers in fault messages match the screen and web UI (*ASIC 2 stopped hashing*), and Wi-Fi disconnects log their reason.
+
+### Solo payout check
+The miner reads every job's coinbase back into addresses and checks that a found block would pay the Bitcoin address in your pool username (the part before `.worker`).
+- Dashboard → *Now mining*: the payout (for example *3.14033958 BTC to your address (100%)*) and the coinbase outputs.
+- Each pool card: *pays you N%*, or a red *coinbase doesn't pay your address*. That's normal on a pooled account, but on a solo pool it means a block wouldn't pay you.
+- The Blocks page on the screen shows it in green or red, and the log notes every change.
+- P2PKH, P2SH, P2WPKH, P2WSH and P2TR on mainnet, testnet and regtest, over Stratum V1 and V2. Tested against real mainnet coinbases.
+
+### Also new
+- **Screen off after** a set idle time (Display tab). The first press wakes it; faults, overheating and a found block wake it by themselves (@cbyam, #26).
+- **Swarm scan** finds every miner on the network and the web UI keeps answering while it runs (@cbyam, #23).
+- The hashrate sits centred in the gauge on the small screen (@cbyam, #25).
+- Unit tests run on every push, the Supra Hex code is build-checked, and compiler warnings are listed in the CI summary (@cbyam, #22).
+
+### Also in this release (from v1.3.2)
+- Fractional pool difficulty, version rolling within the pool's mask, SV2 reconnects on a silent pool and announces the real hashrate.
+- Debounced cut-offs, the last emergency kept across restarts, safer overheat recovery, pool certificate date checks.
+- Auto-tune fixes, power shown with two decimals.
+
+### Files
+- **Web flasher**: https://issasoridev.github.io/AxeForge/. Keeps your settings unless you tick *Erase*.
+- Each board has an update file (`axeforge-<board>.bin`, for *System → Firmware* in the web UI) and a full image (`axeforge-<board>-factory.bin`, resets settings). The NerdQaxe++ keeps the plain names `axeforge.bin` / `axeforge-factory.bin`.
+- Board names in the files: `nerdaxe`, `nerdqaxeplus`, `nerdoctaxeplus`, `nerdoctaxegamma`, `nerdqx`, `suprahex`. A file for another board is refused.
+- Supra Hex: `axeforge-suprahex.bin` only (rename to `esp-miner.bin` and upload in AxeOS). No full image: it would replace the partition layout AxeOS needs.
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/compare/v1.3.2...v1.4.0
+
+## AxeForge v1.3.2
+
+Fixes from real boards, most of them contributed by @cbyam (#6, #12–#21). Thanks!
+
+### Mining
+- **Fractional share difficulty:** the pool's difficulty is no longer cut to a whole number (1500.7 → 1500), which submitted shares the pool then rejected. At low difficulties that was up to a third of shares (#12).
+- **Version rolling honours the pool's mask:** the chips only roll the bits the pool allows, and rolled versions are rebuilt and submitted correctly (#20).
+- **SV2 reconnects** when the pool goes silent or closes the channel, instead of hashing its last job forever. The idle limit is now 3 minutes for V1 and SV2, down from 10 (#18).
+- **SV2 announces the board's own hashrate and chip**, so a NerdAxe no longer starts at a difficulty sized for 5 TH/s (#19).
+
+### Safety
+- The over-temperature and over-power cut-offs need two readings in a row, so one bad sensor read can't shut the miner down (#14).
+- The last emergency and the readings that caused it survive a restart: they're shown in the log at boot and in `/api/status` (`lastEmergency`, `emergencies`) (#14).
+- Overheat recovery tries at most 3 times, 30 s apart, and only saves the lower clock if the board actually came up. Before, failed attempts kept lowering the tuned clock (#13).
+- Pool certificate dates are checked: expired SV2 certificates are refused, and TLS checks dates once the clock is set over NTP (#16).
+- A bad mempool URL or Swarm address can no longer crash the miner on every boot (#21).
+
+### Auto-tune
+- No +10 mV added back when the voltage trim didn't lower anything. That could push the lock over the power cap.
+- Retries lower when the start point fails, instead of locking a point it never measured.
+- Steps fail if any one chip goes over 2% errors (3% once locked), not just the average (#15).
+
+### Display and web UI
+- Power is shown with two decimals (e.g. 97.25 W) on the screen, the web UI and Swarm.
+- NerdQaxe++ rev5.1/6 now reports the raw board sensor; only rev7 adds the +10 °C die estimate (#6).
+- Swarm asks known AxeForge peers on their own API first, so they no longer log a 404 every 15 s (#17).
+- Fixed the *Chips* screen widget on the NerdAxe, which read past its single chip.
+
+### Files
+- **Web flasher**: https://issasoridev.github.io/AxeForge/. Keeps your settings unless you tick *Erase*.
+- NerdQaxe++: **axeforge.bin** (web update) · **axeforge-factory.bin** (full image, resets settings)
+- NerdAxe: **axeforge-nerdaxe.bin** (web update) · **axeforge-nerdaxe-factory.bin** (full image, resets settings)
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/compare/v1.3.1...v1.3.2
+
+## AxeForge v1.3.1
+
+**Same as v1.3.0, plus NerdAxe support** — it was meant to be in 1.3.0 and got left out.
+
+### New board: NerdAxe
+- 1× BM1366 on a LilyGo T-Display-S3: core voltage through the DS4432U/TPS40305, input power from the INA260, fan and temperature from the EMC2101, core voltage read back on the ADC.
+- Its own firmware image (`axeforge-nerdaxe.bin` / `axeforge-nerdaxe-factory.bin`) and its own card in the web flasher. On this board the core power enable works the other way round from the NerdQaxe++, so the images are not interchangeable.
+- Coming from the NerdQAxe stock firmware, it keeps your Wi-Fi and pool settings.
+- Limits: 600 MHz, 1100–1300 mV, 15 W (the 5 V supply's limit).
+
+### Safety
+- A firmware upload built for a different board is now refused (each image carries its board name). Stock firmware can still be uploaded to go back.
+
+### Also in this release (from v1.3.0)
+- **Swarm:** every miner on your network in one place — AxeForge, AxeOS (Bitaxe), NerdQAxe stock firmware — with totals.
+- **Themes:** *Forge* (dark neon) and *Paper*, a minimal e-ink style for the screen and the web UI.
+- **Captive portal** on the setup Wi-Fi.
+- **Fans:** both NerdQaxe++ headers detected, each fan *Auto* or *Manual*.
+- Fixes: no sideways scrolling in the web UI, no stale web UI after updates, the broken `°` on the chip tile.
+
+### Files
+- **Web flasher** — https://issasoridev.github.io/AxeForge/ — keeps your settings unless you tick *Erase*.
+- NerdQaxe++: **axeforge.bin** (web update) · **axeforge-factory.bin** (full image, resets settings)
+- NerdAxe: **axeforge-nerdaxe.bin** (web update) · **axeforge-nerdaxe-factory.bin** (full image, resets settings)
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/compare/v1.3.0...v1.3.1
+
+## AxeForge v1.3.0
+
+### New
+- **Swarm:** see every miner on your network in one place — AxeForge, AxeOS (Bitaxe) and NerdQAxe stock firmware. *Scan network* finds them; totals for hashrate, power and best difficulty. Readings no single small miner could produce are flagged as invalid and left out of the totals.
+- **Themes:** *Forge* (dark neon) and the new *Paper* — a minimal, e-ink style for both the screen and the web UI (*Display → Theme*).
+- **Captive portal:** joining the `AxeForge-XXXX` setup Wi-Fi opens the setup page automatically.
+- **Fans:** both NerdQaxe++ fan headers are detected (`fanCount` and a `fans` list in `/api/status`, same shape as AxeOS). Each fan can be *Auto* or *Manual*; manual fans still go to 100 % if a sensor is lost or the chips near the ceiling.
+
+### Fixes
+- The web UI no longer scrolls sideways when a table or card is wider than the window.
+- After a firmware update the browser always loads the new web UI instead of a cached old one.
+- The chip temperature tile showed a broken `°` sign.
+
+### Files
+- **Web flasher** — https://issasoridev.github.io/AxeForge/ — keeps your settings unless you tick *Erase*.
+- **axeforge.bin** — update from the web UI (*System → Firmware update*). Keeps your settings.
+- **axeforge-factory.bin** — full image for `esptool.py write_flash 0x0`; a clean install that **resets all settings**.
+
+Supports the NerdQaxe++ (rev5.1, rev6 and rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/compare/v1.2.0...v1.3.0
+
+## AxeForge v1.2.0
+
+### Install from the browser
+- New **web flasher**: https://issasoridev.github.io/AxeForge/ — Chrome or Edge, USB cable, no tools. It keeps your Wi-Fi and pool settings unless you tick *Erase*.
+
+### Boards
+- **NerdQaxe++ rev5.1** is listed as supported. It uses the same TPS53647 regulator and code path as rev6, and the web UI now shows `rev5.1/6 (TPS53647)`.
+
+### Safety
+- **Chip stall guard:** a chip that falls far below the others for 15 s cuts power (`Chip N stopped hashing`).
+- **Fan stall detection** (@cbyam): a fan that was spinning and drops under 300 rpm cuts power. Within 3 °C of a tuner ceiling the fans go to 100 %.
+- **Fixed: automatic recoveries found no chips** (@cbyam). After a fault or overheat the chips came back at 115200 baud while the ESP32 stayed at 1 Mbaud, so every retry failed.
+- The fan controller is re-initialised if a supply glitch resets it.
+
+### Mining and pools
+- **Stratum V2:** each frame goes out in one write, and `TCP_NODELAY` is set on pool sockets (@cbyam). Share response went from about 53 ms to 7 ms in testing.
+- Results the chain reports twice are dropped instead of being submitted as duplicates (@cbyam). Counted as `dupResults` in `/api/status`.
+
+### Web UI and logs
+- Every change made through the API is logged with the client's address, and a requested restart is remembered across the reboot (`restartedBy` in `/api/status`) (@cbyam).
+- Easier-to-read secondary text on the screen and in the web UI (@cbyam). Both fan speeds are shown.
+
+### Files
+- **Web flasher** — the easiest way to install or update over USB.
+- **axeforge.bin** — update an AxeForge miner from the web UI (*System → Firmware update*). Keeps your settings.
+- **axeforge-factory.bin** — full image for `esptool.py write_flash 0x0 axeforge-factory.bin`. This is a clean install: it **resets all settings**.
+
+Supports the NerdQaxe++ (rev5.1, rev6 and rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/compare/v1.1.0...v1.2.0
+
+## AxeForge v1.1.0
+
+### Which file?
+- **axeforge-factory.bin** — first install over USB. Flash at address `0x0` (web flasher or `esptool.py write_flash 0x0 axeforge-factory.bin`).
+- **axeforge.bin** — update an AxeForge miner from the web UI: *System → Firmware update*. Keeps your settings.
+
+Supports the NerdQaxe++ (pre-rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/commits/v1.1.0
+
+## AxeForge v1.0.0
+
+### Which file?
+- **axeforge-factory.bin** — first install over USB. Flash at address `0x0` (web flasher or `esptool.py write_flash 0x0 axeforge-factory.bin`).
+- **axeforge.bin** — update an AxeForge miner from the web UI: *System → Firmware update*. Keeps your settings.
+
+Supports the NerdQaxe++ (pre-rev7) with the stock LilyGo T-Display-S3 or a 3.5" 480×320 screen.
+
+
+**Full Changelog**: https://github.com/IsSasoriDev/AxeForge/commits/v1.0.0

@@ -1,4 +1,5 @@
 #include "sv2_noise.h"
+#include "sv2_aead.h"
 #include "sv2_protocol.h"
 
 #include <string.h>
@@ -12,7 +13,6 @@
 
 #include "mbedtls/sha256.h"
 #include "mbedtls/md.h"
-#include "mbedtls/chachapoly.h"
 
 #include "secp256k1.h"
 
@@ -131,35 +131,14 @@ static void hkdf2(uint8_t ck[32], const uint8_t *ikm, size_t ikm_len,
     hmac_sha256(prk, 32, buf, 33, out2);
 }
 
-// Build 12-byte nonce: 4 zero bytes + 8-byte LE counter
-static void build_nonce(uint64_t counter, uint8_t nonce[12])
-{
-    memset(nonce, 0, 4);
-    for (int i = 0; i < 8; i++) {
-        nonce[4 + i] = (uint8_t)(counter >> (i * 8));
-    }
-}
-
-// ChaCha20-Poly1305 encrypt
+// ChaCha20-Poly1305 encrypt, one AEAD block
 // out must have room for pt_len + 16 bytes
 static int noise_encrypt(const uint8_t key[32], uint64_t nonce_counter,
                          const uint8_t *aad, size_t aad_len,
                          const uint8_t *plaintext, size_t pt_len,
                          uint8_t *out)
 {
-    uint8_t nonce[12];
-    build_nonce(nonce_counter, nonce);
-
-    mbedtls_chachapoly_context ctx;
-    mbedtls_chachapoly_init(&ctx);
-    mbedtls_chachapoly_setkey(&ctx, key);
-
-    int ret = mbedtls_chachapoly_encrypt_and_tag(&ctx, pt_len,
-                                                  nonce, aad, aad_len,
-                                                  plaintext, out,
-                                                  out + pt_len); // 16-byte tag appended
-    mbedtls_chachapoly_free(&ctx);
-
+    int ret = sv2_aead_encrypt(key, nonce_counter, aad, aad_len, plaintext, pt_len, out);
     if (ret != 0) {
         ESP_LOGE(TAG, "encrypt failed: %d", ret);
         return -1;
@@ -167,30 +146,14 @@ static int noise_encrypt(const uint8_t key[32], uint64_t nonce_counter,
     return 0;
 }
 
-// ChaCha20-Poly1305 decrypt
+// ChaCha20-Poly1305 decrypt, one AEAD block
 // ciphertext includes 16-byte tag at end. out receives ct_len - 16 bytes.
 static int noise_decrypt(const uint8_t key[32], uint64_t nonce_counter,
                          const uint8_t *aad, size_t aad_len,
                          const uint8_t *ciphertext, size_t ct_len,
                          uint8_t *out)
 {
-    if (ct_len < 16) return -1;
-
-    uint8_t nonce[12];
-    build_nonce(nonce_counter, nonce);
-
-    size_t pt_len = ct_len - 16;
-    const uint8_t *tag = ciphertext + pt_len;
-
-    mbedtls_chachapoly_context ctx;
-    mbedtls_chachapoly_init(&ctx);
-    mbedtls_chachapoly_setkey(&ctx, key);
-
-    int ret = mbedtls_chachapoly_auth_decrypt(&ctx, pt_len,
-                                               nonce, aad, aad_len,
-                                               tag, ciphertext, out);
-    mbedtls_chachapoly_free(&ctx);
-
+    int ret = sv2_aead_decrypt(key, nonce_counter, aad, aad_len, ciphertext, ct_len, out);
     if (ret != 0) {
         ESP_LOGE(TAG, "decrypt failed: %d", ret);
         return -1;
@@ -449,6 +412,13 @@ int sv2_noise_handshake(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,
     ESP_LOGI(TAG, "Server certificate: version=%d, valid_from=%lu, not_valid_after=%lu",
              cert_version, valid_from, not_valid_after);
 
+    // Version 0 is the only certificate format defined; SRI refuses any other,
+    // with or without an authority key.
+    if (cert_version != 0) {
+        ESP_LOGE(CERT_TAG, "Unsupported server certificate version %d", cert_version);
+        return -1;
+    }
+
     // Step 15: Verify Schnorr signature if authority pubkey provided
     if (authority_pubkey) {
         ESP_LOGI(TAG, "Verifying server certificate (Schnorr/BIP-340)...");
@@ -554,16 +524,18 @@ int sv2_noise_send(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,
     // single write, so a frame leaves as one TCP segment instead of a header
     // segment followed by a payload segment (which Nagle holds back until the
     // pool ACKs the header: ~40 ms per share). As in bitaxeorg/ESP-Miner#1771.
-    int total_len = 22 + payload_len + 16;
+    int total_len = 22 + (int)sv2_noise_payload_ct_len(payload_len);
     uint8_t stack_buf[128];
     uint8_t *out = (total_len <= (int)sizeof(stack_buf)) ? stack_buf : SV2_SCRATCH_MALLOC(total_len);
     if (!out) return -1;
 
-    // Encrypt header (nonce N) into out[0..21], payload (nonce N+1) into out[22..]
+    // Encrypt header (nonce N) into out[0..21], then the payload in chunks
+    // (nonces N+1, N+2, ...) into out[22..]
     if (noise_encrypt(ctx->send_key, ctx->send_nonce++, NULL, 0,
                       frame, SV2_FRAME_HEADER_SIZE, out) != 0 ||
-        noise_encrypt(ctx->send_key, ctx->send_nonce++, NULL, 0,
-                      frame + SV2_FRAME_HEADER_SIZE, payload_len, out + 22) != 0) {
+        sv2_noise_seal_payload(ctx->send_key, &ctx->send_nonce,
+                               frame + SV2_FRAME_HEADER_SIZE, payload_len, out + 22) != 0) {
+        ESP_LOGE(TAG, "Failed to encrypt frame");
         if (out != stack_buf) free(out);
         return -1;
     }
@@ -608,8 +580,8 @@ int sv2_noise_recv(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,
         return -1;
     }
 
-    // Receive and decrypt payload
-    int enc_len = hdr.msg_length + 16;
+    // Receive and decrypt payload: one MAC per chunk of up to 65535 bytes
+    int enc_len = (int)sv2_noise_payload_ct_len(hdr.msg_length);
     uint8_t *enc_payload = SV2_SCRATCH_MALLOC(enc_len);
     if (!enc_payload) return -1;
 
@@ -618,8 +590,8 @@ int sv2_noise_recv(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,
         return -1;
     }
 
-    if (noise_decrypt(ctx->recv_key, ctx->recv_nonce++, NULL, 0,
-                      enc_payload, enc_len, payload_out) != 0) {
+    if (sv2_noise_open_payload(ctx->recv_key, &ctx->recv_nonce,
+                               enc_payload, hdr.msg_length, payload_out) != 0) {
         ESP_LOGE(TAG, "Failed to decrypt payload");
         free(enc_payload);
         return -1;

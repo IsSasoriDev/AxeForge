@@ -27,6 +27,11 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 | **Bitaxe Supra** 400–403 | 1× BM1368 | TPS546 (402/403) or DS4432U (400/401), detected at boot | 40 W | `axeforge-supra.bin` | ✅ Tested |
 | **Bitaxe Gamma** 600–603 | 1× BM1370 | TPS546 | 40 W | `axeforge-gamma.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Naja Duo** 1201 | 2× BM1373 | TPS546 stack, 2 stacked domains | 60 W | `axeforge-naja.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Max** 102 | 1× BM1397 | DS4432U + TPS40305 | 25 W | `axeforge-max.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Ultra** 201–207 | 1× BM1366 | DS4432U (201–205) or TPS546 (207), detected at boot | 25 W | `axeforge-ultra.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Gamma Duo** 650 | 2× BM1370 | TPS546 | 40 W | `axeforge-gammaduo.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe GT** 801 | 2× BM1370 | TPS546 stack, 2-phase | 60 W | `axeforge-gt.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Gamma Hex** 1300 | 6× BM1370 | TPS546 stack, 4-phase, 2 stacked domains | 180 W | `axeforge-gammahex.bin` | ⚠️ Not tested on hardware yet |
 | **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | build from source | ⚠️ Experimental (one board tested) |
 
 - Each board has its own firmware file. A file for another board is refused, because the boards switch their core power on differently.

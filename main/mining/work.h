@@ -57,6 +57,10 @@ void describe_template(const StratumJob &sj, const char *extranonce1, int en2_le
                        const char *user = nullptr);
 
 double nbits_to_difficulty(uint32_t nbits);
+
+// The next version inside the pool's rolling mask (carries across gaps in the
+// mask, leaves the other bits alone). How the BM1397's midstates are numbered.
+inline uint32_t next_version(uint32_t v, uint32_t mask) { return (v & ~mask) | (((v | ~mask) + 1u) & mask); }
 uint32_t block_height_from_coinb1(const char *coinb1);
 
 } // namespace work

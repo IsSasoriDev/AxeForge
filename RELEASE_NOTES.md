@@ -4,7 +4,16 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Five more Bitaxes
+| Board | Chips | Notes |
+|---|---|---|
+| **Bitaxe Max** 102 | 1× BM1397 | The first Bitaxe. Its chip doesn't roll version bits itself, so the ESP32 sends it four midstates per job, as AxeOS does. 425 MHz / 1400 mV stock, 25 W limit |
+| **Bitaxe Ultra** 201–207 | 1× BM1366 | DS4432U (201–205) or TPS546 (207), found at boot, like the Supra. 485 MHz / 1200 mV, 25 W |
+| **Bitaxe Gamma Duo** 650 | 2× BM1370 | Two chips in parallel on one 5 V TPS546. 400 MHz / 1150 mV (XP-binned chips), 40 W |
+| **Bitaxe GT** 801 | 2× BM1370 | 12 V, two-phase TPS546 stack, a diode per chip on an EMC2103. 525 MHz / 1150 mV, 60 W |
+| **Bitaxe Gamma Hex** 1300 | 6× BM1370 | 12 V, four-phase TPS546 stack, two stacked domains of three chips, color screen. 690 MHz / 1200 mV, 180 W |
+
+Board numbers, regulator settings and stock points come from AxeOS's board definitions. None of these five has run AxeForge yet: if you have one, please flash it and open an issue with the log (*System → Log*), working or not. Per-chip clocks are on for the Gamma Duo and the GT (their chips share one voltage) and off on the Gamma Hex (stacked domains).
 
 ## AxeForge v1.4.3
 

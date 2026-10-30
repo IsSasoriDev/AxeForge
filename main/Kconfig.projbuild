@@ -26,6 +26,16 @@ menu "AxeForge"
             bool "Bitaxe Supra 400-403 (1x BM1368)"
         config AF_BOARD_BITAXE_GAMMA
             bool "Bitaxe Gamma 600-603 (1x BM1370)"
+        config AF_BOARD_BITAXE_ULTRA
+            bool "Bitaxe Ultra 201-207 (1x BM1366)"
+        config AF_BOARD_BITAXE_MAX
+            bool "Bitaxe Max 102 (1x BM1397)"
+        config AF_BOARD_GAMMA_DUO
+            bool "Bitaxe Gamma Duo 650 (2x BM1370)"
+        config AF_BOARD_BITAXE_GT
+            bool "Bitaxe GT 801 (2x BM1370, 12 V)"
+        config AF_BOARD_GAMMA_HEX
+            bool "Bitaxe Gamma Hex 1300 (6x BM1370)"
         config AF_BOARD_NAJA
             bool "Bitaxe Naja Duo 1201 (2x BM1373)"
         config AF_BOARD_NEXUS
@@ -34,7 +44,7 @@ menu "AxeForge"
 
 
     menu "Big display (3.5in 480x320)"
-        depends on !AF_BOARD_SUPRAHEX && !AF_BOARD_ULTRAHEX && !AF_BOARD_BITAXE_SUPRA && !AF_BOARD_BITAXE_GAMMA
+        depends on !AF_BOARD_SUPRAHEX && !AF_BOARD_ULTRAHEX && !AF_BOARD_BITAXE_SUPRA && !AF_BOARD_BITAXE_GAMMA && !AF_BOARD_BITAXE_ULTRA && !AF_BOARD_GAMMA_DUO && !AF_BOARD_BITAXE_GT && !AF_BOARD_BITAXE_MAX
         choice AF_LCD_BUS
             prompt "Interface"
             default AF_LCD_BUS_I80
@@ -145,8 +155,10 @@ menu "AxeForge"
             int "Max ASIC frequency (MHz)"
             range 400 1250
             default 625 if AF_BOARD_SUPRAHEX || AF_BOARD_NERDQAXEPLUS || AF_BOARD_NERDOCTAXEPLUS
-            default 600 if AF_BOARD_NERDAXE || AF_BOARD_BITAXE_SUPRA
-            default 575 if AF_BOARD_ULTRAHEX  # top of the reference firmware's BM1366 list
+            default 600 if AF_BOARD_NERDAXE || AF_BOARD_BITAXE_SUPRA || AF_BOARD_BITAXE_MAX
+            default 575 if AF_BOARD_ULTRAHEX || AF_BOARD_BITAXE_ULTRA  # top of the reference firmware's BM1366 list
+            default 500 if AF_BOARD_GAMMA_DUO  # stock 400 MHz on its XP-binned chips; the 40 W cap stops it first
+            default 800 if AF_BOARD_BITAXE_GT || AF_BOARD_GAMMA_HEX
             default 1000 if AF_BOARD_NERDQX
             default 800 if AF_BOARD_BITAXE_GAMMA
             default 450 if AF_BOARD_NAJA
@@ -154,7 +166,8 @@ menu "AxeForge"
             default 750
         config AF_MAX_CORE_MV
             int "Max core voltage (mV)"
-            range 1000 1350
+            range 1000 1500
+            default 1500 if AF_BOARD_BITAXE_MAX  # top of the reference firmware's BM1397 list
             default 1350 if AF_BOARD_NERDQX
             default 1250 if AF_BOARD_NAJA
             default 1000 if AF_BOARD_NEXUS  # stock allows 1050, but that draws ~185 W, over the 170 W cap
@@ -163,7 +176,7 @@ menu "AxeForge"
             int "Min core voltage (mV)"
             range 900 1200
             default 900 if AF_BOARD_NEXUS
-            default 1000 if AF_BOARD_BITAXE_GAMMA || AF_BOARD_NAJA
+            default 1000 if AF_BOARD_BITAXE_GAMMA || AF_BOARD_NAJA || AF_BOARD_GAMMA_DUO || AF_BOARD_BITAXE_GT || AF_BOARD_GAMMA_HEX
             default 1100
         config AF_MAX_CHIP_TEMP
             int "Tuner chip temperature ceiling (C)"
@@ -184,7 +197,10 @@ menu "AxeForge"
             default 120 if AF_BOARD_SUPRAHEX
             default 90 if AF_BOARD_ULTRAHEX  # reference firmware's max_power
             default 15 if AF_BOARD_NERDAXE
-            default 40 if AF_BOARD_BITAXE_SUPRA || AF_BOARD_BITAXE_GAMMA
+            default 40 if AF_BOARD_BITAXE_SUPRA || AF_BOARD_BITAXE_GAMMA || AF_BOARD_GAMMA_DUO
+            default 25 if AF_BOARD_BITAXE_ULTRA || AF_BOARD_BITAXE_MAX
+            default 60 if AF_BOARD_BITAXE_GT
+            default 180 if AF_BOARD_GAMMA_HEX  # reference firmware's max_power
             default 60 if AF_BOARD_NAJA
             default 70 if AF_BOARD_NERDQAXEPLUS
             default 130 if AF_BOARD_NERDOCTAXEPLUS

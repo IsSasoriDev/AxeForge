@@ -1,12 +1,16 @@
-// Single-regulator Bitaxes:
-//  - Supra (1x BM1368): rev 402/403 run a TPS546 on 5 V; rev 400/401 the 5 V
-//    DS4432U + TPS40305 path of the Ultra (and NerdAxe), enabled by GPIO10 low.
-//  - Gamma (1x BM1370): TPS546 on 5 V.
-//  - Naja Duo (2x BM1373): two stacked TPS546s on 12 V, 2 series domains, the
-//    regulators enabled by GPIO10 high.
-// The regulator is found at boot, so one image covers every Supra revision.
-// Fan and temperatures come from one EMC2101 (Supra, Gamma) or EMC2103 (Naja):
-// the controller's own sensor before power-up, the chip diodes once powered.
+// The Bitaxes with one regulator (or one stack of them):
+//  - Max (1x BM1397): the 5 V DS4432U path, its chip diode on the EMC2101.
+//  - Supra (1x BM1368) and Ultra (1x BM1366): rev 402/403 and 207 run a TPS546 on
+//    5 V; rev 400/401 and 201-205 the 5 V DS4432U + TPS40305 path (as the NerdAxe),
+//    enabled by GPIO10 low.
+//  - Gamma (1x BM1370) and Gamma Duo (2x BM1370 in parallel): TPS546 on 5 V.
+//  - GT (2x BM1370 in parallel): two stacked TPS546s on 12 V.
+//  - Naja Duo (2x BM1373, 2 series domains) and Gamma Hex (6x BM1370, 2 series
+//    domains of 3): stacked TPS546s on 12 V, enabled by GPIO10 high.
+// The regulator is found at boot, so one image covers every revision of a board.
+// Fan and temperatures come from one EMC2101 or EMC2103: the controller's own
+// sensor before power-up, the chip diodes once powered. With fewer diodes than
+// chips, a chip shows the diode nearest to it, marked as shared.
 // Power-up order follows the Bitaxe reference firmware: regulator configured and
 // switched on with the chips held in reset, then reset released.
 #include "core/board_config.h"
@@ -41,12 +45,25 @@ static const char *TAG = "board";
 // A diode needs a conversion or two after power-up before it reads
 #define DIODE_GRACE_US (5 * 1000000LL)
 #define MIN_VIN_5V 4.3f  // 5 V boards: below this the supply is sagging
-#if AF_ASIC_BM1373
+#if CONFIG_AF_BOARD_NAJA
 #define TPS_PROFILE tps546::NAJA_DUO
-#define POWER_OFFSET_W 0.0f  // reference allowance for fans, ESP32 and conversion losses
+#elif CONFIG_AF_BOARD_BITAXE_GT
+#define TPS_PROFILE tps546::GAMMA_TURBO
+#elif CONFIG_AF_BOARD_GAMMA_HEX
+#define TPS_PROFILE tps546::GAMMA_HEX
 #else
 #define TPS_PROFILE tps546::BITAXE_SINGLE
+#endif
+// reference allowance for fans, ESP32 and conversion losses, added to the regulator's output
+#ifdef AF_POWER_OFFSET_W
+#define POWER_OFFSET_W AF_POWER_OFFSET_W
+#else
 #define POWER_OFFSET_W 5.0f
+#endif
+#if AF_EMC2103
+#define CHIP_DIODES 2
+#else
+#define CHIP_DIODES 1
 #endif
 
 static bool s_powered = false;
@@ -127,12 +144,12 @@ Error init_hardware()
         tps546::off();  // after an OTA reboot the previous firmware may have left it on
         ESP_LOGI(TAG, "%s: %d x %s, TPS546 regulator", AF_BOARD_NAME, AF_NUM_ASICS, asic::MODEL);
     } else {
-#if AF_ASIC_BM1368
+#if AF_HAS_DS4432U
         if (!ds4432u::present()) return Error::NoRegulator;
         ds4432u::init();
-        ESP_LOGI(TAG, "%s: %d x %s, DS4432U regulator (rev 400/401)", AF_BOARD_NAME, AF_NUM_ASICS, asic::MODEL);
+        ESP_LOGI(TAG, "%s: %d x %s, DS4432U regulator", AF_BOARD_NAME, AF_NUM_ASICS, asic::MODEL);
 #else
-        return Error::NoRegulator;  // the Gamma and the Naja always have a TPS546
+        return Error::NoRegulator;  // every other board has a TPS546
 #endif
     }
     g_state.board_rev7 = false;
@@ -249,15 +266,21 @@ void read_telemetry()
     // a diode that stops answering is a lost sensor, not a reason to fall back.
     float board_t = temp::asic_area(0);
     bool board_ok = !isnan(board_t);
-    bool diodes = s_tps && s_powered && esp_timer_get_time() - s_powered_at > DIODE_GRACE_US;
+#if AF_DS4432U_DIODE
+    const bool has_diode = true;
+#else
+    const bool has_diode = s_tps;
+#endif
+    bool diodes = has_diode && s_powered && esp_timer_get_time() - s_powered_at > DIODE_GRACE_US;
     float tmax = 0;
     bool ok = board_ok;
     for (int i = 0; i < AF_NUM_ASICS; i++) {
         float t;
         bool own;
         if (diodes) {
-            t = temp::chip_diode(i);
-            own = true;
+            // chips are split evenly over the diodes, in chain order
+            t = temp::chip_diode(i * CHIP_DIODES / AF_NUM_ASICS);
+            own = AF_NUM_ASICS <= CHIP_DIODES;
             if (isnan(t)) ok = false;
         } else {
             t = board_ok ? board_t + BOARD_TO_DIE_C : NAN;

@@ -196,6 +196,16 @@ const BOARDS = [
    text:'Chip temperature read from its own diode. Replaces AxeOS.', tags:['128×32 OLED']},
   {id:'naja', family:'bitaxe', name:'Bitaxe Naja Duo', chips:'2× BM1373', models:'1201',
    text:'Two stacked voltage domains and a color screen. Replaces AxeOS.', tags:['ST7789 320×170']},
+  {id:'max', family:'bitaxe', name:'Bitaxe Max', chips:'1× BM1397', models:'102',
+   text:'The first Bitaxe. The ESP32 rolls the version bits for this chip. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'ultra', family:'bitaxe', name:'Bitaxe Ultra', chips:'1× BM1366', models:'201 · 202 · 203 · 204 · 205 · 207',
+   text:'The regulator (DS4432U on 201-205, TPS546 on 207) is detected at boot. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'gammaduo', family:'bitaxe', name:'Bitaxe Gamma Duo', chips:'2× BM1370', models:'650',
+   text:'Two chips side by side on 5 V. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'gt', family:'bitaxe', name:'Bitaxe GT', chips:'2× BM1370', models:'801',
+   text:'Two chips on a 12 V two-phase regulator. Replaces AxeOS.', tags:['128×32 OLED']},
+  {id:'gammahex', family:'bitaxe', name:'Bitaxe Gamma Hex', chips:'6× BM1370', models:'1300',
+   text:'Two stacked voltage domains of three chips, four-phase regulator, color screen. Replaces AxeOS.', tags:['ST7789 320×170']},
 ];
 const GROUPS = {nerd:'NerdQAxe family', bitaxe:'Bitaxe'};
 

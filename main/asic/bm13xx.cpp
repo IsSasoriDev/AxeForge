@@ -29,6 +29,8 @@ static const char *TAG = "asic";
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x66, 0x00, 0x00};
 #elif AF_ASIC_BM1368
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x68, 0x00, 0x00};
+#elif AF_ASIC_BM1397
+static const uint8_t CHIP_ID[4] = {0xaa, 0x55, 0x13, 0x97};
 #elif AF_ASIC_BM1373
 // answers as 0x1372 or 0x1373; bitaxe reads a 9-byte reply, the Nexus sends 11:
 // the chip count scans the byte stream instead of reading fixed frames
@@ -37,13 +39,17 @@ static const uint8_t CHIP_ID[4] = {0xaa, 0x55, 0x13, 0x72};
 #else
 static const uint8_t CHIP_ID[6] = {0xaa, 0x55, 0x13, 0x70, 0x00, 0x00};
 #endif
+#if AF_ASIC_BM1397
+#define CHIP_ID_FRAME 9  // the BM1397 answers in 9-byte frames, results included
+#else
 #define CHIP_ID_FRAME 11
+#endif
 
 static SemaphoreHandle_t s_tx_lock;
 static float s_freq = 56.25f;
 static uint32_t s_diff_mask = 0xffffffff;
 static uint32_t s_version_mask = 0xffffffff;
-#if !(AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373)
+#if !(AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373 || AF_ASIC_BM1397)
 static uint32_t s_vr_hz = 0;  // version rolling speed override, 0 = default
 #endif  // unknown: rewrite on next set_version_mask
 static uint8_t s_addr_interval = 64;   // chip address step: SETADDRESS, writes, register replies
@@ -87,7 +93,7 @@ static uint16_t crc16_false(const uint8_t *data, int len)
 static void send(uint8_t header, const uint8_t *data, uint8_t len)
 {
     const bool is_job = header & TYPE_JOB;
-    uint8_t buf[96];
+    uint8_t buf[160];  // a BM1397 job with four midstates is 152 bytes
     int total = len + (is_job ? 6 : 5);
     buf[0] = 0x55;
     buf[1] = 0xAA;
@@ -118,7 +124,7 @@ static void write_all(uint8_t reg, uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b
     send(CMD_WRITE_ALL, d, 6);
 }
 
-static void write_one(uint8_t addr, uint8_t reg, uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
+[[maybe_unused]] static void write_one(uint8_t addr, uint8_t reg, uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
 {
     uint8_t d[6] = {addr, reg, b0, b1, b2, b3};
     send(CMD_WRITE_SINGLE, d, 6);
@@ -141,6 +147,58 @@ static uint8_t reverse_bits(uint8_t v)
     return r;
 }
 
+#if AF_ASIC_BM1397
+// Reference PLL search for the BM1397 (pll.c): feedback divider 60..200, post
+// divider 1 above post divider 2, closest frequency, then lowest VCO, then the
+// smallest post divider product. The chip wants its PLL0 divider written first.
+static bool send_pll(float target, int chip = -1)
+{
+    (void) chip;  // one chip on the Max: no per-chip clocks
+    float min_diff = 1e9f, min_vco = 1e9f, best_f = 0;
+    int min_post = 1 << 16, best_ref = 0, best_fb = 0, best_p1 = 0, best_p2 = 0;
+    for (int ref = 2; ref > 0; ref--) {
+        for (int p1 = 7; p1 > 0; p1--) {
+            for (int p2 = 7; p2 > 0; p2--) {
+                int div = ref * p1 * p2;
+                int fb = (int) roundf(target / 25.0f * div);
+                if (p1 <= p2 || fb < 60 || fb > 200) continue;
+                float f = 25.0f * fb / div;
+                float diff = fabsf(target - f);
+                float vco = 25.0f * fb / ref;
+                if (diff < min_diff || (fabsf(diff - min_diff) < 1e-4f && vco < min_vco) ||
+                    (fabsf(diff - min_diff) < 1e-4f && fabsf(vco - min_vco) < 1e-4f && p1 * p2 < min_post)) {
+                    min_diff = diff;
+                    min_vco = vco;
+                    min_post = p1 * p2;
+                    best_ref = ref;
+                    best_fb = fb;
+                    best_p1 = p1;
+                    best_p2 = p2;
+                    best_f = f;
+                }
+            }
+        }
+    }
+    if (!best_fb) {
+        ESP_LOGE(TAG, "no PLL setting for %.2f MHz", target);
+        return false;
+    }
+    const uint8_t prediv[6] = {0x00, 0x70, 0x0F, 0x0F, 0x0F, 0x00};  // PLL0 divider
+    const uint8_t pll[6] = {0x00, 0x08, 0x40, (uint8_t) best_fb, (uint8_t) best_ref,
+                            (uint8_t) (((best_p1 & 0x7) << 4) | (best_p2 & 0x7))};
+    for (int i = 0; i < 2; i++) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        send(CMD_WRITE_ALL, prediv, 6);
+    }
+    for (int i = 0; i < 2; i++) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        send(CMD_WRITE_ALL, pll, 6);
+    }
+    s_freq = target;
+    ESP_LOGD(TAG, "PLL %.2f MHz (actual %.2f)", target, best_f);
+    return true;
+}
+#else
 #if AF_ASIC_BM1368 || AF_ASIC_BM1366
 // Reference PLL search for the BM1368 / BM1366: closest frequency, then lowest VCO,
 // then the smallest post divider product.
@@ -218,6 +276,7 @@ static bool send_pll(float target, int chip = -1)
     ESP_LOGD(TAG, "PLL %.2f MHz (actual %.2f)", target, best_f);
     return true;
 }
+#endif  // AF_ASIC_BM1397
 
 // One chip from one clock to another in 6.25 MHz steps, like the chain ramp.
 static void ramp_chip(int chip, float from, float to)
@@ -250,6 +309,9 @@ static void clear_applied()
 
 static void set_version_mask_all()
 {
+#if AF_ASIC_BM1397
+    return;  // no hardware version rolling: the midstates carry the versions
+#endif
     write_all(0xA4, 0x90, 0x00, 0xFF, 0xFF);
     s_version_mask = 0xffffffff;  // init rolls all 16 bits; the pool's mask is applied afterwards
 }
@@ -391,6 +453,21 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0x54, 0x00, 0x00, 0x00, 0x02);  // analog mux: temperature diode
     s_diff_mask = 0xffffffff;
     set_difficulty_mask(difficulty);
+#elif AF_ASIC_BM1397
+    // BM1397 sequence from the Bitaxe reference firmware (bm1397.c)
+    vTaskDelay(pdMS_TO_TICKS(20));
+    send2(TYPE_CMD | GROUP_ALL | CMD_INACTIVE, 0x00, 0x00);
+    s_addr_interval = 256 / chips;
+    for (int i = 0; i < chips; i++) send2(TYPE_CMD | CMD_SETADDRESS, i * s_addr_interval, 0x00);
+    write_all(0x80, 0x00, 0x00, 0x00, 0x00);  // clock order control 0
+    write_all(0x84, 0x00, 0x00, 0x00, 0x00);  // clock order control 1
+    write_all(0x20, 0x00, 0x00, 0x00, 0x01);  // ordered clock enable
+    write_all(0x3C, 0x80, 0x00, 0x80, 0x74);  // core register control
+    write_all(0x68, 0xC0, 0x70, 0x01, 0x11);  // PLL3 parameter
+    write_all(0x28, 0x06, 0x00, 0x00, 0x0F);  // fast UART configuration
+    write_all(0x18, 0x00, 0x00, 0x7A, 0x31);  // misc control: UART divider 26, 115,749 baud
+    s_diff_mask = 0xffffffff;
+    set_difficulty_mask(difficulty);
 #elif AF_ASIC_BM1366
     // BM1366 sequence from the Bitaxe / NerdQAxe reference firmware (S19XP dumps)
     set_version_mask_all();
@@ -480,6 +557,8 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
     write_all(0x10, 0x00, 0x00, 0x15, 0x1C);  // hash counting (S19XP stock value)
 #elif AF_ASIC_BM1368
     write_all(0x10, 0x00, 0x00, 0x15, 0xA4);  // hash counting (S21 stock value)
+#elif AF_ASIC_BM1397
+    // nothing more: no version rolling, no rolling speed
 #else
     set_vr_freq(s_vr_hz, true);  // version rolling speed: the user's, the board's or stock
 #endif
@@ -489,7 +568,7 @@ int init(float freq_mhz, int expected_chips, uint32_t difficulty)
 
 bool set_vr_freq(uint32_t hz, bool write)
 {
-#if AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373
+#if AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373 || AF_ASIC_BM1397
     (void) hz;
     (void) write;
     return false;  // register 0x10 sets the nonce space on these chips, not a rolling speed
@@ -514,6 +593,13 @@ void switch_to_fast_baud()
 {
 #if AF_ASIC_BM1373 && !AF_BM1373_SHUFPS_INIT
     return;  // bitaxe's sequence: already at 3 Mbaud since init
+#endif
+#if AF_ASIC_BM1397
+    write_all(0x18, 0x00, 0x00, 0x60, 0x31);  // misc control: UART divider 0, 3.125 Mbaud
+    vTaskDelay(pdMS_TO_TICKS(500));
+    uart_set_baudrate(UART, 3125000);
+    uart_flush(UART);
+    return;
 #endif
     write_all(0x28, 0x11, 0x30, 0x02, 0x00);  // 1 Mbaud
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -586,6 +672,10 @@ float frequency() { return s_freq; }
 // Version bits the chips may roll, as a block-header mask (bits 13-28 only).
 void set_version_mask(uint32_t mask)
 {
+#if AF_ASIC_BM1397
+    (void) mask;
+    return;  // the midstates carry the rolled versions
+#endif
     uint16_t bits = (uint16_t) (mask >> 13);
     mask = (uint32_t) bits << 13;
     if (mask == s_version_mask) return;
@@ -609,16 +699,52 @@ void set_difficulty_mask(uint32_t difficulty)
 
 uint8_t send_job(uint32_t counter, AsicJob &job)
 {
-#if AF_ASIC_BM1366
+#if AF_ASIC_BM1397
+    // 32 slots, 4 apart: the result carries the midstate index in the low 2 bits
+    job.job_id = (counter * 4) & 0x7f;
+#elif AF_ASIC_BM1366
     job.job_id = (counter * 8) & 0x7f;  // the BM1366 reports it back with the small-core id in the low 3 bits
 #else
     job.job_id = (counter * 24) & 0x7f;
 #endif
-    job.num_midstates = 1;
+#if !AF_ASIC_BM1397
+    job.num_midstates = 1;  // the BM1397's count comes from work::build
+#endif
     send(TYPE_JOB | CMD_WRITE, (const uint8_t *) &job, sizeof(job));
     return job.job_id;
 }
 
+#if AF_ASIC_BM1397
+// 9-byte frames: AA 55, nonce or register value (4), midstate number or chip
+// address, job id or register, CRC with bit 7 set on a nonce
+bool receive(AsicResult &out, int timeout_ms)
+{
+    uint8_t b[9];
+    int n = uart_read_bytes(UART, b, sizeof(b), pdMS_TO_TICKS(timeout_ms));
+    if (n <= 0) return false;
+    if (n != 9 || b[0] != 0xAA || b[1] != 0x55) {
+        uart_flush_input(UART);
+        return false;
+    }
+    uint32_t nonce;
+    memcpy(&nonce, b + 2, 4);
+    if (!(b[8] & 0x80)) {
+        out.is_register = true;
+        out.data = __builtin_bswap32(nonce);
+        out.reg = b[7];
+        out.chip = s_addr_interval ? b[6] / s_addr_interval : 0;
+        return true;
+    }
+    out.is_register = false;
+    out.job_slot = b[7] & 0xfc;
+    out.midstate = b[7] & 0x03;
+    out.nonce = nonce;
+    out.version_bits = 0;
+    uint32_t nh = __builtin_bswap32(nonce);
+    out.chip = s_nonce_interval ? ((nh >> 17) & 0xff) / s_nonce_interval : 0;
+    return true;
+}
+#else
 bool receive(AsicResult &out, int timeout_ms)
 {
     uint8_t b[11];
@@ -650,10 +776,12 @@ bool receive(AsicResult &out, int timeout_ms)
 #endif
     out.nonce = nonce;
     out.version_bits = (uint32_t) version << 13;
+    out.midstate = 0;
     uint32_t nh = __builtin_bswap32(nonce);
     out.chip = s_nonce_interval ? ((nh >> 17) & 0xff) / s_nonce_interval : 0;
     return true;
 }
+#endif
 
 void read_register_all(uint8_t reg) { send2(CMD_READ_ALL, 0x00, reg); }
 

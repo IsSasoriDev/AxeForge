@@ -18,7 +18,7 @@ permissions:
   contents: write  # needed to create releases
 
 env:
-  BOARDS: nerdaxe nerdqaxeplus nerdoctaxeplus nerdoctaxegamma nerdqx suprahex ultrahex supra gamma naja
+  BOARDS: nerdaxe nerdqaxeplus nerdoctaxeplus nerdoctaxegamma nerdqx suprahex ultrahex supra gamma naja max ultra gammaduo gt gammahex
 
 jobs:
   # Host-side unit tests (test/): difficulty, coinbase/merkle, template decode,

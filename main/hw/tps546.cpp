@@ -73,20 +73,26 @@ static const uint8_t DEVICE_IDS[][6] = {
     {0x54, 0x49, 0x54, 0x6D, 0x24, 0x41},  // TPS546D24A
     {0x54, 0x49, 0x54, 0x6D, 0x24, 0x62},  // TPS546D24S
 };
-static const uint8_t COMPENSATION[5] = {0x12, 0x34, 0x42, 0x25, 0x04};  // stacked boards only
 
 namespace tps546 {
 const Profile NERDQAXE_REV7 = {"rev7 stack", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.0f, 1.5f,
-                               90.0f, 100.0f, 1.10f, 0x18, true, 0x0000};
+                               90.0f, 100.0f, 1.10f, 0x18, 0x0001, 0x0000, {0x12, 0x34, 0x42, 0x25, 0x04}};
 // from the Bitaxe reference firmware (VIN 11.5/11.0 V, 2.5..4.5 V out, 25/30 A)
 const Profile BITAXE_HEX = {"hex", 3, 11.5f, 11.0f, 11.0f, 14.0f, 0.125f, 2.5f / 3, 4.5f / 3,
-                            25.0f, 30.0f, 1.16f, 0x1F, false, 0xFFFF};
+                            25.0f, 30.0f, 1.16f, 0x1F, 0, 0xFFFF, {0}};
 // reference TPS546_CONFIG_DEFAULT: VIN 4.8/4.5 V (no UV warning), 1..2 V out, 25/30 A
 const Profile BITAXE_SINGLE = {"single", 1, 4.8f, 4.5f, 0.0f, 6.5f, 0.25f, 1.0f, 2.0f,
-                               25.0f, 30.0f, 1.16f, 0x1F, false, 0xFFFF};
+                               25.0f, 30.0f, 1.16f, 0x1F, 0, 0xFFFF, {0}};
 // reference TPS546_CONFIG_NAJA_DUO: VIN 11/10.5 V, 1.8..3.0 V out, 61/68 A, two-phase stack
 const Profile NAJA_DUO = {"naja duo", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.8f / 2, 3.0f / 2,
-                          61.0f, 68.0f, 1.10f, 0x1F, true, 0xFFFF};
+                          61.0f, 68.0f, 1.10f, 0x1F, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x25, 0x04}};
+// reference TPS546_CONFIG_GAMMA_TURBO: VIN 11/10.5 V, 50/55 A, two-phase stack. The
+// reference allows 1..3 V out; one domain of BM1370s never needs more than 1.5 V
+const Profile GAMMA_TURBO = {"gamma turbo", 1, 11.0f, 10.5f, 11.0f, 14.8f, 0.25f, 1.0f, 1.5f,
+                             50.0f, 55.0f, 1.10f, 0x1F, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x21, 0x04}};
+// reference TPS546_CONFIG_GAMMA_HEX: VIN 11/10.5 V, 2.0..3.0 V out, 150/160 A, four-phase stack
+const Profile GAMMA_HEX = {"gamma hex", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 2.0f / 2, 3.0f / 2,
+                           150.0f, 160.0f, 1.10f, 0x1F, 0x0003, 0xFFFF, {0x02, 0x64, 0x82, 0x11, 0x06}};
 }
 
 static const tps546::Profile *s_prof = &tps546::NERDQAXE_REV7;
@@ -209,13 +215,13 @@ bool init(const Profile &profile)
     const float vout = 1.2f * domains;
     bool ok = w8(OPERATION, OP_OFF);
     ok &= w8(ON_OFF_CONFIG, profile.on_off_config);
-    if (profile.stacked) {
-        ok &= w16(STACK_CONFIG, 0x0001);  // two-phase stack
+    if (profile.stack_config) {
+        ok &= w16(STACK_CONFIG, profile.stack_config);
         ok &= w8(SYNC_CONFIG, 0xD0);
     }
     ok &= w8(PHASE, 0xFF);
     ok &= wlin(FREQUENCY_SWITCH, 650);  // kHz
-    if (profile.stacked) ok &= write_block(COMPENSATION_CONFIG, COMPENSATION, sizeof(COMPENSATION));
+    if (profile.compensation[0]) ok &= write_block(COMPENSATION_CONFIG, profile.compensation, sizeof(profile.compensation));
 
     ok &= wlin(VIN_UV_WARN_LIMIT, profile.vin_uv_warn);
     ok &= wlin(VIN_ON, profile.vin_on);

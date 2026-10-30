@@ -50,12 +50,12 @@
 static const char *TAG = "web";
 
 // what this board's build has, for the settings page
-#if AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373
+#if AF_ASIC_BM1366 || AF_ASIC_BM1368 || AF_ASIC_BM1373 || AF_ASIC_BM1397
 static const bool VR_SPEED_SETTING = false;  // register 0x10 is the nonce space there
 #else
 static const bool VR_SPEED_SETTING = true;
 #endif
-#if (AF_BITAXE_FAMILY || AF_HEX_FAMILY) && !CONFIG_AF_BOARD_NAJA
+#if (AF_BITAXE_FAMILY || AF_HEX_FAMILY) && !AF_COLOR_BOARD
 static const bool HAS_BAP = true;
 #else
 static const bool HAS_BAP = false;

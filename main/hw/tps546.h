@@ -15,8 +15,9 @@ struct Profile {
     float oc_warn_a, oc_fault_a;
     float ov_warn_ratio;
     uint8_t on_off_config;
-    bool stacked;               // two-phase stack: STACK/SYNC/compensation are written
+    uint16_t stack_config;      // 0 = one TPS546; 1 = two-phase, 3 = four-phase stack (STACK/SYNC are written)
     uint16_t pin_detect_override;
+    uint8_t compensation[5];    // written when the first byte isn't 0
 };
 
 // NerdQaxe++ rev7: two stacked TPS546s, 2 domains
@@ -27,6 +28,10 @@ extern const Profile BITAXE_HEX;
 extern const Profile BITAXE_SINGLE;
 // Bitaxe Naja Duo: two stacked TPS546s on 12 V, 2 domains of 1 chip
 extern const Profile NAJA_DUO;
+// Bitaxe GT: two stacked TPS546s on 12 V, one domain of 2 chips
+extern const Profile GAMMA_TURBO;
+// Bitaxe Gamma Hex: four stacked TPS546s on 12 V, 2 domains of 3 chips
+extern const Profile GAMMA_HEX;
 
 bool detect();                     // IC_DEVICE_ID matches a TPS546D24A/S
 bool init(const Profile &profile); // run-time config (RAM only, never NVM), output left off

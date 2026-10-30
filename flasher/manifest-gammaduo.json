@@ -1,0 +1,28 @@
+{
+  "name": "AxeForge for Bitaxe Gamma Duo",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "gammaduo/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "gammaduo/partition-table.bin",
+          "offset": 32768
+        },
+        {
+          "path": "gammaduo/axeforge.bin",
+          "offset": 65536
+        },
+        {
+          "path": "gammaduo/ota_data_initial.bin",
+          "offset": 12648448
+        }
+      ]
+    }
+  ]
+}

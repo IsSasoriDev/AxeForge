@@ -42,9 +42,12 @@
 #define AF_ASIC_BM1368 1
 #define AF_JOB_INTERVAL_MS (500 / AF_NUM_ASICS)  // same cadence as the reference firmware
 #endif
-#elif CONFIG_AF_BOARD_BITAXE_SUPRA || CONFIG_AF_BOARD_BITAXE_GAMMA || CONFIG_AF_BOARD_NAJA
-// Single-regulator Bitaxes (board_bitaxe.cpp): a TPS546, or on the Supra 400/401
-// the 5 V DS4432U path, found at boot. One EMC2101/EMC2103 for fan and diodes.
+#elif CONFIG_AF_BOARD_BITAXE_SUPRA || CONFIG_AF_BOARD_BITAXE_GAMMA || CONFIG_AF_BOARD_NAJA || \
+    CONFIG_AF_BOARD_BITAXE_ULTRA || CONFIG_AF_BOARD_BITAXE_MAX || CONFIG_AF_BOARD_GAMMA_DUO || CONFIG_AF_BOARD_BITAXE_GT || CONFIG_AF_BOARD_GAMMA_HEX
+// The other Bitaxes (board_bitaxe.cpp): one regulator, a TPS546 (or a stack of
+// them), or on the Supra 400/401 and Ultra 201-205 the 5 V DS4432U path, found at
+// boot. One EMC2101/EMC2103 for the fan and the chip diodes. Board numbers and
+// values from the reference firmware's device_config.h.
 #define AF_BITAXE_FAMILY 1
 #define AF_KEEP_STOCK_NVS 1  // flashed over AxeOS: take over its Wi-Fi, pools and board settings
 #if CONFIG_AF_BOARD_BITAXE_SUPRA
@@ -57,6 +60,76 @@
 #define AF_HAS_LCD 0  // 128x32 SSD1306 OLED
 #define AF_ASIC_DIFF_MIN 128
 #define AF_ASIC_DIFF_MAX 512
+#define AF_HAS_DS4432U 1  // rev 400/401
+#define AF_EMC2101 1
+#elif CONFIG_AF_BOARD_BITAXE_ULTRA
+#define AF_BOARD_NAME "Bitaxe Ultra"
+#define AF_BOARD_ID "ultra"
+#define AF_NUM_ASICS 1
+#define AF_ASIC_BM1366 1
+#define AF_PIN_I2C_SDA 47
+#define AF_PIN_I2C_SCL 48
+#define AF_HAS_LCD 0  // 128x32 SSD1306 OLED
+#define AF_HAS_DS4432U 1  // rev 201-205; the 207 has a TPS546
+#define AF_EMC2101 1
+#define AF_JOB_INTERVAL_MS 1500  // one BM1366, as the NerdAxe
+#define AF_ASIC_DIFF_MIN 64
+#define AF_ASIC_DIFF_MAX 256
+#elif CONFIG_AF_BOARD_BITAXE_MAX
+#define AF_BOARD_NAME "Bitaxe Max"
+#define AF_BOARD_ID "max"
+#define AF_NUM_ASICS 1
+#define AF_ASIC_BM1397 1
+#define AF_PIN_I2C_SDA 47
+#define AF_PIN_I2C_SCL 48
+#define AF_HAS_LCD 0  // 128x32 SSD1306 OLED
+#define AF_HAS_DS4432U 1
+#define AF_DS4432U_DIODE 1  // the chip's diode is wired to the EMC2101 on the Max
+#define AF_EMC2101 1
+#define AF_JOB_INTERVAL_MS 30  // four midstates scan the whole space in ~40 ms at 425 MHz
+#define AF_ASIC_DIFF_MIN 64
+#define AF_ASIC_DIFF_MAX 256
+#elif CONFIG_AF_BOARD_GAMMA_DUO
+#define AF_BOARD_NAME "Bitaxe Gamma Duo"
+#define AF_BOARD_ID "gammaduo"
+#define AF_NUM_ASICS 2  // in parallel on one 5 V TPS546
+#define AF_ASIC_BM1370 1
+#define AF_PIN_I2C_SDA 47
+#define AF_PIN_I2C_SCL 48
+#define AF_HAS_LCD 0  // 128x32 SSD1306 OLED
+#define AF_EMC2101 1  // one diode for both chips
+#define AF_EMC_IDEALITY 0x24
+#define AF_EMC_BETA 0x00
+#define AF_ASIC_DIFF_MIN 256
+#define AF_ASIC_DIFF_MAX 1024
+#elif CONFIG_AF_BOARD_BITAXE_GT
+#define AF_BOARD_NAME "Bitaxe GT"
+#define AF_BOARD_ID "gt"
+#define AF_NUM_ASICS 2  // in parallel on two stacked TPS546s, 12 V in
+#define AF_ASIC_BM1370 1
+#define AF_PIN_I2C_SDA 47
+#define AF_PIN_I2C_SCL 48
+#define AF_HAS_LCD 0  // 128x32 SSD1306 OLED
+#define AF_EMC2103 1
+#define AF_EMC_FLIP 1  // diode 2 is chip 1
+#define AF_POWER_OFFSET_W 10.0f
+#elif CONFIG_AF_BOARD_GAMMA_HEX
+#define AF_BOARD_NAME "Bitaxe Gamma Hex"
+#define AF_BOARD_ID "gammahex"
+#define AF_NUM_ASICS 6
+#define AF_ASIC_BM1370 1
+#define AF_VOLTAGE_DOMAINS 2  // 3 chips per domain, four stacked TPS546s
+#define AF_PIN_I2C_SDA 44     // "color" board, as the Naja: ST7789 LCD, I2C on 44/43
+#define AF_PIN_I2C_SCL 43
+#define AF_HAS_LCD 1
+#define AF_COLOR_BOARD 1
+#define AF_ASIC_EN_ACTIVE_HIGH 1
+#define AF_EMC2103 1
+#define AF_EMC_FLIP 1
+#define AF_EMC_DIRECT_PWM 1
+#define AF_POWER_OFFSET_W 25.0f
+#define AF_ASIC_DIFF_MIN 1024
+#define AF_ASIC_DIFF_MAX 4096
 #elif CONFIG_AF_BOARD_BITAXE_GAMMA
 #define AF_BOARD_NAME "Bitaxe Gamma"
 #define AF_BOARD_ID "gamma"
@@ -69,6 +142,7 @@
 #define AF_EMC_BETA 0x00
 #define AF_ASIC_DIFF_MIN 256
 #define AF_ASIC_DIFF_MAX 1024
+#define AF_EMC2101 1
 #else
 #define AF_BOARD_NAME "Bitaxe Naja Duo"
 #define AF_BOARD_ID "naja"
@@ -78,7 +152,10 @@
 #define AF_PIN_I2C_SDA 44     // "color" board: T-Display-style LCD, I2C moved to 44/43
 #define AF_PIN_I2C_SCL 43
 #define AF_HAS_LCD 1          // ST7789 320x170, driven as the T-Display-S3 screen
+#define AF_COLOR_BOARD 1      // no accessory (BAP) header
 #define AF_ASIC_EN_ACTIVE_HIGH 1
+#define AF_EMC2103 1
+#define AF_POWER_OFFSET_W 0.0f
 #define AF_EMC_IDEALITY 0x17
 #define AF_EMC_BETA 0x10
 #define AF_MIN_FREQ_MHZ 250   // the BM1373 runs around 330 MHz

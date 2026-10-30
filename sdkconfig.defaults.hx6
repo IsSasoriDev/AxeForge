@@ -1,0 +1,5 @@
+# HX-6 build (github.com/IsSasoriDev/HX6-Miner). Used on top of sdkconfig.defaults:
+#   idf.py -B build_hx6 -D SDKCONFIG=build_hx6/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.hx6" build
+CONFIG_AF_BOARD_HX6=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-hx6"

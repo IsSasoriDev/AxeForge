@@ -18,6 +18,8 @@ menu "AxeForge"
             bool "NerdQX (4x BM1370, die sensors)"
         config AF_BOARD_NERDAXE
             bool "NerdAxe (1x BM1366, T-Display-S3)"
+        config AF_BOARD_HX6
+            bool "HX-6 (6x BM1370, 2.8in SPI screen) - open hardware"
         config AF_BOARD_SUPRAHEX
             bool "Bitaxe Supra Hex 701/702 (6x BM1368)"
         config AF_BOARD_ULTRAHEX
@@ -206,6 +208,7 @@ menu "AxeForge"
             default 130 if AF_BOARD_NERDOCTAXEPLUS
             default 250 if AF_BOARD_NERDOCTAXEGAMMA
             default 240 if AF_BOARD_NERDQX
+            default 130 if AF_BOARD_HX6  # its README: about 100-110 W at stock
             default 170 if AF_BOARD_NEXUS  # stock draws ~148 W at 450 MHz; shufps' Q1373 allows 180
             default 100
 

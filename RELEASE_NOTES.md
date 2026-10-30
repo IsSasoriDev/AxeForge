@@ -4,7 +4,10 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-### Five more Bitaxes
+### Tested on hardware
+The NerdQAxe+, NerdOctaxe+ and NerdOctaxe-γ have now run AxeForge and are marked as tested in the README and the web flasher.
+
+### Five more Bitaxes and the HX-6
 | Board | Chips | Notes |
 |---|---|---|
 | **Bitaxe Max** 102 | 1× BM1397 | The first Bitaxe. Its chip doesn't roll version bits itself, so the ESP32 sends it four midstates per job, as AxeOS does. 425 MHz / 1400 mV stock, 25 W limit |
@@ -12,8 +15,9 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 | **Bitaxe Gamma Duo** 650 | 2× BM1370 | Two chips in parallel on one 5 V TPS546. 400 MHz / 1150 mV (XP-binned chips), 40 W |
 | **Bitaxe GT** 801 | 2× BM1370 | 12 V, two-phase TPS546 stack, a diode per chip on an EMC2103. 525 MHz / 1150 mV, 60 W |
 | **Bitaxe Gamma Hex** 1300 | 6× BM1370 | 12 V, four-phase TPS546 stack, two stacked domains of three chips, color screen. 690 MHz / 1200 mV, 180 W |
+| **HX-6** rev B | 6× BM1370 | Open-hardware board ([HX6-Miner](https://github.com/IsSasoriDev/HX6-Miner)): the NerdQaxe++'s power wiring with six chips on a 4-phase TPS53647, I2C on 8/9, its 2.8" SPI screen showing the compact screen layout, buttons on GPIO21 and BOOT. No Ethernet (the screen uses those pins) and no touch yet. 525 MHz / 1150 mV, 130 W |
 
-Board numbers, regulator settings and stock points come from AxeOS's board definitions. None of these five has run AxeForge yet: if you have one, please flash it and open an issue with the log (*System → Log*), working or not. Per-chip clocks are on for the Gamma Duo and the GT (their chips share one voltage) and off on the Gamma Hex (stacked domains).
+Board numbers, regulator settings and stock points come from AxeOS's board definitions (the HX-6's from its design notes). None of these five has run AxeForge yet: if you have one, please flash it and open an issue with the log (*System → Log*), working or not. Per-chip clocks are on for the Gamma Duo and the GT (their chips share one voltage) and off on the Gamma Hex (stacked domains).
 
 ## AxeForge v1.4.3
 

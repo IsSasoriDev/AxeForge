@@ -181,10 +181,28 @@
 // The NerdQaxe family: same ESP32 module, LCD, fans (EMC2302), board sensors
 // (TMP1075) and TPS536x7 regulator wiring; they differ in chips, phases and limits.
 #define AF_NQ_FAMILY 1
-#define AF_PIN_I2C_SDA 44
-#define AF_PIN_I2C_SCL 43
 #define AF_HAS_LCD 1
-#if CONFIG_AF_BOARD_NERDQAXEPLUS
+#if CONFIG_AF_BOARD_HX6
+// HX-6 (github.com/IsSasoriDev/HX6-Miner, rev B): open hardware with the
+// NerdQaxe++'s power wiring (VR_EN 10, LDO_EN 13, reset 1, TPS53647 at 0x71,
+// EMC2302 fans) and 6 BM1370s on one parallel rail. It differs in the I2C pins,
+// three TMP1075s under the chips (none at the regulator), a 2.8in SPI ST7789 and
+// its buttons. The W5500 header pins are the screen's here: no Ethernet.
+#define AF_BOARD_NAME "HX-6"
+#define AF_BOARD_ID "hx6"
+#define AF_NUM_ASICS 6
+#define AF_ASIC_BM1370 1
+#define AF_PIN_I2C_SDA 8
+#define AF_PIN_I2C_SCL 9
+#define AF_VR_PHASES 4
+#define AF_INIT_MV 0              // power up straight at the target voltage
+#define AF_VR_TEMP_FROM_CONTROLLER 1  // the TPS53647's own sensor
+#define AF_LCD_SPI_ST7789 1       // Waveshare 2.8in: SCK 12, MOSI 11, CS 7, DC 6, RST 5, BL 38
+#define AF_PIN_BTN_1 21           // user button; GPIO14 is VR_RDY on this board
+#define AF_NO_ETH 1
+#define AF_ASIC_DIFF_MIN 1024
+#define AF_ASIC_DIFF_MAX 4096
+#elif CONFIG_AF_BOARD_NERDQAXEPLUS
 #define AF_BOARD_NAME "NerdQAxe+"
 #define AF_BOARD_ID "nerdqaxeplus"
 #define AF_NUM_ASICS 4
@@ -241,7 +259,11 @@
 #define AF_VR_PHASES 3
 #define AF_DETECT_REV7 1  // rev7 swaps the TPS53647 for a TPS546 stack
 #endif
-#if !CONFIG_AF_BOARD_NERDQAXE
+#ifndef AF_PIN_I2C_SDA
+#define AF_PIN_I2C_SDA 44
+#define AF_PIN_I2C_SCL 43
+#endif
+#if !CONFIG_AF_BOARD_NERDQAXE && !CONFIG_AF_BOARD_HX6
 #define AF_KEEP_STOCK_NVS 1  // new to AxeForge: take over the stock firmware's settings
 #endif
 #ifndef AF_VR_IMAX_A

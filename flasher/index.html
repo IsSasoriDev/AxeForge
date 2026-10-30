@@ -119,6 +119,7 @@ footer{color:var(--dim);font-size:13px;margin-top:28px;text-align:center}
           <button type="button" data-family="all" aria-pressed="true">All</button>
           <button type="button" data-family="nerd" aria-pressed="false">NerdQAxe family</button>
           <button type="button" data-family="bitaxe" aria-pressed="false">Bitaxe</button>
+          <button type="button" data-family="diy" aria-pressed="false">Open hardware</button>
         </div>
         <input class="search" id="q" type="search" placeholder="Search: name, chip or board number (e.g. 303)" aria-label="Search boards">
       </div>
@@ -178,11 +179,11 @@ const BOARDS = [
    text:'The board revision is detected at boot (rev7 runs the TPS546 stack).', tags:['3.5" 480×320 or T-Display-S3'], file:'axeforge'},
   {id:'nerdaxe', family:'nerd', name:'NerdAxe', chips:'1× BM1366', models:'T-Display-S3', tested:true,
    text:'One BM1366 on a LilyGo T-Display-S3, 5 V.', tags:['1.9" T-Display-S3']},
-  {id:'nerdqaxeplus', family:'nerd', name:'NerdQAxe+', chips:'4× BM1368', models:'2-phase TPS53647',
+  {id:'nerdqaxeplus', family:'nerd', name:'NerdQAxe+', chips:'4× BM1368', models:'2-phase TPS53647', tested:true,
    text:'Same board design as the NerdQaxe++, older chips.', tags:['2-phase TPS53647']},
-  {id:'nerdoctaxeplus', family:'nerd', name:'NerdOctaxe+', chips:'8× BM1368', models:'3-phase TPS53647',
+  {id:'nerdoctaxeplus', family:'nerd', name:'NerdOctaxe+', chips:'8× BM1368', models:'3-phase TPS53647', tested:true,
    text:'Eight BM1368s on a 3-phase regulator.', tags:['3-phase TPS53647']},
-  {id:'nerdoctaxegamma', family:'nerd', name:'NerdOctaxe-γ', chips:'8× BM1370', models:'TPS53647 / TPS53667',
+  {id:'nerdoctaxegamma', family:'nerd', name:'NerdOctaxe-γ', chips:'8× BM1370', models:'TPS53647 / TPS53667', tested:true,
    text:'The regulator (TPS53647 or, from rev3.0, TPS53667) and the per-chip die sensors are detected at boot.', tags:['die temperature per chip']},
   {id:'nerdqx', family:'nerd', name:'NerdQX', chips:'4× BM1370', models:'die sensors',
    text:'A die temperature sensor on every chip.', tags:['die temperature per chip']},
@@ -206,8 +207,10 @@ const BOARDS = [
    text:'Two chips on a 12 V two-phase regulator. Replaces AxeOS.', tags:['128×32 OLED']},
   {id:'gammahex', family:'bitaxe', name:'Bitaxe Gamma Hex', chips:'6× BM1370', models:'1300',
    text:'Two stacked voltage domains of three chips, four-phase regulator, color screen. Replaces AxeOS.', tags:['ST7789 320×170']},
+  {id:'hx6', family:'diy', name:'HX-6', chips:'6× BM1370', models:'rev B',
+   text:'Open-hardware board: six chips under one CPU cooler, 4-phase TPS53647, 2.8" screen.', tags:['2.8" ST7789 SPI']},
 ];
-const GROUPS = {nerd:'NerdQAxe family', bitaxe:'Bitaxe'};
+const GROUPS = {nerd:'NerdQAxe family', bitaxe:'Bitaxe', diy:'Open hardware'};
 
 const list = document.getElementById('list');
 const info = document.getElementById('info');

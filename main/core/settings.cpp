@@ -214,6 +214,11 @@ void load()
     s.freq_mhz = 485;  // reference firmware defaults
     s.core_mv = 1200;
 #endif
+#if CONFIG_AF_BOARD_HX6
+    s.freq_mhz = 525;  // BM1370 stock point: about 6.4 TH/s on six chips
+    s.core_mv = 1150;
+    s.display_type = 1;  // the 320x170 screen layout, on its 2.8in panel
+#endif
 #if CONFIG_AF_BOARD_BITAXE_MAX
     s.freq_mhz = 425;  // reference firmware defaults
     s.core_mv = 1400;

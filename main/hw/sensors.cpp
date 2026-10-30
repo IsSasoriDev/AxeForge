@@ -344,6 +344,10 @@ uint16_t rpm(int channel)
 // own temperature over PMBus.
 static const int ASIC_SENSOR_DEV[] = {2, 3};
 #define TMP_VR_INDEX -1
+#elif CONFIG_AF_BOARD_HX6
+// HX-6: 0x48, 0x49, 0x4a all under the chips; the TPS53647 reads the regulator
+static const int ASIC_SENSOR_DEV[] = {0, 1, 2};
+#define TMP_VR_INDEX -1
 #elif CONFIG_AF_BOARD_NEXUS
 // Nexus S1 (from its stock firmware): 0x48 near the chips, 0x49 at the VR
 static const int ASIC_SENSOR_DEV[] = {0};

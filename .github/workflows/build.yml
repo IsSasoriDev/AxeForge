@@ -30,7 +30,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install compiler, mbedtls and cJSON
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ make libmbedtls-dev libcjson-dev
       - name: Run unit tests
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set firmware version
         run: |

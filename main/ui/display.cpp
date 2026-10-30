@@ -37,7 +37,11 @@ static const char *TAG = "display";
 
 #define LCD_HOST SPI2_HOST
 #define BUF_LINES 20
+#ifdef AF_PIN_BTN_1
+#define PIN_BTN_1 ((gpio_num_t) AF_PIN_BTN_1)
+#else
 #define PIN_BTN_1 GPIO_NUM_14
+#endif
 #define PIN_BTN_2 GPIO_NUM_0
 #define LONG_PRESS_MS 1500
 #define TDISPLAY_PCLK_HZ 6528000  // same as the stock firmware
@@ -137,6 +141,49 @@ static void backlight_init()
     s_bl_pwm = true;
 }
 
+#if AF_LCD_SPI_ST7789
+// HX-6: Waveshare 2.8in module (ST7789, 240x320 portrait) over SPI, run in
+// landscape. The 320x170 screen layout sits at the top of its 320x240.
+static void panel_init()
+{
+    backlight_init();
+    spi_bus_config_t bus = {};
+    bus.sclk_io_num = 12;
+    bus.mosi_io_num = 11;
+    bus.miso_io_num = -1;  // MISO (GPIO2) is wired but never needed
+    bus.quadwp_io_num = -1;
+    bus.quadhd_io_num = -1;
+    bus.max_transfer_sz = s_w * BUF_LINES * sizeof(uint16_t);
+    ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &bus, SPI_DMA_CH_AUTO));
+
+    esp_lcd_panel_io_handle_t io;
+    esp_lcd_panel_io_spi_config_t io_cfg = {};
+    io_cfg.dc_gpio_num = 6;
+    io_cfg.cs_gpio_num = 7;
+    io_cfg.pclk_hz = 40 * 1000 * 1000;
+    io_cfg.lcd_cmd_bits = 8;
+    io_cfg.lcd_param_bits = 8;
+    io_cfg.spi_mode = 0;
+    io_cfg.trans_queue_depth = 10;
+    io_cfg.on_color_trans_done = on_trans_done;
+    io_cfg.user_ctx = &s_disp_drv;
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t) LCD_HOST, &io_cfg, &io));
+
+    esp_lcd_panel_dev_config_t pc = {};
+    pc.reset_gpio_num = 5;
+    pc.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB;
+    pc.bits_per_pixel = 16;
+    ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io, &pc, &s_panel));
+    esp_lcd_panel_reset(s_panel);
+    esp_lcd_panel_init(s_panel);
+    esp_lcd_panel_invert_color(s_panel, true);  // IPS panel
+    esp_lcd_panel_swap_xy(s_panel, true);
+    bool flip = settings::get().rotate_180;
+    esp_lcd_panel_mirror(s_panel, !flip, flip);
+    esp_lcd_panel_disp_on_off(s_panel, true);
+    ESP_LOGI(TAG, "2.8in SPI panel ready (%dx%d)", s_w, s_h);
+}
+#else
 static void panel_init()
 {
     if (CONFIG_AF_LCD_PIN_PWR >= 0) {
@@ -247,6 +294,7 @@ static void panel_init()
     esp_lcd_panel_disp_on_off(s_panel, true);
     ESP_LOGI(TAG, "3.5in panel ready (%dx%d)", s_w, s_h);
 }
+#endif  // AF_LCD_SPI_ST7789
 
 static void lvgl_init()
 {
@@ -329,6 +377,11 @@ static void display_task(void *)
 {
     buttons_init();
     boot_override();
+#if AF_LCD_SPI_ST7789
+    s_type = DisplayType::TDisplay;  // the small layout, on a 320x240 panel
+    s_w = 320;
+    s_h = 240;
+#else
 #if CONFIG_AF_LCD_BUS_I80
     s_type = settings::get().display_type == 1 ? DisplayType::TDisplay : DisplayType::Big;
 #else
@@ -338,6 +391,7 @@ static void display_task(void *)
         s_w = 320;
         s_h = 170;
     }
+#endif
     panel_init();
     lvgl_init();
     if (s_type == DisplayType::TDisplay) ui_small::build();

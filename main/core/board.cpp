@@ -50,7 +50,7 @@ static bool s_powered = false;
 static bool s_rev7 = false;
 static int s_phases = AF_VR_PHASES, s_imax = AF_VR_IMAX_A;
 static float s_ifault = AF_VR_IFAULT_A;
-static float s_vr_offset = 0;  // the TPS53667 board's VR sensor reads low
+[[maybe_unused]] static float s_vr_offset = 0;  // the TPS53667 board's VR sensor reads low
 static uint16_t s_max_mv = CONFIG_AF_MAX_CORE_MV;
 static int s_die_sensors = 0;  // chips with a TMP451 die reading
 static board::Limits s_limits = {CONFIG_AF_MAX_FREQ_MHZ, CONFIG_AF_MAX_POWER_W, CONFIG_AF_MAX_VR_TEMP,
@@ -352,9 +352,14 @@ void read_telemetry()
     g_state.temp_ok = ok;
     g_state.fan_rpm[0] = fan::rpm(0);
     g_state.fan_rpm[1] = fan::rpm(1);
-    // TPS53647 boards measure the regulator with the TMP1075 on its back side,
-    // the TPS546 reports its own die temperature
+    // TPS53647 boards measure the regulator with the TMP1075 on its back side
+    // (the HX-6 has none there and reads the controller), the TPS546 reports its
+    // own die temperature
+#if AF_VR_TEMP_FROM_CONTROLLER
+    float vr = tps53647::temperature();
+#else
     float vr = s_rev7 ? tps546::temperature() : temp::vr_board() + s_vr_offset;
+#endif
     g_state.vr_temp_ok = !isnan(vr);
     g_state.vr_temp = g_state.vr_temp_ok ? vr : 0;
     if (!s_powered) return;

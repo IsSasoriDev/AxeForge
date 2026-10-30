@@ -2,7 +2,7 @@
 
 #include "core/board_config.h"
 
-#if AF_NQ_FAMILY && CONFIG_ETH_SPI_ETHERNET_W5500
+#if AF_NQ_FAMILY && CONFIG_ETH_SPI_ETHERNET_W5500 && !AF_NO_ETH
 
 #include <stdio.h>
 #include <string.h>

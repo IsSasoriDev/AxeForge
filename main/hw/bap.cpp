@@ -2,7 +2,7 @@
 
 #include "core/board_config.h"
 
-#if (AF_BITAXE_FAMILY || AF_HEX_FAMILY) && !CONFIG_AF_BOARD_NAJA  // the Naja's color board has no BAP header
+#if (AF_BITAXE_FAMILY || AF_HEX_FAMILY) && !AF_COLOR_BOARD  // the color boards (Naja, Gamma Hex) have no BAP header
 
 #include <stdio.h>
 #include <stdlib.h>

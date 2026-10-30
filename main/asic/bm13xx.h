@@ -9,6 +9,19 @@
 // Both speak the same framing and job format; they differ in chip ID, PLL
 // range, init sequence and which register holds the hash counter.
 
+#if AF_ASIC_BM1397
+// The BM1397 rolls no version bits itself: the ESP32 sends up to four SHA-256
+// midstates, one per rolled version, and the result says which one hit.
+struct __attribute__((packed)) AsicJob {
+    uint8_t job_id;
+    uint8_t num_midstates;
+    uint8_t starting_nonce[4];
+    uint8_t nbits[4];
+    uint8_t ntime[4];
+    uint8_t merkle4[4];        // last 4 bytes of the merkle root
+    uint8_t midstate[4][32];   // word order reversed
+};
+#else
 struct __attribute__((packed)) AsicJob {
     uint8_t job_id;
     uint8_t num_midstates;
@@ -19,6 +32,7 @@ struct __attribute__((packed)) AsicJob {
     uint8_t prev_block_hash[32];
     uint8_t version[4];
 };
+#endif
 
 struct AsicResult {
     bool is_register;
@@ -26,6 +40,7 @@ struct AsicResult {
     uint8_t job_slot;         // index into the job table (asic job id)
     uint32_t nonce;
     uint32_t version_bits;    // rolled header bits 13-28 (absolute, not a delta)
+    uint8_t midstate;         // BM1397: which midstate (rolled version) the nonce is for
     int chip;
     // register result
     uint8_t reg;
@@ -42,6 +57,10 @@ constexpr uint8_t REG_NONCE_COUNT = 0x8C;  // total hash counter, 2^32 hashes pe
 constexpr const char *MODEL = "BM1368";
 constexpr int SMALL_CORES = 1276;
 constexpr uint8_t REG_NONCE_COUNT = 0x8C;  // total hash counter, 2^32 hashes per count
+#elif AF_ASIC_BM1397
+constexpr const char *MODEL = "BM1397";
+constexpr int SMALL_CORES = 672;
+constexpr uint8_t REG_NONCE_COUNT = 0x04;  // a hashrate reading, not a counter: see COUNT_IS_RATE
 #elif AF_ASIC_BM1373
 constexpr const char *MODEL = "BM1373";
 // 6912 is what the Nexus S1's stock firmware reports; its measured hashrate at
@@ -55,6 +74,13 @@ constexpr int SMALL_CORES = 2040;
 constexpr uint8_t REG_NONCE_COUNT = 0x90;
 #endif
 constexpr uint8_t REG_HW_ERROR_COUNT = 0x4C;
+#if AF_ASIC_BM1397
+// register 0x04 holds the current hashrate in units of 2^20 hashes per second
+// (bit 31 set: not ready), where the newer chips keep a running counter
+constexpr bool COUNT_IS_RATE = true;
+#else
+constexpr bool COUNT_IS_RATE = false;
+#endif
 
 void uart_init();
 // Runs the full init sequence; returns number of chips that answered.

@@ -231,6 +231,24 @@ static void job_task(void *)
     }
 }
 
+// The BM1397 reports a hashrate (2^20 hashes/s per unit) instead of a counter:
+// integrate it into one, so the rest of the bookkeeping stays the same. False
+// for a reading the chip marks as not ready.
+static bool rate_to_counter(int chip, uint32_t raw, uint32_t *cnt)
+{
+    static double acc[AF_NUM_ASICS];
+    static int64_t last_us[AF_NUM_ASICS];
+    if (chip < 0 || chip >= AF_NUM_ASICS || (raw & 0x80000000u) || (raw & 0x7fffffffu) == 0x007fffffu) return false;
+    int64_t now = esp_timer_get_time();
+    if (last_us[chip]) {
+        double hps = (double) (raw & 0x7fffffffu) * 1048576.0;
+        acc[chip] += hps * (double) (now - last_us[chip]) / 1e6 / 4294967296.0;
+    }
+    last_us[chip] = now;
+    *cnt = (uint32_t) fmod(acc[chip], 4294967296.0);
+    return true;
+}
+
 static void on_counter(int chip, uint32_t cnt, bool is_error)
 {
     if (chip < 0 || chip >= AF_NUM_ASICS) return;
@@ -293,7 +311,9 @@ static void result_task(void *)
         if (!asic::receive(r, 1000)) continue;
 
         if (r.is_register) {
-            if (r.reg == asic::REG_NONCE_COUNT) on_counter(r.chip, r.data, false);
+            if (r.reg == asic::REG_NONCE_COUNT && asic::COUNT_IS_RATE) {
+                if (rate_to_counter(r.chip, r.data, &r.data)) on_counter(r.chip, r.data, false);
+            } else if (r.reg == asic::REG_NONCE_COUNT) on_counter(r.chip, r.data, false);
             else if (r.reg == asic::REG_HW_ERROR_COUNT) on_counter(r.chip, r.data, true);
             continue;
         }
@@ -304,9 +324,15 @@ static void result_task(void *)
         xSemaphoreGive(s_work_lock);
         if (!w.valid) continue;
 
+#if AF_ASIC_BM1397
+        // midstate i was built with the version stepped i times through the mask
+        uint32_t version = w.version;
+        for (int i = 0; i < r.midstate; i++) version = work::next_version(version, w.version_mask);
+#else
         // the chip reports the new state of the rolled bits: substitute them, so a
         // template with bits already set inside the mask is rebuilt correctly
         uint32_t version = (w.version & ~w.version_mask) | (r.version_bits & w.version_mask);
+#endif
         if (seen_before(r.job_slot, r.nonce, version)) {
             g_state.dup_results++;
             ESP_LOGW(TAG, "chip %d repeated nonce %08lx (job slot %u), dropped (%lu so far)", r.chip,

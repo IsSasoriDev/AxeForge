@@ -210,6 +210,33 @@ void load()
     s.freq_mhz = 525;
     s.core_mv = 1150;
 #endif
+#if CONFIG_AF_BOARD_BITAXE_ULTRA
+    s.freq_mhz = 485;  // reference firmware defaults
+    s.core_mv = 1200;
+#endif
+#if CONFIG_AF_BOARD_HX6
+    s.freq_mhz = 525;  // BM1370 stock point: about 6.4 TH/s on six chips
+    s.core_mv = 1150;
+    s.display_type = 1;  // the 320x170 screen layout, on its 2.8in panel
+#endif
+#if CONFIG_AF_BOARD_BITAXE_MAX
+    s.freq_mhz = 425;  // reference firmware defaults
+    s.core_mv = 1400;
+#endif
+#if CONFIG_AF_BOARD_GAMMA_DUO
+    s.freq_mhz = 400;  // its chips are the BM1370 XP bin
+    s.core_mv = 1150;
+#endif
+#if CONFIG_AF_BOARD_BITAXE_GT
+    s.freq_mhz = 525;
+    s.core_mv = 1150;
+#endif
+#if CONFIG_AF_BOARD_GAMMA_HEX
+    s.freq_mhz = 690;
+    s.core_mv = 1200;
+    s.display_type = 1;  // ST7789 320x170, the T-Display-S3 screen
+    s.rotate_180 = true; // mounted the other way up (reference display_flip)
+#endif
 #if CONFIG_AF_BOARD_NAJA
     s.freq_mhz = 327;
     s.core_mv = 1000;

@@ -9,7 +9,7 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 
 > **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable). If that page is down, see [Flashing without the web flasher](#flashing-without-the-web-flasher).
 
-> ⚠️ **Young firmware.** The NerdQaxe++, the NerdAxe and the Supra Hex run it every day, and the Bitaxe Supra has been tested; the newer boards in the table below have not been tested on hardware yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Keep a backup of your stock flash so you can go back.
+> ⚠️ **Young firmware.** The NerdQaxe++, the NerdAxe and the Supra Hex run it every day, and the Bitaxe Supra, NerdQAxe+, NerdOctaxe+ and NerdOctaxe-γ have been tested; the newer boards in the table below have not been tested on hardware yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Keep a backup of your stock flash so you can go back.
 
 ## Supported boards
 
@@ -18,16 +18,22 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 | **NerdQaxe++** rev5.1 / rev6 | 4× BM1370 | TPS53647, 3-phase | 100 W | `axeforge.bin` | ✅ Tested (rev6; rev5.1 runs the same code) |
 | **NerdQaxe++** rev7 | 4× BM1370 | TPS546 stack | 120 W | `axeforge.bin` | ✅ Tested by contributors |
 | **NerdAxe** | 1× BM1366 | DS4432U + TPS40305 | 15 W | `axeforge-nerdaxe.bin` | ✅ Tested |
-| **NerdQAxe+** | 4× BM1368 | TPS53647, 2-phase | 70 W | `axeforge-nerdqaxeplus.bin` | ⚠️ Not tested on hardware yet |
-| **NerdOctaxe+** | 8× BM1368 | TPS53647, 3-phase | 130 W | `axeforge-nerdoctaxeplus.bin` | ⚠️ Not tested on hardware yet |
-| **NerdOctaxe-γ** | 8× BM1370 | TPS53647 4-phase, or TPS53667 6-phase from rev3.0 | 250 W / 300 W | `axeforge-nerdoctaxegamma.bin` | ⚠️ Not tested on hardware yet |
+| **NerdQAxe+** | 4× BM1368 | TPS53647, 2-phase | 70 W | `axeforge-nerdqaxeplus.bin` | ✅ Tested |
+| **NerdOctaxe+** | 8× BM1368 | TPS53647, 3-phase | 130 W | `axeforge-nerdoctaxeplus.bin` | ✅ Tested |
+| **NerdOctaxe-γ** | 8× BM1370 | TPS53647 4-phase, or TPS53667 6-phase from rev3.0 | 250 W / 300 W | `axeforge-nerdoctaxegamma.bin` | ✅ Tested |
 | **NerdQX** | 4× BM1370 | TPS53647, 3-phase | 240 W | `axeforge-nerdqx.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Supra Hex** 701 / 702 | 6× BM1368 | TPS546, 3 stacked domains | 120 W | `axeforge-suprahex.bin` | ✅ Tested (702) |
 | **Bitaxe Ultra Hex** 302 / 303 | 6× BM1366 | TPS546, 3 stacked domains | 90 W | `axeforge-ultrahex.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Supra** 400–403 | 1× BM1368 | TPS546 (402/403) or DS4432U (400/401), detected at boot | 40 W | `axeforge-supra.bin` | ✅ Tested |
 | **Bitaxe Gamma** 600–603 | 1× BM1370 | TPS546 | 40 W | `axeforge-gamma.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Naja Duo** 1201 | 2× BM1373 | TPS546 stack, 2 stacked domains | 60 W | `axeforge-naja.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Max** 102 | 1× BM1397 | DS4432U + TPS40305 | 25 W | `axeforge-max.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Ultra** 201–207 | 1× BM1366 | DS4432U (201–205) or TPS546 (207), detected at boot | 25 W | `axeforge-ultra.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Gamma Duo** 650 | 2× BM1370 | TPS546 | 40 W | `axeforge-gammaduo.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe GT** 801 | 2× BM1370 | TPS546 stack, 2-phase | 60 W | `axeforge-gt.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Gamma Hex** 1300 | 6× BM1370 | TPS546 stack, 4-phase, 2 stacked domains | 180 W | `axeforge-gammahex.bin` | ⚠️ Not tested on hardware yet |
 | **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | build from source | ⚠️ Experimental (one board tested) |
+| **HX-6** rev B ([open hardware](https://github.com/IsSasoriDev/HX6-Miner)) | 6× BM1370 | TPS53647, 4-phase | 130 W | `axeforge-hx6.bin` | ⚠️ No board built yet |
 
 - Each board has its own firmware file. A file for another board is refused, because the boards switch their core power on differently.
 - The NerdQaxe++ revision and the NerdOctaxe-γ regulator are detected at boot.

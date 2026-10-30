@@ -7,8 +7,8 @@
 
 static const char *TAG = "sensors";
 
-#if CONFIG_AF_BOARD_NERDAXE || CONFIG_AF_BOARD_BITAXE_SUPRA || CONFIG_AF_BOARD_BITAXE_GAMMA
-// ---------------------------------------------------------------- EMC2101 (NerdAxe, Supra, Gamma)
+#if CONFIG_AF_BOARD_NERDAXE || AF_EMC2101
+// ---------------------------------------------------------------- EMC2101 (NerdAxe, Supra, Ultra, Gamma, Gamma Duo)
 // One fan, the board temperature and the chip's diode. A DS4432U can sit at 0x48
 // on these boards, so the TMP1075 scan used elsewhere must never run here.
 #define EMC2101_ADDR 0x4C
@@ -116,9 +116,9 @@ float chip_diode(int index)
 
 } // namespace temp
 
-#elif CONFIG_AF_BOARD_NAJA
-// ---------------------------------------------------------------- EMC2103 (Naja Duo)
-// One fan, the board temperature and one diode per BM1373.
+#elif AF_EMC2103
+// ---------------------------------------------------------------- EMC2103 (Naja Duo, GT, Gamma Hex)
+// One fan, the board temperature and two chip diodes.
 #define EMC2103_ADDR 0x2E
 #define EMC2103_INTERNAL_MSB 0x00
 #define EMC2103_EXT1_MSB 0x02
@@ -132,13 +132,23 @@ float chip_diode(int index)
 #define EMC2103_BETA2 0x15
 #define EMC2103_CONFIG1 0x20
 #define EMC2103_PWM_CONFIG 0x2A
+#define EMC2103_PWM_BASE_FREQ 0x2B
 #define EMC2103_FAN_SETTING 0x40  // 0..255
+#define EMC2103_PWM_DIVIDE 0x41
+#define EMC2103_FAN_CONFIG1 0x42
+#define EMC2103_LUT_CONFIG1 0x50
+#define EMC2103_FAN_CONFIG1_DIRECT 0x2B  // reference firmware's direct-PWM setup (Gamma Hex)
 #define EMC2103_TACH_MSB 0x4E
 #define EMC2103_TACH_LSB 0x4F
+#if AF_ASIC_BM1373
 // The BM1373 diodes read high and stretched; the second one sits warmer still
 // (reference firmware calibration for the Naja Duo).
 static const float DIODE_SCALE = 0.9613546f;
 static const float DIODE_OFFSET[2] = {-5.0858026f, -5.0858026f - 10.7f};
+#else
+static const float DIODE_SCALE = 1.0f;
+static const float DIODE_OFFSET[2] = {0.0f, 0.0f};
+#endif
 
 static bool s_emc_ok = false;
 
@@ -146,12 +156,23 @@ namespace fan {
 
 bool init()
 {
-    s_emc_ok = i2c_bus::write_byte(EMC2103_ADDR, EMC2103_CONFIG1, 0x00) == ESP_OK &&
-               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_PWM_CONFIG, 0x00) == ESP_OK &&
-               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_IDEALITY1, AF_EMC_IDEALITY) == ESP_OK &&
-               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_IDEALITY2, AF_EMC_IDEALITY) == ESP_OK &&
-               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_BETA1, AF_EMC_BETA) == ESP_OK &&
-               i2c_bus::write_byte(EMC2103_ADDR, EMC2103_BETA2, AF_EMC_BETA) == ESP_OK;
+    s_emc_ok = i2c_bus::write_byte(EMC2103_ADDR, EMC2103_CONFIG1, 0x00) == ESP_OK;
+#if AF_EMC_DIRECT_PWM
+    // the fan setting drives the PWM duty directly, push-pull at 26 kHz
+    s_emc_ok &= i2c_bus::write_byte(EMC2103_ADDR, EMC2103_LUT_CONFIG1, 0x00) == ESP_OK &&
+                i2c_bus::write_byte(EMC2103_ADDR, EMC2103_FAN_CONFIG1, EMC2103_FAN_CONFIG1_DIRECT) == ESP_OK &&
+                i2c_bus::write_byte(EMC2103_ADDR, EMC2103_PWM_CONFIG, 0x10) == ESP_OK &&
+                i2c_bus::write_byte(EMC2103_ADDR, EMC2103_PWM_BASE_FREQ, 0x00) == ESP_OK &&
+                i2c_bus::write_byte(EMC2103_ADDR, EMC2103_PWM_DIVIDE, 0x01) == ESP_OK;
+#else
+    s_emc_ok &= i2c_bus::write_byte(EMC2103_ADDR, EMC2103_PWM_CONFIG, 0x00) == ESP_OK;
+#endif
+#ifdef AF_EMC_IDEALITY
+    s_emc_ok &= i2c_bus::write_byte(EMC2103_ADDR, EMC2103_IDEALITY1, AF_EMC_IDEALITY) == ESP_OK &&
+                i2c_bus::write_byte(EMC2103_ADDR, EMC2103_IDEALITY2, AF_EMC_IDEALITY) == ESP_OK &&
+                i2c_bus::write_byte(EMC2103_ADDR, EMC2103_BETA1, AF_EMC_BETA) == ESP_OK &&
+                i2c_bus::write_byte(EMC2103_ADDR, EMC2103_BETA2, AF_EMC_BETA) == ESP_OK;
+#endif
     if (!s_emc_ok) ESP_LOGE(TAG, "EMC2103 init failed");
     return s_emc_ok;
 }
@@ -178,12 +199,23 @@ uint16_t rpm(int channel)
 
 bool check()
 {
+    // a register this firmware set away from its reset value tells whether the
+    // controller lost its setup
+#if defined(AF_EMC_IDEALITY)
+    const uint8_t reg = EMC2103_IDEALITY1, want = AF_EMC_IDEALITY;
+#elif AF_EMC_DIRECT_PWM
+    const uint8_t reg = EMC2103_FAN_CONFIG1, want = EMC2103_FAN_CONFIG1_DIRECT;
+#endif
+#if defined(AF_EMC_IDEALITY) || AF_EMC_DIRECT_PWM
     uint8_t v = 0;
-    if (i2c_bus::read(EMC2103_ADDR, EMC2103_IDEALITY1, &v, 1) != ESP_OK) return true;
-    if (v == AF_EMC_IDEALITY) return true;
+    if (i2c_bus::read(EMC2103_ADDR, reg, &v, 1) != ESP_OK) return true;
+    if (v == want) return true;
     ESP_LOGW(TAG, "fan controller config is %02x, it was reset - re-initialising", v);
     init();
     return false;
+#else
+    return true;  // nothing this firmware sets differs from the reset state
+#endif
 }
 
 } // namespace fan
@@ -228,6 +260,9 @@ float vr_board() { return NAN; }
 
 float chip_diode(int index)
 {
+#if AF_EMC_FLIP
+    index = index == 0 ? 1 : index == 1 ? 0 : index;  // diode 2 sits on the first chip
+#endif
     if (index == 0) return diode(0, EMC2103_EXT1_MSB, EMC2103_EXT1_LSB);
     if (index == 1) return diode(1, EMC2103_EXT2_MSB, EMC2103_EXT2_LSB);
     return NAN;
@@ -308,6 +343,10 @@ uint16_t rpm(int channel)
 // Supra/Ultra Hex: 0x4a and 0x4b sit next to the chips; the regulator reports its
 // own temperature over PMBus.
 static const int ASIC_SENSOR_DEV[] = {2, 3};
+#define TMP_VR_INDEX -1
+#elif CONFIG_AF_BOARD_HX6
+// HX-6: 0x48, 0x49, 0x4a all under the chips; the TPS53647 reads the regulator
+static const int ASIC_SENSOR_DEV[] = {0, 1, 2};
 #define TMP_VR_INDEX -1
 #elif CONFIG_AF_BOARD_NEXUS
 // Nexus S1 (from its stock firmware): 0x48 near the chips, 0x49 at the VR

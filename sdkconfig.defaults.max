@@ -1,0 +1,7 @@
+# Bitaxe max build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_max -D SDKCONFIG=build_max/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.max" build
+CONFIG_AF_BOARD_BITAXE_MAX=y
+# small bitmap font for the 128x32 OLED
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-max"

@@ -1,0 +1,28 @@
+{
+  "name": "AxeForge for Bitaxe GT",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "gt/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "gt/partition-table.bin",
+          "offset": 32768
+        },
+        {
+          "path": "gt/axeforge.bin",
+          "offset": 65536
+        },
+        {
+          "path": "gt/ota_data_initial.bin",
+          "offset": 12648448
+        }
+      ]
+    }
+  ]
+}

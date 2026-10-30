@@ -1,0 +1,7 @@
+# Bitaxe gt build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_gt -D SDKCONFIG=build_gt/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.gt" build
+CONFIG_AF_BOARD_BITAXE_GT=y
+# small bitmap font for the 128x32 OLED
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-gt"

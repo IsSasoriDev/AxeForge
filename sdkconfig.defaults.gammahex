@@ -1,0 +1,5 @@
+# Bitaxe gammahex build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_gammahex -D SDKCONFIG=build_gammahex/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.gammahex" build
+CONFIG_AF_BOARD_GAMMA_HEX=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-gammahex"

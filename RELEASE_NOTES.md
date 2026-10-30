@@ -4,6 +4,10 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
+_Nothing yet._
+
+## AxeForge v1.4.4
+
 ### Tested on hardware
 The NerdQAxe+, NerdOctaxe+ and NerdOctaxe-γ have now run AxeForge and are marked as tested in the README and the web flasher.
 

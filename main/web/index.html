@@ -306,11 +306,6 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
   <p class="note" id="dustnote"></p>
   <div class="btns" id="dustbtn" style="display:none"><button class="btn sm" onclick="act('/api/dust','{}')">Done, I cleaned it</button></div></div>
 </div>
-<div class="mb">
- <div class="card"><h3>Best shares <span class="tag" id="scorecount">--</span></h3>
-  <div style="overflow-x:auto"><table class="tbl" id="scores"></table></div>
-  <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="resetScores()">Clear list</button><span class="meta">Kept across reboots.</span></div></div>
-</div>
 <div class="grid g3">
  <div class="card"><h3>Auto-tune</h3><div class="tune"><span class="pill" id="tph">--</span><b id="tpt"></b></div><div class="sub" id="tnote" style="margin-top:8px"></div><div class="bar"><i id="tbar" style="background:var(--violet)"></i></div>
   <div class="kv" style="margin-top:12px"><div>Best point</div><div id="tbest">--</div><div>Steps tested</div><div id="tsteps">0</div></div></div>
@@ -359,6 +354,9 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <label title="A pool whose block template keeps more than this share of the reward for itself counts as not paying you. 100 turns the check off.">Highest pool fee you accept (%)</label><input name="payfee" type="number" min="0" max="100" step="1">
 <p class="note">Only for usernames that are a Bitcoin address (solo mining). With "don't send work", a pool whose block template would pay you less than 100% minus this fee gets no jobs until its next template does; the other pools carry on. 100 means any fee is fine and only a template that doesn't pay you at all is skipped.</p></div>
 <div class="btns"><button class="btn">Save payout check</button></div></form>
+<div class="card" style="margin-top:14px"><h3>Best shares <span class="tag" id="scorecount">--</span></h3>
+  <div style="overflow-x:auto"><table class="tbl" id="scores"></table></div>
+  <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="resetScores()">Clear list</button><span class="meta">The ten highest-difficulty shares this miner has found, kept across reboots.</span></div></div>
 </section>
 
 <!-- ============================== TUNING -->
@@ -541,7 +539,7 @@ a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopProp
 const SRC='https://github.com/IsSasoriDev/AxeForge';
 function tab(t){cur=t;document.querySelectorAll('nav button[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);
- if(t=='display'){shot();drawCanvas()}if(t=='system'){pollLogs();pollSelftest();loadOtp()}if(t=='swarm')loadSwarm()}
+ if(t=='display'){shot();drawCanvas()}if(t=='system'){pollLogs();pollSelftest();loadOtp()}if(t=='swarm')loadSwarm();if(t=='pools')loadScores()}
 document.querySelectorAll('nav button[data-t]').forEach(b=>{b.onclick=()=>tab(b.dataset.t);b.title=titles[b.dataset.t]});
 function navRail(){const r=document.documentElement.dataset.nav!='rail';document.documentElement.dataset.nav=r?'rail':'';try{localStorage.setItem('af-nav',r?'rail':'')}catch(e){}$('navtog').title=r?'Expand menu':'Collapse menu'}
 if(document.documentElement.dataset.nav=='rail')$('navtog').title='Expand menu';
@@ -990,7 +988,7 @@ function upload(f){if(!f)return;if(!confirm(`Install ${f.name} (${(f.size/1024|0
  x.onload=()=>toast(x.responseText);x.onerror=()=>toast('Upload failed');x.open('POST','/api/ota');x.setRequestHeader('X-AxeForge','1');if(SESS)x.setRequestHeader('X-AxeForge-Session',SESS);
  x.onload=()=>{if(x.status==401){toast('Log in first, then upload again');askLogin()}else toast(x.responseText)};x.send(f)}
 
-loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();loadDay();loadScores();
-setInterval(()=>{if(!document.hidden&&cur=='dash'){loadDay();loadScores()}},60000);
+loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();loadDay();
+setInterval(()=>{if(!document.hidden&&cur=='dash')loadDay();if(!document.hidden&&cur=='pools')loadScores()},60000);
 setInterval(()=>{if(!document.hidden)tick()},2000);setInterval(()=>{if(!document.hidden)chart()},30000);
 </script></body></html>

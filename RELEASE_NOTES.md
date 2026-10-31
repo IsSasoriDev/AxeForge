@@ -19,6 +19,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ### Dashboard
 - **AxeMobile in the corner.** A card in the lower right of the dashboard points to [AxeMobile](https://github.com/IsSasoriDev/AxeMobile), the companion app for managing all your miners in one place. The × hides it for that browser.
 - **Gauges for the four telemetry cards, opt-in.** *Display → Dashboard tiles → Gauges*: ASIC temperature, VR temperature, power and fan each show a half-arc with tick marks at the lines the firmware acts on: the tuner ceiling and the shutdown temperature, the power ceiling, the 95 % line where the tuner stops climbing and the emergency cut-off. The arc and a word under the number say which zone the value is in; a stopped fan turns the fan gauge red. The ticks move when Overclock is turned on or off. The compact bars stay the default.
+- **The Best shares table moved from the dashboard to the Pools page**, under the pools it belongs to. The dashboard keeps the best share as two figures on the Pools card.
 
 ## AxeForge v1.4.7
 

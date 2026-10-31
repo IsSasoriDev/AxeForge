@@ -1,5 +1,8 @@
 #include "sensors.h"
 
+#include <stdio.h>
+#include <string.h>
+
 #include <math.h>
 #include "esp_log.h"
 #include "i2c_bus.h"
@@ -383,12 +386,28 @@ namespace temp {
 
 int detect()
 {
+    // Which of the four TMP1075 addresses answer, once, so a board with fewer
+    // sensors than its definition expects can be told from a dead one.
+    char found[48] = "";
+    for (int dev = 0; dev < 4; dev++) {
+        bool here = i2c_bus::probe(TMP_BASE + dev);
+        snprintf(found + strlen(found), sizeof(found) - strlen(found), "%s0x%02x%s", dev ? " " : "", TMP_BASE + dev,
+                 here ? "" : "(none)");
+    }
+    ESP_LOGI(TAG, "TMP1075 probe: %s", found);
+
+    // ASIC sensor i stands for the chips around it, so the list has to be used
+    // in order: the count stops at the first one missing.
     s_num_asic_sensors = 0;
     for (int i = 0; i < MAX_ASIC_SENSORS; i++) {
         if (!tmp_present(ASIC_SENSOR_DEV[i])) break;
         s_num_asic_sensors++;
     }
-    ESP_LOGI(TAG, "%d ASIC temperature sensors", s_num_asic_sensors);
+    for (int i = s_num_asic_sensors + 1; i < MAX_ASIC_SENSORS; i++)
+        if (tmp_present(ASIC_SENSOR_DEV[i]))
+            ESP_LOGW(TAG, "TMP1075 at 0x%02x answers but 0x%02x before it does not: not used", TMP_BASE + ASIC_SENSOR_DEV[i],
+                     TMP_BASE + ASIC_SENSOR_DEV[s_num_asic_sensors]);
+    ESP_LOGI(TAG, "%d of %d ASIC temperature sensors", s_num_asic_sensors, MAX_ASIC_SENSORS);
     return s_num_asic_sensors;
 }
 

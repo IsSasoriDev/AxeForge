@@ -199,6 +199,7 @@ html[data-theme=paper] .pill{background:transparent}
 <main>
 <header><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="meta" id="up"></span></header>
 <div class="banner" id="fault"></div>
+<div class="banner" id="ocban" style="display:none;background:var(--orange);color:#000">Overclocked: the tuner and manual settings may go past this board's stock limits. Tuning → Overclock to go back.</div>
 
 <!-- ============================== DASHBOARD -->
 <section id="dash" class="on">
@@ -311,8 +312,8 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div><label>Currency</label><input name="currency" maxlength="4" placeholder="€"></div></div>
 <p class="note">For the power bill card on the dashboard. With no price of your own, the Energy-Charts market price above is used while the price mode is on (wholesale, without taxes and fees).</p></div>
 <div class="card"><h3>Manual point / tuner start</h3><div class="row">
-<div><label>Frequency (MHz) <span class="rv" id="fv"></span></label><input type="range" name="freq" min="400" max="750" step="6.25" oninput="fv.textContent=this.value"></div>
-<div><label>Core voltage (mV) <span class="rv" id="mvv"></span></label><input type="range" name="mv" min="1100" max="1300" step="10" oninput="mvv.textContent=this.value"></div></div>
+<div><label>Frequency (MHz)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="freq" min="400" max="750" step="1" style="flex:1" oninput="fnum.value=this.value"><input type="number" id="fnum" min="400" max="750" step="1" style="width:84px" oninput="this.form.freq.value=this.value"></div></div>
+<div><label>Core voltage (mV)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="mv" min="1100" max="1300" step="5" style="flex:1" oninput="mvnum.value=this.value"><input type="number" id="mvnum" min="1100" max="1300" step="5" style="width:84px" oninput="this.form.mv.value=this.value"></div></div></div>
 <p class="note">Used directly when auto-tune is off, and as the starting point when a new search begins.</p></div>
 <div class="card"><h3>Cooling</h3><div class="row">
 <div><label>Target chip temp (°C) <span class="rv" id="ftv"></span></label><input type="range" name="fantgt" min="40" max="70" oninput="ftv.textContent=this.value"></div>
@@ -328,6 +329,9 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div id="vrrow"><label>Version-rolling speed (Hz)</label><input name="vrhz" type="number" min="0" max="100000" step="500" placeholder="board default"></div></div>
 <p class="note">0 keeps the board's default. A longer job interval means fewer jobs and slightly more stale work; shorter means more UART traffic. Version-rolling speed exists on BM1370 boards only and is written to the chips right away.</p></div>
 <div class="card"><h3>Hard limits (compiled in)</h3><div class="lim" id="lims"></div></div>
+<div class="card"><h3>Overclock <span class="tag" id="ocst">--</span></h3>
+<p class="note" style="margin-top:0" id="ocnote"></p>
+<div class="btns"><button type="button" class="btn alt" id="ocbtn" onclick="ocToggle()">--</button></div></div>
 <div class="btns"><button class="btn">Save tuning</button><button type="button" class="btn alt" onclick="act('/api/retune')">Restart auto-tune search</button></div></form></section>
 
 <!-- ============================== DISPLAY -->
@@ -511,7 +515,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*(S.smallCores||2040)*(S.asicCount||4)/1000));
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status;st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
- $('fault').style.display=S.fault?'block':'none';$('fault').textContent='⚠ '+S.fault;
+ $('fault').style.display=S.fault?'block':'none';$('ocban').style.display=S.overclocked?'block':'none';$('fault').textContent='⚠ '+S.fault;
  $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
  $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
  $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
@@ -578,7 +582,7 @@ async function swScan(){await act('/api/swarm',JSON.stringify({scan:true}));load
 setInterval(()=>{if(cur=='swarm'&&!document.hidden)loadSwarm()},5000);
 async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setTheme(cfg.theme);
  document.querySelectorAll('form[data-f] [name]').forEach(e=>{const v=cfg[e.name];if(v===undefined)return;if(e.type=='checkbox')e.checked=!!v;else e.value=v;e.dispatchEvent(new Event('input'))});
- const L=cfg.limits;document.querySelector('[name=freq]').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=L.minMv;mv.max=L.maxMv;
+ const L=cfg.limits;document.querySelector('[name=freq]').max=$('fnum').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=$('mvnum').min=L.minMv;mv.max=$('mvnum').max=L.maxMv;ocUi();
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[L.maxPower+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
@@ -601,6 +605,19 @@ function priceLive(p){if(!p)return;const st=$('pricest');
  $('pinfo').textContent=p.error?'⚠ '+p.error:('Now '+now+' · limit '+p.max+' '+(p.unit||'')+(p.slots?.length?' · next '+Math.round(p.slots.length*p.step/3600)+' h':''));
  const sl=p.slots||[],v=sl.filter(x=>x!==null),hi=Math.max(p.max,...v,0.01),lo=Math.min(0,...v);
  $('pbars').innerHTML=sl.map(x=>x===null?'<i style="height:0"></i>':`<i class="${x>p.max?'hi':''}" style="height:${Math.max(2,100*(x-lo)/(hi-lo))}%" title="${x} ct/kWh"></i>`).join('')}
+
+/* ---------------- overclock */
+function ocUi(){const o=cfg.overclock;if(!o)return;const st=$('ocst'),b=$('ocbtn');
+ st.textContent=o.active?'on':o.unlocked?'paused':o.available?'off':'not available';st.style.color=o.active?'var(--orange)':'';
+ b.style.display=o.available||o.unlocked?'':'none';b.textContent=o.unlocked?'Back to stock limits':'Unlock overclocking…';
+ $('ocnote').textContent=!o.available?'Nobody has measured how far past its stock limits this board can safely go, so it stays at '+o.stockFreq+' MHz, '+o.stockMv+' mV and '+o.stockPower+' W.'
+  :(o.unlocked?(o.active?'Overclocked: up to ':'Unlocked, but paused while the power supply check says weak: ')+cfg.limits.maxFreq+' MHz, '+cfg.limits.maxMv+' mV and '+cfg.limits.maxPower.toFixed(0)+' W for the tuner and manual settings (stock: '+o.stockFreq+' MHz, '+o.stockMv+' mV, '+o.stockPower+' W).'
+  :'Stock limits: '+o.stockFreq+' MHz, '+o.stockMv+' mV, '+o.stockPower+' W. Unlocking lets the tuner and manual settings go past them, up to this board\'s measured headroom.')
+  +' Temperature ceilings and emergency cut-offs never move (power cut at '+o.cutoffPower.toFixed(0)+' W). Changing it starts a new tuner search.'}
+async function ocToggle(){const o=cfg.overclock;
+ if(o.unlocked){await act('/api/settings',JSON.stringify({overclock:false}));return loadCfg()}
+ const t=prompt('Overclocking runs the chips past this board\'s stock limits: more heat, more power, shorter life, and it is on you. Temperature cut-offs still apply.\n\nType OVERCLOCK to unlock.');
+ if(t===null)return;await act('/api/settings',JSON.stringify({overclock:true,confirm:t.trim()}));loadCfg()}
 
 /* ---------------- power bill & odds, heatsink */
 function oddsTxt(p){return p>=0.995?'almost certain':p>=0.01?(100*p).toFixed(p<0.1?1:0)+'%':'1 in '+Math.round(1/p).toLocaleString()}

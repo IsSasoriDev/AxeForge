@@ -38,6 +38,9 @@ struct Settings {
     // what the tuner looks for: 0 = most hashrate, 1 = most hashrate under
     // power_cap_w, 2 = best efficiency (J/TH)
     uint8_t tune_goal = 0;
+    // overclock unlocked (typed confirmation in the UI): the tuner and the manual
+    // values may use the board's envelope instead of its stock limits (core/gates.h)
+    bool overclock = false;
     uint16_t power_cap_w = 0;      // 0 = the board's limit
     // per-chip clocks: once locked, the tuner raises each chip on its own;
     // chip_off is each chip's offset (MHz) from the chain clock

@@ -29,3 +29,8 @@ fan_target_c = 72.0
 freq_mhz = 450            # the Nexus S1's stock point
 mv = 950
 display_type = 1
+
+[envelope]                # 1050 mV drew about 185 W on a Nexus S1 (#33, #35)
+power_pct = 8
+mv = 50
+freq_mhz = 25

@@ -10,6 +10,7 @@
 
 #include "asic/bm13xx.h"
 #include "core/board.h"
+#include "core/gates.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "mining/miner.h"
@@ -79,7 +80,7 @@ static bool should_abort() { return s_restart || !settings::get().autotune || !b
 static float power_ceiling()
 {
     const Settings &cfg = settings::get();
-    float lim = board::limits().max_power_w;
+    float lim = gates::max_power();
     if (cfg.tune_goal == GOAL_POWER_CAP && cfg.power_cap_w > 0 && cfg.power_cap_w < lim) return cfg.power_cap_w;
     return lim;
 }
@@ -257,7 +258,7 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
                                 r.vrmax > board::limits().vr_ceil_c - THERMAL_MARGIN_C;
             bool near_power = r.pmax > power_ceiling() * 0.95f;
             bool at_hold = held(f + FREQ_STEP) != f + FREQ_STEP;
-            if (near_thermal || near_power || at_hold || f + FREQ_STEP > board::limits().max_freq_mhz) {
+            if (near_thermal || near_power || at_hold || f + FREQ_STEP > gates::max_freq()) {
                 note(near_power ? "Power ceiling reached" : near_thermal ? "Thermal ceiling reached"
                                 : at_hold                ? "Held after a fault"
                                                          : "Max freq reached");
@@ -269,7 +270,7 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
             continue;
         }
 
-        if (r.verdict == Verdict::Errors && !eff_goal && bumps < MAX_MV_BUMPS && mv + MV_STEP <= board::max_mv()) {
+        if (r.verdict == Verdict::Errors && !eff_goal && bumps < MAX_MV_BUMPS && mv + MV_STEP <= gates::max_mv()) {
             // more voltage usually fixes errors at a given clock
             mv += MV_STEP;
             bumps++;
@@ -344,7 +345,7 @@ static bool tune_chips(uint16_t f, float &ghs)
         g_state.chips_detected < 2)
         return true;
     const int chips = g_state.chips_detected < AF_NUM_ASICS ? g_state.chips_detected : AF_NUM_ASICS;
-    const int fmax = board::limits().max_freq_mhz;
+    const int fmax = gates::max_freq();
     int8_t off[AF_NUM_ASICS];
     memcpy(off, cfg.chip_off, sizeof(off));
     bool frozen[AF_NUM_ASICS] = {};

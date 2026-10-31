@@ -20,6 +20,7 @@
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
+#include "core/gates.h"
 #include "core/dust.h"
 #include "core/energy.h"
 #include "core/ota_guard.h"
@@ -235,6 +236,7 @@ static esp_err_t status_get(httpd_req_t *req)
     }
     cJSON_AddItemToObject(r, "price", price::json());
     cJSON_AddItemToObject(r, "dust", dust::json());
+    cJSON_AddBoolToObject(r, "overclocked", gates::active());
     cJSON_AddItemToObject(r, "energy", energy::json());
     cJSON_AddNumberToObject(r, "freeHeap", esp_get_free_heap_size());
     cJSON_AddNumberToObject(r, "freeInternal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
@@ -451,14 +453,22 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "blesetup", c.ble_setup);
     cJSON_AddBoolToObject(r, "hasEth", HAS_ETH);
     cJSON *lim = cJSON_AddObjectToObject(r, "limits");
-    cJSON_AddNumberToObject(lim, "maxFreq", board::limits().max_freq_mhz);
+    cJSON_AddNumberToObject(lim, "maxFreq", gates::max_freq());
     cJSON_AddNumberToObject(lim, "minMv", CONFIG_AF_MIN_CORE_MV);
-    cJSON_AddNumberToObject(lim, "maxMv", board::max_mv());
+    cJSON_AddNumberToObject(lim, "maxMv", gates::max_mv());
     cJSON_AddNumberToObject(lim, "chipCeil", CONFIG_AF_MAX_CHIP_TEMP);
     cJSON_AddNumberToObject(lim, "chipCrit", CONFIG_AF_CRIT_CHIP_TEMP);
     cJSON_AddNumberToObject(lim, "vrCeil", board::limits().vr_ceil_c);
     cJSON_AddNumberToObject(lim, "vrCrit", board::limits().vr_crit_c);
-    cJSON_AddNumberToObject(lim, "maxPower", board::limits().max_power_w);
+    cJSON_AddNumberToObject(lim, "maxPower", gates::max_power());
+    cJSON *oc = cJSON_AddObjectToObject(r, "overclock");
+    cJSON_AddBoolToObject(oc, "available", gates::available());
+    cJSON_AddBoolToObject(oc, "unlocked", c.overclock);
+    cJSON_AddBoolToObject(oc, "active", gates::active());
+    cJSON_AddNumberToObject(oc, "stockFreq", gates::stock_max_freq());
+    cJSON_AddNumberToObject(oc, "stockMv", gates::stock_max_mv());
+    cJSON_AddNumberToObject(oc, "stockPower", gates::stock_max_power());
+    cJSON_AddNumberToObject(oc, "cutoffPower", gates::stock_max_power() * 1.15f);
     return send_json(req, r);
 }
 
@@ -585,11 +595,28 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.autotune = get_bool(j, "atune", c.autotune);
     c.freq_mhz = board::clamp_freq(get_int(j, "freq", c.freq_mhz, 0, 2000));
     c.core_mv = board::clamp_mv(get_int(j, "mv", c.core_mv, 0, 2000));
+    // overclock: unlocking takes the typed confirmation; locking again never does
+    bool oc = get_bool(j, "overclock", c.overclock);
+    if (oc && !c.overclock) {
+        char conf[16] = "";
+        copy_str(j, "confirm", conf, sizeof(conf));
+        if (strcmp(conf, "OVERCLOCK") != 0 || !gates::available()) {
+            cJSON_Delete(j);
+            return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                                       gates::available() ? "Type OVERCLOCK to unlock overclocking."
+                                                          : "No overclock headroom is known for this board.");
+        }
+        ESP_LOGW(TAG, "overclock unlocked (stock limits %u MHz / %u mV / %.0f W)", (unsigned) (gates::stock_max_freq()),
+                 (unsigned) gates::stock_max_mv(), gates::stock_max_power());
+    }
+    bool oc_changed = oc != c.overclock;
+    c.overclock = oc;
+    if (oc_changed && !oc) ESP_LOGW(TAG, "overclock locked: back to the stock limits");
     // a new goal (or cap, or per-chip setting) means a new search
     int goal = get_int(j, "tgoal", c.tune_goal, 0, 2);
     int cap = get_int(j, "pcap", c.power_cap_w, 0, 2000);
     bool chip_tune = get_bool(j, "chiptune", c.chip_tune);
-    bool retune = goal != c.tune_goal || (goal == 1 && cap != c.power_cap_w) || chip_tune != c.chip_tune;
+    bool retune = goal != c.tune_goal || (goal == 1 && cap != c.power_cap_w) || chip_tune != c.chip_tune || oc_changed;
     c.tune_goal = (uint8_t) goal;
     c.power_cap_w = (uint16_t) cap;
     c.chip_tune = chip_tune;

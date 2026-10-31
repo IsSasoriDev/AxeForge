@@ -45,5 +45,8 @@ Top level: `name` (shown in the UI), `id` (file names and the board tag an updat
 | stock | freq_mhz, mv | `AF_STOCK_FREQ_MHZ`, `AF_STOCK_MV` | the operating point a fresh miner starts at |
 | stock | display_type, rotate_180 | `AF_STOCK_DISPLAY`, `AF_STOCK_ROTATE_180` | 0 = 3.5in 480x320, 1 = 320x170 |
 | stock | fan_min_pct | `AF_STOCK_FAN_MIN_PCT` | where the default 30% isn't enough |
+| envelope | power_pct | `AF_ENV_POWER_PCT` | overclock: power above the stock limit, percent (at most 10; the cut-off is at 115 %) |
+| envelope | mv | `AF_ENV_MV` | overclock: core voltage above the stock limit |
+| envelope | freq_mhz | `AF_ENV_FREQ_MHZ` | overclock: clock above the stock limit |
 
-The safety limits (max clock, voltage, power, temperatures) still live in `main/Kconfig.projbuild` as `default X if AF_BOARD_*` chains, so they can be changed in menuconfig; moving them here is the next step.
+The stock limits (max clock, voltage, power, temperatures) still live in `main/Kconfig.projbuild` as `default X if AF_BOARD_*` chains, so they can be changed in menuconfig. The `[envelope]` table is the board's known headroom above them, used only once overclocking is unlocked (`core/gates.h`). Leave it out for a board nobody has measured: that board can't be overclocked. Temperature ceilings and emergency cut-offs never move.

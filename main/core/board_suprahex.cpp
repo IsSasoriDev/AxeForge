@@ -18,6 +18,7 @@
 #include "freertos/task.h"
 
 #include "asic/bm13xx.h"
+#include "core/gates.h"
 #include "core/state.h"
 #include "hw/i2c_bus.h"
 #include "hw/sensors.h"
@@ -60,7 +61,7 @@ bool is_rev7() { return false; }
 uint16_t clamp_mv(int mv)
 {
     if (mv < CONFIG_AF_MIN_CORE_MV) mv = CONFIG_AF_MIN_CORE_MV;
-    if (mv > CONFIG_AF_MAX_CORE_MV) mv = CONFIG_AF_MAX_CORE_MV;
+    if (mv > gates::max_mv()) mv = gates::max_mv();  // stock limit, or the envelope when overclocked
     return (uint16_t) mv;
 }
 
@@ -69,7 +70,7 @@ uint16_t max_mv() { return CONFIG_AF_MAX_CORE_MV; }
 uint16_t clamp_freq(int mhz)
 {
     if (mhz < AF_MIN_FREQ_MHZ) mhz = AF_MIN_FREQ_MHZ;
-    if (mhz > s_limits.max_freq_mhz) mhz = s_limits.max_freq_mhz;
+    if (mhz > gates::max_freq()) mhz = gates::max_freq();
     return (uint16_t) mhz;
 }
 

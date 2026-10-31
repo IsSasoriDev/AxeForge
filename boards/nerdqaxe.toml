@@ -15,3 +15,8 @@ detect_rev7 = true        # rev7 swaps the TPS53647 for a TPS546 stack
 [stock]
 freq_mhz = 600
 mv = 1150
+
+[envelope]                # rev5.1/6 only (rev7 has none): chips at 60 C and the VR at
+power_pct = 10            # 59 C at the 100 W ceiling on a rev6 (#33)
+mv = 50
+freq_mhz = 50

@@ -17,6 +17,7 @@
 
 #include "asic/bm13xx.h"
 #include "core/board.h"
+#include "core/gates.h"
 #include "core/settings.h"
 #include "core/state.h"
 
@@ -122,12 +123,12 @@ static void handle_set(const char *param, const char *value)
     }
     if (!strcmp(param, "frequency")) {
         int f = atoi(value);
-        if (f < AF_MIN_FREQ_MHZ || f > board::limits().max_freq_mhz) return send("ERR", param, "invalid_range");
+        if (f < AF_MIN_FREQ_MHZ || f > gates::max_freq()) return send("ERR", param, "invalid_range");
         c.freq_mhz = board::clamp_freq(f);
         c.autotune = false;  // a fixed clock from the accessory, the tuner applies it
     } else if (!strcmp(param, "asic_voltage")) {
         int mv = atoi(value);
-        if (mv < CONFIG_AF_MIN_CORE_MV || mv > board::max_mv()) return send("ERR", param, "invalid_range");
+        if (mv < CONFIG_AF_MIN_CORE_MV || mv > gates::max_mv()) return send("ERR", param, "invalid_range");
         c.core_mv = board::clamp_mv(mv);
         c.autotune = false;
     } else if (!strcmp(param, "fan_speed")) {

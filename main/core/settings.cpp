@@ -227,6 +227,7 @@ void load()
     get_u16(h, "tfreq", s.tuned_freq);
     get_u16(h, "tmv", s.tuned_mv);
     get_u8(h, "tgoal", s.tune_goal);
+    get_bool(h, "oc", s.overclock);
     get_u16(h, "pcap", s.power_cap_w);
     get_bool(h, "chiptune", s.chip_tune);
     {
@@ -298,6 +299,7 @@ void save()
     nvs_set_u16(h, "tfreq", s.tuned_freq);
     nvs_set_u16(h, "tmv", s.tuned_mv);
     nvs_set_u8(h, "tgoal", s.tune_goal);
+    nvs_set_u8(h, "oc", s.overclock);
     nvs_set_u16(h, "pcap", s.power_cap_w);
     nvs_set_u8(h, "chiptune", s.chip_tune);
     nvs_set_blob(h, "chipoff", s.chip_off, sizeof(s.chip_off));

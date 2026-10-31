@@ -106,6 +106,9 @@ FIELDS = [
     ("stock", "display_type", "AF_STOCK_DISPLAY"),
     ("stock", "rotate_180", "AF_STOCK_ROTATE_180"),
     ("stock", "fan_min_pct", "AF_STOCK_FAN_MIN_PCT"),
+    ("envelope", "power_pct", "AF_ENV_POWER_PCT"),
+    ("envelope", "mv", "AF_ENV_MV"),
+    ("envelope", "freq_mhz", "AF_ENV_FREQ_MHZ"),
 ]
 # keys whose false value still has to be a 0, because the code tests the value
 ZERO_IF_FALSE = {"AF_HAS_LCD", "AF_HAS_VR_SENSOR", "AF_STOCK_ROTATE_180"}

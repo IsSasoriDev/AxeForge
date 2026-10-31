@@ -237,6 +237,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "freeDma", heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     cJSON_AddNumberToObject(r, "chipsDetected", s.chips_detected);
     cJSON *net = cJSON_AddObjectToObject(r, "eth");
+    cJSON_AddBoolToObject(net, "present", eth::present());
     cJSON_AddBoolToObject(net, "up", eth::up());
     cJSON_AddStringToObject(net, "ip", eth::ip());
     cJSON_AddStringToObject(r, "bleSetup", ble_setup::name());

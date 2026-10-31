@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- **The Ethernet row on the Network page only appears when an adapter is actually fitted.** It showed on every NerdQAxe-family miner because the header exists; now it follows the W5500 probe at boot, and reads "adapter fitted, no cable" when one is there but unplugged. `/api/status` gains `eth.present`.
 
 ## AxeForge v1.4.4
 

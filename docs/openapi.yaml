@@ -84,7 +84,7 @@ paths:
                   version: {type: string}
                   hostname: {type: string}
                   ip: {type: string}
-                  eth: {type: object, properties: {up: {type: boolean}, ip: {type: string}}}
+                  eth: {type: object, properties: {present: {type: boolean, description: a W5500 adapter answered at boot}, up: {type: boolean}, ip: {type: string}}}
                   pools:
                     type: array
                     items:

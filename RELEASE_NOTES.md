@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Dashboard
+- **One chart instead of two.** The hour chart and the "Last 24 hours" card are one chart with hashrate, temperature and power to choose from, a 1 h / 24 h switch, and a crosshair that shows the value and how long ago it was. `/api/history` now returns temperature and power next to the hashrate.
 
 ## AxeForge v1.4.4
 

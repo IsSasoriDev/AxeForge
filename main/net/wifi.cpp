@@ -80,9 +80,27 @@ static void setup_password(char *out, size_t len)
     nvs_close(h);
 }
 
+static bool s_setup_starting = false;
+
+static void setup_ap_task(void *);
+
+// Called from the Wi-Fi and Ethernet event handlers, which run on the system
+// event task (2.3 KB of stack). Bringing the network up, making the password
+// and starting Bluetooth provisioning need far more than that, so the work is
+// handed to a task of its own; done in the handler it overflowed the stack and
+// the miner panicked every 5 minutes without ever showing the network.
 static void start_setup_ap()
 {
-    if (s_setup || eth::up()) return;  // on a cable the miner is reachable already
+    if (s_setup || s_setup_starting || eth::up()) return;  // on a cable the miner is reachable already
+    s_setup_starting = true;
+    if (xTaskCreate(setup_ap_task, "setup_ap", 6144, NULL, 5, NULL) != pdPASS) {
+        s_setup_starting = false;
+        ESP_LOGE(TAG, "setup network: no memory for its task");
+    }
+}
+
+static void setup_ap_task(void *)
+{
     // first setup: open, there is nothing on the miner yet. Later: WPA2, and the
     // web server answers only the Wi-Fi form on this network (web.cpp)
     bool configured = settings::get().wifi_ssid[0] != 0;
@@ -108,6 +126,8 @@ static void start_setup_ap()
     ESP_LOGW(TAG, "setup AP %s up at 192.168.4.1 (%s)", g_state.ap_ssid,
              g_state.ap_pass[0] ? "WPA2, password on the screen" : "open");
     ble_setup::start(g_state.ap_pass[0] ? g_state.ap_pass : nullptr);
+    s_setup_starting = false;
+    vTaskDelete(NULL);
 }
 
 static void on_event(void *, esp_event_base_t base, int32_t id, void *data)

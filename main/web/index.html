@@ -371,7 +371,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect for 5 minutes, it opens the AxeForge-XXXX setup network, with the password shown on the miner's screen.</p></div>
 <div class="card"><h3>Other connections</h3>
 <div class="kv" id="ethrow"><div>Ethernet</div><div id="neth">--</div></div>
-<p class="note" id="ethnote">A W5500 Ethernet adapter on the NerdQAxe header is found at boot. With a cable plugged in, the miner gets an address over the wire as well, and the setup Wi-Fi stays closed.</p>
+<p class="note" id="ethnote">A W5500 Ethernet adapter on the NerdQAxe header was found at boot. With a cable plugged in, the miner gets an address over the wire as well, and the setup Wi-Fi stays closed.</p>
 <div class="switch"><div><b>Bluetooth setup</b><span>While the setup network is open, the miner can also be set up with the free "ESP BLE Provisioning" app (it shows up as PROV_AXEFORGE_XXXX). Bluetooth turns off once Wi-Fi works.</span></div><input class="tg" type="checkbox" name="blesetup"></div>
 <div class="switch" id="baprow"><div><b>Accessory port</b><span>Lets add-ons made for AxeOS (displays, controllers) read and set the miner over the Bitaxe accessory header. Changing it reboots.</span></div><input class="tg" type="checkbox" name="bap"></div></div>
 <div class="btns"><button class="btn">Save Wi-Fi</button></div></form></section>
@@ -524,7 +524,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
- $('nip').textContent=S.ip||'--';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'no adapter or no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
+ $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
  $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
  $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);
@@ -581,7 +581,7 @@ async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setThem
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
  $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;
- {const pu=document.querySelector('[name=priceurl]');pu.value='';pu.placeholder=cfg.priceurlSet?'saved (hidden) · type to replace':'https://example.com/price.json'}$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();$('ethrow').style.display=$('ethnote').style.display=cfg.hasEth?'':'none';
+ {const pu=document.querySelector('[name=priceurl]');pu.value='';pu.placeholder=cfg.priceurlSet?'saved (hidden) · type to replace':'https://example.com/price.json'}$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();
  notifyForm();pagesFrom(cfg.pages)}
 document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const d={};
  f.querySelectorAll('[name]').forEach(el=>{d[el.name]=el.type=='checkbox'?el.checked:(el.type=='range'||el.type=='number'||el.tagName=='SELECT')?Number(el.value):el.value});

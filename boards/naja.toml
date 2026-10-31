@@ -1,0 +1,30 @@
+name = "Bitaxe Naja Duo"
+id = "naja"
+kconfig = "AF_BOARD_NAJA"
+family = "bitaxe"
+
+[asic]
+chip = "bm1373"
+count = 2
+voltage_domains = 2       # the two chips are stacked
+en_active_high = true
+min_freq_mhz = 250        # the BM1373 runs around 330 MHz
+
+[pins]
+i2c_sda = 44              # "color" board: T-Display-style LCD, I2C moved to 44/43
+i2c_scl = 43
+
+[display]
+lcd = true                # ST7789 320x170, driven as the T-Display-S3 screen
+color_board = true        # no accessory (BAP) header
+
+[sensors]
+emc2103 = true
+emc_ideality = 0x17
+emc_beta = 0x10
+power_offset_w = 0.0
+
+[stock]
+freq_mhz = 327
+mv = 1000
+display_type = 1          # ST7789 320x170, the T-Display-S3 screen

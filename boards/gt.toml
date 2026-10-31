@@ -1,0 +1,17 @@
+name = "Bitaxe GT"
+id = "gt"
+kconfig = "AF_BOARD_BITAXE_GT"
+family = "bitaxe"
+
+[asic]
+chip = "bm1370"
+count = 2                 # in parallel on two stacked TPS546s, 12 V in
+
+[sensors]
+emc2103 = true
+emc_flip = true           # diode 2 is chip 1
+power_offset_w = 10.0
+
+[stock]
+freq_mhz = 525
+mv = 1150

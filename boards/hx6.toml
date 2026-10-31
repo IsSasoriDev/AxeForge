@@ -1,0 +1,35 @@
+# HX-6 (github.com/IsSasoriDev/HX6-Miner, rev B): open hardware with the
+# NerdQaxe++'s power wiring (VR_EN 10, LDO_EN 13, reset 1, TPS53647 at 0x71,
+# EMC2302 fans) and 6 BM1370s on one parallel rail. It differs in the I2C pins,
+# three TMP1075s under the chips (none at the regulator), a 2.8in SPI ST7789 and
+# its buttons. The W5500 header pins are the screen's here: no Ethernet.
+name = "HX-6"
+id = "hx6"
+kconfig = "AF_BOARD_HX6"
+family = "nerdq"
+keep_stock_nvs = false
+no_ethernet = true
+
+[asic]
+chip = "bm1370"
+count = 6
+diff_min = 1024
+diff_max = 4096
+
+[pins]
+i2c_sda = 8
+i2c_scl = 9
+button_1 = 21             # user button; GPIO14 is VR_RDY on this board
+
+[display]
+spi_st7789 = true         # Waveshare 2.8in: SCK 12, MOSI 11, CS 7, DC 6, RST 5, BL 38
+
+[regulator]
+phases = 4
+init_mv = 0               # power up straight at the target voltage
+temp_from_controller = true  # the TPS53647's own sensor
+
+[stock]
+freq_mhz = 525            # BM1370 stock point: about 6.4 TH/s on six chips
+mv = 1150
+display_type = 1          # the 320x170 screen layout, on its 2.8in panel

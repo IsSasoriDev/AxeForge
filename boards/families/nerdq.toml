@@ -1,0 +1,13 @@
+# The NerdQaxe family: same ESP32 module, LCD, fans (EMC2302), board sensors
+# (TMP1075) and TPS536x7 regulator wiring; they differ in chips, phases and limits.
+keep_stock_nvs = true     # new to AxeForge: take over the stock firmware's settings
+
+[pins]
+i2c_sda = 44
+i2c_scl = 43
+
+[display]
+lcd = true
+
+[regulator]
+init_mv = 1200            # power up here, then move to the target

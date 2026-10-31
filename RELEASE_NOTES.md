@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Build
+- **One file per board.** What the firmware knows about a board (chips, pins, regulator, sensors, stock point) is in `boards/<id>.toml`, turned into the old `core/board_config.h` at build time by `tools/gen_board.py`. Same macros, same binaries; adding a board or changing one no longer means finding its `#elif` in a 300-line header and its stock point in `settings.cpp`. See `boards/README.md`.
 
 ## AxeForge v1.4.4
 

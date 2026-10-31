@@ -1,0 +1,17 @@
+name = "NerdQaxe++"
+id = "nerdqaxe"
+kconfig = "AF_BOARD_NERDQAXE"
+family = "nerdq"
+keep_stock_nvs = false    # the board AxeForge was written for: nothing to take over
+
+[asic]
+chip = "bm1370"
+count = 4
+
+[regulator]
+phases = 3
+detect_rev7 = true        # rev7 swaps the TPS53647 for a TPS546 stack
+
+[stock]
+freq_mhz = 600
+mv = 1150

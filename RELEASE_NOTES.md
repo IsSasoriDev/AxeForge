@@ -5,6 +5,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ## Unreleased
 
 ### Network
+- **802.11k/v roaming.** A mesh or a controller that steers clients can now move the miner to a better radio, and below -75 dBm the miner asks for one itself (at most once a minute). A move drops the pool connection for a few seconds; that beats sitting on a far radio.
 - **The miner joins the strongest access point of its network, not the first to answer.** With a mesh or an extender broadcasting the same name, a miner could sit on a far radio at -80 dBm with a near one at -50 dBm in the same room. It now scans every channel and picks by signal, and the log says which access point and channel it joined.
 
 ## AxeForge v1.4.5

@@ -10,6 +10,8 @@
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "esp_rrm.h"
+#include "esp_wnm.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
@@ -130,12 +132,40 @@ static void setup_ap_task(void *)
     vTaskDelete(NULL);
 }
 
+// Below this the miner asks its access point for a better radio (802.11v BSS
+// transition query); the network answers with candidates and the supplicant
+// moves. Re-armed after each event; asked at most once a minute.
+#define ROAM_RSSI -75
+#define ROAM_MIN_GAP_US (60 * 1000000LL)
+static int64_t s_roam_asked_us = 0;
+
 static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
 {
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
         if (settings::get().wifi_ssid[0]) esp_wifi_connect();
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_CONNECTED) {
+        esp_wifi_set_rssi_threshold(ROAM_RSSI);
+        ESP_LOGI(TAG, "802.11k %s, 802.11v %s on this access point",
+                 esp_rrm_is_rrm_supported_connection() ? "yes" : "no", esp_wnm_is_btm_supported_connection() ? "yes" : "no");
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_BSS_RSSI_LOW) {
+        auto *ev = (wifi_event_bss_rssi_low_t *) data;
+        int64_t now = esp_timer_get_time();
+        if (esp_wnm_is_btm_supported_connection() && now - s_roam_asked_us >= ROAM_MIN_GAP_US) {
+            s_roam_asked_us = now;
+            int r = esp_wnm_send_bss_transition_mgmt_query(REASON_RSSI, NULL, 0);
+            ESP_LOGW(TAG, "signal %ld dBm: asked the access point for a better radio%s", (long) ev->rssi,
+                     r < 0 ? " (query failed)" : "");
+        }
+        esp_wifi_set_rssi_threshold(ROAM_RSSI);  // one event per crossing: arm it again
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         auto *ev = (wifi_event_sta_disconnected_t *) data;
+        if (ev->reason == WIFI_REASON_ROAMING) {
+            // moving to another radio of the same network: the supplicant reconnects
+            // by itself, and this is not a lost connection for the retry count or
+            // the setup-network clock
+            ESP_LOGI(TAG, "roaming to another access point");
+            return;
+        }
         // the reason codes are esp_wifi_types.h's wifi_err_reason_t (201 = AP not found, ...)
         if (s_connected || s_retries % 8 == 0)
             ESP_LOGW(TAG, "disconnected, reason %d, rssi %d (retry %d)", ev->reason, ev->rssi, s_retries + 1);
@@ -200,6 +230,10 @@ void start()
         // scan every channel and take the strongest, not the first to answer
         sta.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
         sta.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+        // 802.11k/v: answer the network's radio measurements and follow its
+        // transition requests, so a mesh can move the miner to a better radio
+        sta.sta.rm_enabled = 1;
+        sta.sta.btm_enabled = 1;
         esp_wifi_set_config(WIFI_IF_STA, &sta);
         g_state.status = SysStatus::Connecting;
     }

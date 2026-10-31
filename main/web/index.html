@@ -306,11 +306,13 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
   <p class="note" id="dustnote"></p>
   <div class="btns" id="dustbtn" style="display:none"><button class="btn sm" onclick="act('/api/dust','{}')">Done, I cleaned it</button></div></div>
 </div>
-<div class="grid g4">
+<div class="grid g2 mb">
  <div class="card"><h3>Auto-tune</h3><div class="tune"><span class="pill" id="tph">--</span><b id="tpt"></b></div><div class="sub" id="tnote" style="margin-top:8px"></div><div class="bar"><i id="tbar" style="background:var(--violet)"></i></div>
   <div class="kv" style="margin-top:12px"><div>Best point</div><div id="tbest">--</div><div>Steps tested</div><div id="tsteps">0</div></div></div>
  <div class="card"><h3>Pools <span class="tag" id="pmode">--</span></h3><div id="pmini"></div>
   <div class="kv" style="margin-top:10px"><div>Best diff</div><div id="pbest">--</div><div>Blocks found</div><div id="pblk">0</div><div title="ICMP ping to the pool in use, every 5 s. Loss over the last 20.">Network ping</div><div id="pnet">--</div><div title="From sending a share to the pool's answer, last share">Share response</div><div id="presp">--</div></div></div>
+</div>
+<div class="grid g2">
  <div class="card"><h3>Weather</h3><div class="wx"><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div></div>
  <div class="card"><h3>This miner</h3>
   <div class="kv"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Board</div><div id="kboard">--</div><div>Firmware</div><div id="kver">--</div></div></div>

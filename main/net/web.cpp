@@ -626,7 +626,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.fan_mode[1] = (uint8_t) get_int(j, "fmode1", c.fan_mode[1], 0, 1);
     c.fan_manual[0] = (uint8_t) get_int(j, "fman0", c.fan_manual[0], 20, 100);
     c.fan_manual[1] = (uint8_t) get_int(j, "fman1", c.fan_manual[1], 20, 100);
-    uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 2);
+    uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 3);
     if (theme != c.theme) {
         c.theme = theme;
         display::rebuild_ui();  // the screen UI is built with the theme's palette

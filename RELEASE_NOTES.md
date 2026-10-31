@@ -14,6 +14,7 @@ _Nothing yet._
 
 ### New
 - **Clean-heatsink reminder.** Over its first week the miner learns how warm the chips run and how hard the fan works at its usual power. After that it compares every week with the clean one, with the outdoor temperature from the weather page taken out, and tells you when dust is the likely cause: a Discord/Telegram message, *CLEAN HEATSINK* in place of *MINING* on the screen, and a card on the dashboard with a *Done, I cleaned it* button that starts the learning again.
+- **Spatial theme.** Deep space for the web UI and the screen: a near-black indigo sky with a slow-twinkling starfield, nebula glows, a ringed planet off the corner, glass cards (see-through with a thin outline) and starlight, violet and sky-blue accents. *Display → Theme*. On the screen the stars sit behind the cards; on the 128x32 OLED boards themes don't apply.
 - **Power bill & odds.** A dashboard card with the energy used today and since you started, what it cost at your electricity price (set it under *Tuning → Electricity price*, or the market price from the price mode is used), the cost per day at this power, and your chance of finding a block today, this month and this year at your hashrate.
 
 ### Overclocking, opt-in (#33) on per-board limits (#35)

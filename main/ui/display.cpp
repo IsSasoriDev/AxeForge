@@ -396,6 +396,7 @@ static void display_task(void *)
     lvgl_init();
     if (s_type == DisplayType::TDisplay) ui_small::build();
     else ui::build();
+    theme::decorate(lv_scr_act());
     display::set_brightness(settings::get().brightness);
     while (true) {
         if (s_pending_rot >= 0) {
@@ -417,6 +418,7 @@ static void display_task(void *)
             theme::apply_lvgl_theme(lv_disp_get_default());
             if (s_type == DisplayType::TDisplay) ui_small::build();
             else ui::build();
+            theme::decorate(lv_scr_act());
         }
         if (s_snap_req) {
             s_snap = lv_snapshot_take(lv_scr_act(), LV_IMG_CF_TRUE_COLOR);

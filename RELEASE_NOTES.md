@@ -7,6 +7,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ### Fixes
 - **The setup network after 5 minutes without Wi-Fi now actually appears.** Starting it (and Bluetooth setup with it) ran on the system event task, whose stack is too small for that, so the miner panicked and rebooted at the 5-minute mark instead, every 5 minutes, without ever showing `AxeForge-XXXX`. Found on a NerdQaxe++ rev6 with a router that refused the connection.
 - **The Ethernet row on the Network page only appears when an adapter is actually fitted.** It showed on every NerdQAxe-family miner because the header exists; now it follows the W5500 probe at boot, and reads "adapter fitted, no cable" when one is there but unplugged. `/api/status` gains `eth.present`.
+### Web UI
+- **System → Device shows the board**, and on the NerdQaxe++ the API's `board` now reads "NerdQaxe++ rev7 (TPS546)" rather than the revision alone, so Swarm names it like every other board.
 
 ## AxeForge v1.4.4
 

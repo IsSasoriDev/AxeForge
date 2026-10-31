@@ -384,7 +384,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
  <div class="console" id="console"></div></div>
 <div class="grid g2">
 <div class="card"><h3>Device</h3><div class="kv">
-<div>Firmware</div><div id="sver">--</div><div>Chips</div><div id="schips">--</div><div>Input</div><div id="svin">--</div>
+<div>Board</div><div id="sboard">--</div><div>Firmware</div><div id="sver">--</div><div>Chips</div><div id="schips">--</div><div>Input</div><div id="svin">--</div>
 <div>Power supply</div><div id="spsu">--</div><div>Core</div><div id="svout">--</div><div>VR fan</div><div id="sfan2">--</div><div>Free memory</div><div id="sheap">--</div><div>Uptime</div><div id="sup">--</div></div>
 <div class="btns" style="margin-top:14px"><button class="btn alt" onclick="act('/api/restart')">Reboot miner</button></div></div>
 <div class="card"><h3>Firmware update</h3>
@@ -525,7 +525,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
  $('nip').textContent=S.ip||'--';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'no adapter or no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
- $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
+ $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
  $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');

@@ -164,7 +164,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "vrSensor", AF_HAS_VR_SENSOR);
     cJSON_AddBoolToObject(r, "tempOk", s.temp_ok && s.vr_temp_ok);
 #if CONFIG_AF_BOARD_NERDQAXE
-    cJSON_AddStringToObject(r, "board", s.board_rev7 ? "rev7 (TPS546)" : "rev5.1/6 (TPS53647)");
+    cJSON_AddStringToObject(r, "board", s.board_rev7 ? AF_BOARD_NAME " rev7 (TPS546)" : AF_BOARD_NAME " rev5.1/6 (TPS53647)");
 #else
     cJSON_AddStringToObject(r, "board", AF_BOARD_NAME);
 #endif

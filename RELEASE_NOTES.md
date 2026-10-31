@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Web UI
+- **System → Device shows the board**, and on the NerdQaxe++ the API's `board` now reads "NerdQaxe++ rev7 (TPS546)" rather than the revision alone, so Swarm names it like every other board.
 
 ## AxeForge v1.4.4
 

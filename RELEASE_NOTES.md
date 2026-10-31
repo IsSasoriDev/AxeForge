@@ -9,6 +9,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - **The Ethernet row on the Network page only appears when an adapter is actually fitted.** It showed on every NerdQAxe-family miner because the header exists; now it follows the W5500 probe at boot, and reads "adapter fitted, no cable" when one is there but unplugged. `/api/status` gains `eth.present`.
 ### Web UI
 - **System → Device shows the board**, and on the NerdQaxe++ the API's `board` now reads "NerdQaxe++ rev7 (TPS546)" rather than the revision alone, so Swarm names it like every other board.
+### Dashboard
+- **One chart instead of two.** The hour chart and the "Last 24 hours" card are one chart with hashrate, temperature and power to choose from, a 1 h / 24 h switch, and a crosshair that shows the value and how long ago it was. `/api/history` now returns temperature and power next to the hashrate.
 
 ## AxeForge v1.4.4
 

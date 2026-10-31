@@ -314,7 +314,8 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
 </div>
 <div class="grid g2">
  <div class="card"><h3>Weather</h3><div class="wx"><div id="wxi" style="width:48px;height:48px;flex:none"></div><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div>
-  <div class="sub" id="wxd" style="margin-top:8px"></div></div>
+  <div class="sub" id="wxd" style="margin-top:8px"></div>
+  <div id="wxdays" style="display:flex;gap:10px;margin-top:12px"></div></div>
  <div class="card"><h3>This miner</h3>
   <div class="kv"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Board</div><div id="kboard">--</div><div>Firmware</div><div id="kver">--</div></div></div>
 </div>
@@ -658,7 +659,9 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const N=S.net||{};$('pnet').innerHTML=N.rttMs?`<b>${N.rttMs.toFixed(0)}</b> ms`+(N.lossPct?` · <b style="color:var(--${N.lossPct>=10?'red':'orange'})">${N.lossPct.toFixed(0)}%</b> loss`:' · no loss'):(N.target?'no answer':'--');
  const ap=S.pools.find(p=>p.enabled&&p.connected&&p.pingMs);$('presp').innerHTML=ap?`<b>${ap.pingMs}</b> ms`+(S.pools.filter(p=>p.enabled).length>1?` <span class="meta">${esc(ap.host)}</span>`:''):'--';
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxi').innerHTML=w.valid?wxIcon(w.code,w.isDay):'';
- $('wxd').innerHTML=w.valid?`L <b>${w.tmin.toFixed(0)}°</b> H <b>${w.tmax.toFixed(0)}°</b> · feels ${w.feels.toFixed(0)}° · ${w.humidity}% hum · ${w.wind.toFixed(0)} ${cfg.fahr?'mph':'km/h'}`:'';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
+ $('wxd').innerHTML=w.valid?`L <b>${w.tmin.toFixed(0)}°</b> H <b>${w.tmax.toFixed(0)}°</b> · feels ${w.feels.toFixed(0)}° · ${w.humidity}% hum · ${w.wind.toFixed(0)} ${cfg.fahr?'mph':'km/h'}`:'';
+ const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],d0=new Date().getDay();
+ $('wxdays').innerHTML=w.valid&&w.days?w.days.map((d,i)=>`<div style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--track)"><span style="width:28px;height:28px;flex:none">${wxIcon(d.code,true).replace('width="48" height="48"','width="28" height="28"')}</span><div><div class="meta">${i?DN[(d0+i)%7]:'Today'}</div><div><b>${d.tmax.toFixed(0)}°</b> <span class="meta">${d.tmin.toFixed(0)}°</span></div></div></div>`).join(''):'';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').innerHTML=S.rssi?wifiSig(S.rssi):S.eth?.up?'Ethernet':'--';$('kboard').textContent=S.board||'--';$('kver').textContent=S.version;
  $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').innerHTML=S.rssi?wifiSig(S.rssi):'--';$('npmf').textContent=S.pmf===undefined?'--':S.pmf?'yes (802.11w)':'no, the router doesn\'t offer them';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';

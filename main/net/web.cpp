@@ -420,6 +420,14 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(wx, "wind", w.wind);
     cJSON_AddNumberToObject(wx, "tmin", w.days[0].tmin);  // today's range
     cJSON_AddNumberToObject(wx, "tmax", w.days[0].tmax);
+    cJSON *days = cJSON_AddArrayToObject(wx, "days");  // today and the next two
+    for (int i = 0; i < 3; i++) {
+        cJSON *d = cJSON_CreateObject();
+        cJSON_AddNumberToObject(d, "code", w.days[i].code);
+        cJSON_AddNumberToObject(d, "tmin", w.days[i].tmin);
+        cJSON_AddNumberToObject(d, "tmax", w.days[i].tmax);
+        cJSON_AddItemToArray(days, d);
+    }
     cJSON_AddStringToObject(wx, "error", w.error);
     return send_json(req, r);
 }

@@ -1,0 +1,22 @@
+name = "Bitaxe Max"
+id = "max"
+kconfig = "AF_BOARD_BITAXE_MAX"
+family = "bitaxe"
+
+[asic]
+chip = "bm1397"
+count = 1
+job_interval_ms = 30      # four midstates scan the whole space in ~40 ms at 425 MHz
+diff_min = 64
+diff_max = 256
+
+[regulator]
+ds4432u = true
+ds4432u_diode = true      # the chip's diode is wired to the EMC2101 on the Max
+
+[sensors]
+emc2101 = true
+
+[stock]
+freq_mhz = 425            # reference firmware defaults
+mv = 1400

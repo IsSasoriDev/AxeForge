@@ -1,0 +1,17 @@
+# The Hex boards (board_suprahex.cpp): 6 chips in 3 stacked domains on one
+# TPS546, EMC2302 fans, two TMP1075s, 128x32 OLED. Only the chip differs.
+keep_stock_nvs = true
+
+[asic]
+count = 6
+voltage_domains = 3
+
+[pins]
+i2c_sda = 47
+i2c_scl = 48
+
+[display]
+lcd = false               # 128x32 SSD1306 OLED instead
+
+[stock]
+fan_min_pct = 45          # two board sensors for six chips: keep real airflow over the unsensed ones

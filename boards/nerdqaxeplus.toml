@@ -1,0 +1,19 @@
+name = "NerdQAxe+"
+id = "nerdqaxeplus"
+kconfig = "AF_BOARD_NERDQAXEPLUS"
+family = "nerdq"
+
+[asic]
+chip = "bm1368"
+count = 4
+job_interval_ms = 1200
+diff_min = 256
+diff_max = 1024
+
+[regulator]
+phases = 2
+init_mv = 1250
+
+[stock]
+freq_mhz = 490            # BM1368 stock point
+mv = 1250

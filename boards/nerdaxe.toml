@@ -1,0 +1,28 @@
+name = "NerdAxe"
+id = "nerdaxe"
+kconfig = "AF_BOARD_NERDAXE"
+keep_stock_nvs = true
+
+[asic]
+chip = "bm1366"
+count = 1
+job_interval_ms = 1500    # NerdAxe reference cadence
+# one small chip: a lower ticket difficulty keeps results coming every few seconds
+diff_min = 64
+diff_max = 256
+
+[pins]
+i2c_sda = 44
+i2c_scl = 43
+
+[display]
+lcd = true                # the ESP32 is a LilyGo T-Display-S3
+
+[regulator]
+vr_sensor = false         # nothing reads the TPS40305
+
+[stock]
+freq_mhz = 485            # BM1366 stock point
+mv = 1200
+display_type = 1          # T-Display-S3
+rotate_180 = true         # mounted the other way round than on the NerdQaxe++

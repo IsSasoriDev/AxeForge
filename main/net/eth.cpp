@@ -28,6 +28,7 @@ static const char *TAG = "eth";
 #define W5500_VERSIONR 0x0039
 #define W5500_VERSION 0x04
 
+static bool s_present = false;
 static bool s_up = false;
 static char s_ip[16] = "";
 
@@ -94,6 +95,7 @@ void start()
         return;
     }
     ESP_LOGW(TAG, "W5500 Ethernet adapter found");
+    s_present = true;
 
     spi_device_interface_config_t dev = {};
     dev.mode = 0;
@@ -127,6 +129,7 @@ void start()
     esp_eth_start(h);
 }
 
+bool present() { return s_present; }
 bool up() { return s_up; }
 const char *ip() { return s_ip; }
 
@@ -135,6 +138,7 @@ const char *ip() { return s_ip; }
 #else
 namespace eth {
 void start() {}
+bool present() { return false; }
 bool up() { return false; }
 const char *ip() { return ""; }
 }

@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Network
+- **The miner joins the strongest access point of its network, not the first to answer.** With a mesh or an extender broadcasting the same name, a miner could sit on a far radio at -80 dBm with a near one at -50 dBm in the same room. It now scans every channel and picks by signal, and the log says which access point and channel it joined.
 
 ## AxeForge v1.4.5
 

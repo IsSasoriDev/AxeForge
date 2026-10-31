@@ -1,0 +1,19 @@
+name = "Bitaxe Gamma"
+id = "gamma"
+kconfig = "AF_BOARD_BITAXE_GAMMA"
+family = "bitaxe"
+
+[asic]
+chip = "bm1370"
+count = 1
+diff_min = 256
+diff_max = 1024
+
+[sensors]
+emc2101 = true
+emc_ideality = 0x24       # BM1370 diode model (reference firmware)
+emc_beta = 0x00
+
+[stock]
+freq_mhz = 525
+mv = 1150

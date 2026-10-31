@@ -1,0 +1,26 @@
+name = "NerdOctaxe-γ"
+id = "nerdoctaxegamma"
+kconfig = "AF_BOARD_NERDOCTAXEGAMMA"
+family = "nerdq"
+
+[asic]
+chip = "bm1370"
+count = 8
+diff_min = 1024
+diff_max = 4096
+
+[regulator]
+phases = 4                # TPS53647; a TPS53667 (rev3.0+, GPIO3 strapped high) runs 6
+imax_a = 180
+ifault_a = 160
+init_mv = 0               # power up straight at the target voltage
+detect_tps53667 = true
+
+[sensors]
+tmp451_muxes = 2          # per-chip die temperature, ASICs 0-3 at 0x4c, 4-7 at 0x4e
+tmp451_pin_a1 = 12
+proxy_die_offset_c = 10.0 # older boards without the muxes: board sensor + 10 C
+
+[stock]
+freq_mhz = 600
+mv = 1150

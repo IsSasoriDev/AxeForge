@@ -1,0 +1,21 @@
+name = "Bitaxe Ultra"
+id = "ultra"
+kconfig = "AF_BOARD_BITAXE_ULTRA"
+family = "bitaxe"
+
+[asic]
+chip = "bm1366"
+count = 1
+job_interval_ms = 1500    # one BM1366, as the NerdAxe
+diff_min = 64
+diff_max = 256
+
+[regulator]
+ds4432u = true            # rev 201-205; the 207 has a TPS546
+
+[sensors]
+emc2101 = true
+
+[stock]
+freq_mhz = 485            # reference firmware defaults
+mv = 1200

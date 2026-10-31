@@ -11,6 +11,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - **System → Device shows the board**, and on the NerdQaxe++ the API's `board` now reads "NerdQaxe++ rev7 (TPS546)" rather than the revision alone, so Swarm names it like every other board.
 ### Dashboard
 - **One chart instead of two.** The hour chart and the "Last 24 hours" card are one chart with hashrate, temperature and power to choose from, a 1 h / 24 h switch, and a crosshair that shows the value and how long ago it was. `/api/history` now returns temperature and power next to the hashrate.
+### Build
+- **One file per board.** What the firmware knows about a board (chips, pins, regulator, sensors, stock point) is in `boards/<id>.toml`, turned into the old `core/board_config.h` at build time by `tools/gen_board.py`. Same macros, same binaries; adding a board or changing one no longer means finding its `#elif` in a 300-line header and its stock point in `settings.cpp`. See `boards/README.md`.
 
 ## AxeForge v1.4.4
 

@@ -1,0 +1,12 @@
+# The other Bitaxes (board_bitaxe.cpp): one regulator, a TPS546 (or a stack of
+# them), or on the Supra 400/401 and Ultra 201-205 the 5 V DS4432U path, found at
+# boot. One EMC2101/EMC2103 for the fan and the chip diodes. Board numbers and
+# values from the reference firmware's device_config.h.
+keep_stock_nvs = true     # flashed over AxeOS: take over its Wi-Fi, pools and board settings
+
+[pins]
+i2c_sda = 47
+i2c_scl = 48
+
+[display]
+lcd = false               # 128x32 SSD1306 OLED

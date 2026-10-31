@@ -1,0 +1,14 @@
+name = "Bitaxe Ultra Hex"
+id = "ultrahex"
+kconfig = "AF_BOARD_ULTRAHEX"
+family = "hex"
+
+[asic]
+chip = "bm1366"
+job_interval_ms = 250     # reference firmware: BM1366 timeout 2000 ms / next power of two of the chips
+diff_min = 256
+diff_max = 1024
+
+[stock]
+freq_mhz = 485            # BM1366 stock point
+mv = 1200

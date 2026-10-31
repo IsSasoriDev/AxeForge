@@ -183,80 +183,13 @@ void load()
     strcpy(s.pools[0].url, "public-pool.io");
     s.pools[0].port = 21496;
     s.pools[0].enabled = true;
-#if CONFIG_AF_BOARD_NERDAXE
-    s.freq_mhz = 485;  // BM1366 stock point
-    s.core_mv = 1200;
-    s.display_type = 1;  // T-Display-S3
-    s.rotate_180 = true; // mounted the other way round than on the NerdQaxe++
-#endif
-#if CONFIG_AF_BOARD_NERDQAXEPLUS || CONFIG_AF_BOARD_NERDOCTAXEPLUS
-    s.freq_mhz = 490;  // BM1368 stock point
-    s.core_mv = 1250;
-#endif
-#if CONFIG_AF_BOARD_NERDOCTAXEGAMMA
-    s.freq_mhz = 600;
-    s.core_mv = 1150;
-#endif
-#if CONFIG_AF_BOARD_NERDQX
-    s.freq_mhz = 777;  // reference firmware default
-    s.core_mv = 1200;
-    s.rotate_180 = true;
-#endif
-#if CONFIG_AF_BOARD_BITAXE_SUPRA
-    s.freq_mhz = 490;  // reference firmware defaults
-    s.core_mv = 1166;
-#endif
-#if CONFIG_AF_BOARD_BITAXE_GAMMA
-    s.freq_mhz = 525;
-    s.core_mv = 1150;
-#endif
-#if CONFIG_AF_BOARD_BITAXE_ULTRA
-    s.freq_mhz = 485;  // reference firmware defaults
-    s.core_mv = 1200;
-#endif
-#if CONFIG_AF_BOARD_HX6
-    s.freq_mhz = 525;  // BM1370 stock point: about 6.4 TH/s on six chips
-    s.core_mv = 1150;
-    s.display_type = 1;  // the 320x170 screen layout, on its 2.8in panel
-#endif
-#if CONFIG_AF_BOARD_BITAXE_MAX
-    s.freq_mhz = 425;  // reference firmware defaults
-    s.core_mv = 1400;
-#endif
-#if CONFIG_AF_BOARD_GAMMA_DUO
-    s.freq_mhz = 400;  // its chips are the BM1370 XP bin
-    s.core_mv = 1150;
-#endif
-#if CONFIG_AF_BOARD_BITAXE_GT
-    s.freq_mhz = 525;
-    s.core_mv = 1150;
-#endif
-#if CONFIG_AF_BOARD_GAMMA_HEX
-    s.freq_mhz = 690;
-    s.core_mv = 1200;
-    s.display_type = 1;  // ST7789 320x170, the T-Display-S3 screen
-    s.rotate_180 = true; // mounted the other way up (reference display_flip)
-#endif
-#if CONFIG_AF_BOARD_NAJA
-    s.freq_mhz = 327;
-    s.core_mv = 1000;
-    s.display_type = 1;  // ST7789 320x170, the T-Display-S3 screen
-#endif
-#if AF_HEX_FAMILY
-#if CONFIG_AF_BOARD_ULTRAHEX
-    s.freq_mhz = 485;  // BM1366 stock point
-    s.core_mv = 1200;
-#else
-    s.freq_mhz = 490;  // BM1368 stock point
-    s.core_mv = 1166;
-#endif
-    // two board sensors for six chips: keep real airflow over the unsensed ones
-    s.fan_min_pct = 45;
-#endif
-#if CONFIG_AF_BOARD_NEXUS
-    s.freq_mhz = 450;  // the Nexus S1's stock point
-    s.core_mv = 950;
-    s.display_type = 1;  // T-Display-S3 panel
+    // the board's stock point and screen, from its boards/<id>.toml
+    s.freq_mhz = AF_STOCK_FREQ_MHZ;
+    s.core_mv = AF_STOCK_MV;
+    s.display_type = AF_STOCK_DISPLAY;
+    s.rotate_180 = AF_STOCK_ROTATE_180;
+#ifdef AF_STOCK_FAN_MIN_PCT
+    s.fan_min_pct = AF_STOCK_FAN_MIN_PCT;
 #endif
 
     if (nvs_open("axeforge", NVS_READONLY, &h) != ESP_OK) {

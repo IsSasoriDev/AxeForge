@@ -1,0 +1,32 @@
+name = "Bitaxe Gamma Hex"
+id = "gammahex"
+kconfig = "AF_BOARD_GAMMA_HEX"
+family = "bitaxe"
+
+[asic]
+chip = "bm1370"
+count = 6
+voltage_domains = 2       # 3 chips per domain, four stacked TPS546s
+en_active_high = true
+diff_min = 1024
+diff_max = 4096
+
+[pins]
+i2c_sda = 44              # "color" board, as the Naja: ST7789 LCD, I2C on 44/43
+i2c_scl = 43
+
+[display]
+lcd = true
+color_board = true
+
+[sensors]
+emc2103 = true
+emc_flip = true
+emc_direct_pwm = true
+power_offset_w = 25.0
+
+[stock]
+freq_mhz = 690
+mv = 1200
+display_type = 1          # ST7789 320x170, the T-Display-S3 screen
+rotate_180 = true         # mounted the other way up (reference display_flip)

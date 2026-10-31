@@ -106,7 +106,7 @@ background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),line
 .wd .rs{position:absolute;right:2px;bottom:2px;width:14px;height:14px;cursor:nwse-resize;border-right:3px solid var(--cyan);border-bottom:3px solid var(--cyan);border-radius:0 0 6px 0;opacity:.7}
 .pal{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:330px;overflow-y:auto}.pal button{all:unset;cursor:pointer;padding:7px 8px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:600}
 .pal button:hover{border-color:var(--cyan)}
-.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}.seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:7px;font-weight:700;font-size:13px;color:var(--dim)}.seg button.on{background:var(--cyan);color:#001318}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px}.seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:7px;font-weight:700;font-size:13px;color:var(--dim)}.seg button.on{background:var(--cyan);color:#001318}.seg.xs{border-radius:8px;padding:2px}.seg.xs button{padding:3px 9px;font-size:11px;border-radius:6px}
 /* logs */
 .console{background:var(--console);border:1px solid var(--line);border-radius:10px;height:420px;overflow:auto;padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
 .console .lt{color:var(--dim)}.console .E{color:var(--red)}.console .W{color:var(--orange)}.console .I{color:#9fb0c6}.console .D{color:var(--dim)}
@@ -126,6 +126,42 @@ main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 #swt th:nth-child(2),#swt td:nth-child(2),#swt th:nth-child(n+6):not(:last-child),#swt td:nth-child(n+6):not(:last-child){display:none}
 #swt{font-size:13px}#swt td,#swt th{padding:8px 4px}#swt .sub{white-space:normal}}
 
+/* ---------- Spatial: deep space. Nebula glow, a slow starfield, a ringed planet off the corner. */
+html[data-theme=spatial]{--bg:#03040b;--bg2:#070a1c;--panel:rgba(255,255,255,.035);--panel2:rgba(255,255,255,.07);--pend:rgba(255,255,255,.015);
+--line:rgba(200,210,255,.22);--text:#e9ecff;--dim:#9aa2c9;--cyan:#7dd3fc;--mag:#c084fc;--green:#6ee7b7;--orange:#fbbf72;--red:#fb7185;
+--violet:#a78bfa;--input:rgba(5,7,22,.55);--navbg:rgba(6,8,24,.4);--console:#02030a;--glow:#1d1650;
+--g1:#7dd3fc;--g2:#c084fc;--chart:#a5b4fc;--track:rgba(150,160,255,.17);--axis:#9aa2c9}
+html[data-theme=spatial] body{background:
+ radial-gradient(900px 520px at 85% -8%,rgba(124,58,237,.30),transparent 62%),
+ radial-gradient(700px 480px at 5% 105%,rgba(14,165,233,.20),transparent 60%),
+ radial-gradient(520px 380px at 45% 55%,rgba(192,132,252,.09),transparent 70%),
+ linear-gradient(#03040b,#070a1c) fixed}
+html[data-theme=spatial] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+ background-image:
+  radial-gradient(1px 1px at 23px 41px,#fff,transparent),radial-gradient(1px 1px at 131px 87px,rgba(255,255,255,.8),transparent),
+  radial-gradient(1px 1px at 197px 163px,rgba(199,210,254,.9),transparent),radial-gradient(1px 1px at 61px 199px,rgba(255,255,255,.6),transparent),
+  radial-gradient(1.5px 1.5px at 91px 23px,#fff,transparent),radial-gradient(1px 1px at 167px 211px,rgba(253,230,138,.8),transparent),
+  radial-gradient(1px 1px at 311px 57px,rgba(255,255,255,.7),transparent),radial-gradient(2px 2px at 257px 293px,rgba(199,210,254,.95),transparent),
+  radial-gradient(1px 1px at 353px 251px,#fff,transparent),radial-gradient(1.5px 1.5px at 29px 331px,rgba(255,255,255,.85),transparent);
+ background-size:233px 233px,233px 233px,233px 233px,233px 233px,377px 377px,377px 377px,377px 377px,610px 610px,610px 610px,610px 610px;
+ animation:twinkle 7s ease-in-out infinite alternate}
+html[data-theme=spatial] body::after{content:"";position:fixed;right:-140px;bottom:-150px;width:460px;height:460px;z-index:-1;pointer-events:none;opacity:.55;
+ background:
+  radial-gradient(ellipse 228px 44px at 50% 50%,transparent 80%,rgba(216,180,254,.5) 86%,rgba(125,211,252,.3) 92%,transparent 98%),
+  radial-gradient(circle 64px at 42% 40%,rgba(237,233,254,.55),transparent),
+  radial-gradient(circle 140px at 50% 50%,#8b5cf6 0,#5b21b6 45%,#2e1065 78%,#1e1b4b 96%,transparent 100%);
+ transform:rotate(-16deg)}
+@keyframes twinkle{from{opacity:.55}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){html[data-theme=spatial] body::before{animation:none}}
+html[data-theme=spatial] .card,html[data-theme=spatial] .pool{background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.015));
+ backdrop-filter:blur(10px) saturate(120%);-webkit-backdrop-filter:blur(10px) saturate(120%);border:1px solid rgba(200,210,255,.22);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+html[data-theme=spatial] nav{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-right:1px solid rgba(200,210,255,.14)}
+html[data-theme=spatial] nav button.on{background:linear-gradient(90deg,rgba(167,139,250,.22),transparent);color:#c4b5fd;box-shadow:inset 3px 0 #a78bfa}
+html[data-theme=spatial] .logo b{color:#7dd3fc}html[data-theme=spatial] .logo i{color:#c084fc}
+html[data-theme=spatial] .btn{background:linear-gradient(135deg,#818cf8,#a78bfa 55%,#c084fc);color:#0b0a24;border:0}
+html[data-theme=spatial] .btn.alt{background:transparent;color:#c4b5fd;border:1px solid rgba(167,139,250,.6)}
+html[data-theme=spatial] .btn.warn{background:var(--red);color:#fff;border:0}
 /* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
 html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a1f;--pend:#131316;--line:#232328;--text:#ededef;--dim:#9a9aa3;
 --cyan:#f7931a;--mag:#ffb35c;--green:#3ecf8e;--orange:#e3b341;--red:#f0564a;--violet:#f7931a;--input:#0a0a0b;--navbg:rgba(10,10,11,.88);--console:#070708;--glow:#2a1906;
@@ -199,6 +235,7 @@ html[data-theme=paper] .pill{background:transparent}
 <main>
 <header><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="meta" id="up"></span></header>
 <div class="banner" id="fault"></div>
+<div class="banner" id="ocban" style="display:none;background:var(--orange);color:#000">Overclocked: the tuner and manual settings may go past this board's stock limits. Tuning → Overclock to go back.</div>
 
 <!-- ============================== DASHBOARD -->
 <section id="dash" class="on">
@@ -211,7 +248,10 @@ html[data-theme=paper] .pill{background:transparent}
   <text x="110" y="112" text-anchor="middle" class="v" id="hrv">--</text>
   <text x="110" y="138" text-anchor="middle" class="u" id="hru">TH/s</text>
   <text x="110" y="196" text-anchor="middle" class="s" id="hrs"></text></svg></div>
- <div class="card"><h3>Hashrate · last hour <span class="tag" id="eff">--</span></h3><svg class="chart" id="chart" preserveAspectRatio="none"></svg></div>
+ <div class="card"><h3><span id="ctitle">Hashrate · last hour</span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+  <span class="seg xs" id="metseg"><button data-m="hashrate" class="on">Hashrate</button><button data-m="temp">Temp</button><button data-m="power">Power</button></span>
+  <span class="seg xs" id="rangeseg"><button data-r="hour" class="on">1 h</button><button data-r="day">24 h</button></span></span></h3>
+  <svg class="chart" id="chart" preserveAspectRatio="none"></svg><p class="note" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span id="cnote"></span><span class="tag" id="eff">--</span></p></div>
 </div>
 <div class="grid g4 mb">
  <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="big" id="ct">--</div><div class="sub" id="cts"></div><div class="bar"><i id="ctb" style="background:var(--orange)"></i></div></div>
@@ -231,8 +271,16 @@ html[data-theme=paper] .pill{background:transparent}
   <div class="sub" style="margin-top:8px" id="lhn"></div></div>
 </div>
 <div class="grid g2 mb">
- <div class="card"><h3>Last 24 hours <span class="seg" id="dayseg"><button data-m="hashrate" class="on">Hashrate</button><button data-m="temp">Temp</button><button data-m="power">Power</button></span></h3>
-  <svg class="chart" id="daychart" preserveAspectRatio="none"></svg><p class="note" id="daynote" style="margin-top:6px"></p></div>
+ <div class="card"><h3>Power bill &amp; odds <span class="tag" id="enfrom">--</span></h3>
+  <div class="kv"><div>Today</div><div id="entoday">--</div><div>Per day at this power</div><div id="enday">--</div><div>Since <span id="ensince">--</span></div><div id="entotal">--</div>
+  <div>Block today</div><div id="odday">--</div><div>Block this month</div><div id="odmonth">--</div><div>Block this year</div><div id="odyear">--</div><div>One block every</div><div id="odevery">--</div></div>
+  <p class="note" id="ennote"></p></div>
+ <div class="card"><h3>Heatsink <span class="tag" id="dustst">learning</span></h3>
+  <div class="kv"><div>Chips</div><div id="dustt">--</div><div>Fan</div><div id="dustf">--</div></div>
+  <p class="note" id="dustnote"></p>
+  <div class="btns" id="dustbtn" style="display:none"><button class="btn sm" onclick="act('/api/dust','{}')">Done, I cleaned it</button></div></div>
+</div>
+<div class="mb">
  <div class="card"><h3>Best shares <span class="tag" id="scorecount">--</span></h3>
   <div style="overflow-x:auto"><table class="tbl" id="scores"></table></div>
   <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="resetScores()">Clear list</button><span class="meta">Kept across reboots.</span></div></div>
@@ -295,10 +343,13 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div id="pzrow"><label>Bidding zone</label><input name="pricezone" list="zones" placeholder="DE-LU"><datalist id="zones"><option>AT</option><option>BE</option><option>BG</option><option>CH</option><option>CZ</option><option>DE-LU</option><option>DK1</option><option>DK2</option><option>EE</option><option>ES</option><option>FI</option><option>FR</option><option>GR</option><option>HR</option><option>HU</option><option>IT-North</option><option>LT</option><option>LV</option><option>NL</option><option>NO1</option><option>NO2</option><option>PL</option><option>PT</option><option>RO</option><option>RS</option><option>SE3</option><option>SE4</option><option>SI</option><option>SK</option></datalist></div>
 <div><label>Stop above <span id="punit">ct/kWh</span></label><input name="pricemax" type="number" step="0.01"></div></div>
 <div class="row" id="purlrow"><div><label>URL</label><input name="priceurl" placeholder="https://example.com/price.json"></div><div><label>Path to the number</label><input name="pricepath" placeholder="e.g. data.price or 0.value"></div></div>
-<p class="note" id="pnote"></p><div class="pbars" id="pbars"></div><p class="note" id="pinfo"></p></div>
+<p class="note" id="pnote"></p><div class="pbars" id="pbars"></div><p class="note" id="pinfo"></p>
+<div class="row" style="margin-top:12px"><div><label>Your electricity price (per kWh)</label><input name="eprice" type="number" min="0" step="0.001" placeholder="0 = market price above"></div>
+<div><label>Currency</label><input name="currency" maxlength="4" placeholder="€"></div></div>
+<p class="note">For the power bill card on the dashboard. With no price of your own, the Energy-Charts market price above is used while the price mode is on (wholesale, without taxes and fees).</p></div>
 <div class="card"><h3>Manual point / tuner start</h3><div class="row">
-<div><label>Frequency (MHz) <span class="rv" id="fv"></span></label><input type="range" name="freq" min="400" max="750" step="6.25" oninput="fv.textContent=this.value"></div>
-<div><label>Core voltage (mV) <span class="rv" id="mvv"></span></label><input type="range" name="mv" min="1100" max="1300" step="10" oninput="mvv.textContent=this.value"></div></div>
+<div><label>Frequency (MHz)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="freq" min="400" max="750" step="1" style="flex:1" oninput="fnum.value=this.value"><input type="number" id="fnum" min="400" max="750" step="1" style="width:84px" oninput="this.form.freq.value=this.value"></div></div>
+<div><label>Core voltage (mV)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="mv" min="1100" max="1300" step="5" style="flex:1" oninput="mvnum.value=this.value"><input type="number" id="mvnum" min="1100" max="1300" step="5" style="width:84px" oninput="this.form.mv.value=this.value"></div></div></div>
 <p class="note">Used directly when auto-tune is off, and as the starting point when a new search begins.</p></div>
 <div class="card"><h3>Cooling</h3><div class="row">
 <div><label>Target chip temp (°C) <span class="rv" id="ftv"></span></label><input type="range" name="fantgt" min="40" max="70" oninput="ftv.textContent=this.value"></div>
@@ -314,6 +365,9 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div id="vrrow"><label>Version-rolling speed (Hz)</label><input name="vrhz" type="number" min="0" max="100000" step="500" placeholder="board default"></div></div>
 <p class="note">0 keeps the board's default. A longer job interval means fewer jobs and slightly more stale work; shorter means more UART traffic. Version-rolling speed exists on BM1370 boards only and is written to the chips right away.</p></div>
 <div class="card"><h3>Hard limits (compiled in)</h3><div class="lim" id="lims"></div></div>
+<div class="card"><h3>Overclock <span class="tag" id="ocst">--</span></h3>
+<p class="note" style="margin-top:0" id="ocnote"></p>
+<div class="btns"><button type="button" class="btn alt" id="ocbtn" onclick="ocToggle()">--</button></div></div>
 <div class="btns"><button class="btn">Save tuning</button><button type="button" class="btn alt" onclick="act('/api/retune')">Restart auto-tune search</button></div></form></section>
 
 <!-- ============================== DISPLAY -->
@@ -337,7 +391,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <form data-f><div class="card"><h3>Screen settings</h3>
 <label style="margin-top:0">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
-<label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option></select>
+<label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">Spatial: deep space, stars and planets</option></select>
 <label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <label>Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
 <div class="row"><div><label>Start page</label><select name="defpage" id="defpage"></select></div>
@@ -371,7 +425,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect for 5 minutes, it opens the AxeForge-XXXX setup network, with the password shown on the miner's screen.</p></div>
 <div class="card"><h3>Other connections</h3>
 <div class="kv" id="ethrow"><div>Ethernet</div><div id="neth">--</div></div>
-<p class="note" id="ethnote">A W5500 Ethernet adapter on the NerdQAxe header is found at boot. With a cable plugged in, the miner gets an address over the wire as well, and the setup Wi-Fi stays closed.</p>
+<p class="note" id="ethnote">A W5500 Ethernet adapter on the NerdQAxe header was found at boot. With a cable plugged in, the miner gets an address over the wire as well, and the setup Wi-Fi stays closed.</p>
 <div class="switch"><div><b>Bluetooth setup</b><span>While the setup network is open, the miner can also be set up with the free "ESP BLE Provisioning" app (it shows up as PROV_AXEFORGE_XXXX). Bluetooth turns off once Wi-Fi works.</span></div><input class="tg" type="checkbox" name="blesetup"></div>
 <div class="switch" id="baprow"><div><b>Accessory port</b><span>Lets add-ons made for AxeOS (displays, controllers) read and set the miner over the Bitaxe accessory header. Changing it reboots.</span></div><input class="tg" type="checkbox" name="bap"></div></div>
 <div class="btns"><button class="btn">Save Wi-Fi</button></div></form></section>
@@ -384,7 +438,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
  <div class="console" id="console"></div></div>
 <div class="grid g2">
 <div class="card"><h3>Device</h3><div class="kv">
-<div>Firmware</div><div id="sver">--</div><div>Chips</div><div id="schips">--</div><div>Input</div><div id="svin">--</div>
+<div>Board</div><div id="sboard">--</div><div>Firmware</div><div id="sver">--</div><div>Chips</div><div id="schips">--</div><div>Input</div><div id="svin">--</div>
 <div>Power supply</div><div id="spsu">--</div><div>Core</div><div id="svout">--</div><div>VR fan</div><div id="sfan2">--</div><div>Free memory</div><div id="sheap">--</div><div>Uptime</div><div id="sup">--</div></div>
 <div class="btns" style="margin-top:14px"><button class="btn alt" onclick="act('/api/restart')">Reboot miner</button></div></div>
 <div class="card"><h3>Firmware update</h3>
@@ -497,7 +551,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*(S.smallCores||2040)*(S.asicCount||4)/1000));
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status;st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
- $('fault').style.display=S.fault?'block':'none';$('fault').textContent='⚠ '+S.fault;
+ $('fault').style.display=S.fault?'block':'none';$('ocban').style.display=S.overclocked?'block':'none';$('fault').textContent='⚠ '+S.fault;
  $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
  $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
  $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
@@ -524,10 +578,10 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
- $('nip').textContent=S.ip||'--';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'no adapter or no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
- $('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
+ $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
+ $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
- $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);
+ $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);energyLive(S.energy);dustLive(S.dust);
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
  if(navv!==S.ip+S.version){navv=S.ip+S.version;
   // release builds link to their tag's source, local and dev builds to the repo
@@ -535,24 +589,12 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
   $('navfoot').innerHTML=esc(S.ip||'')+` · <a href="${src}" target="_blank" rel="noopener" title="Source code">v${esc(S.version)}</a>`;}
  $('edsmall').style.display=S.screen=='tdisplay'?'':'none';
  if(cur=='pools')poolLive()}
-async function chart(){let h;try{h=await (await fetch('/api/history')).json()}catch(e){return}
- const c=$('chart'),W=c.clientWidth||600,H=c.clientHeight||150,pts=h.map((v,i)=>[i/(h.length-1)*W,v]).filter(p=>p[1]>0);
- if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" style="fill:var(--axis)" text-anchor="middle" font-size="12">Collecting data — first point after 30 s</text>`;return}
- const mx=Math.max(...pts.map(p=>p[1]))*1.08,mn=Math.min(...pts.map(p=>p[1]))*.92,y=v=>H-6-(v-mn)/(mx-mn||1)*(H-16);
- const line=pts.map(p=>`${p[0].toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
- c.setAttribute('viewBox',`0 0 ${W} ${H}`);
- c.innerHTML=`<defs><linearGradient id="cf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--chart)" stop-opacity=".35"/><stop offset="1" style="stop-color:var(--chart)" stop-opacity="0"/></linearGradient></defs>
- ${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" style="stroke:var(--track)"/>`).join('')}
- <polygon points="${pts[0][0]},${H} ${line} ${pts[pts.length-1][0]},${H}" fill="url(#cf)"/>
- <polyline points="${line}" fill="none" style="stroke:var(--chart)" stroke-width="2.2" stroke-linejoin="round" filter="url(#glow)"/>
- <text x="${W-4}" y="12" style="fill:var(--axis)" font-size="11" text-anchor="end">${hr(mx/1.08).join(' ')}</text>`}
-
 /* ---------------- generic settings forms */
 function fanText(S){const f=(S.fans||[]).filter(x=>x.connected);
  return f.length?f.length+(f.length>1?' fans · ':' fan · ')+f.map(x=>x.rpm).join(' / ')+' rpm':'no fan detected'}
 function fanStatus(){(S.fans||[]).forEach((f,i)=>{const e=$('fan'+(i+1)+'st');if(e)e.textContent=f.connected?`connected · ${f.rpm} rpm at ${f.speedPerc}%`:'nothing connected'})}
-function setTheme(t){const n=t==1?'paper':t==2?'ember':'';document.documentElement.dataset.theme=n;try{localStorage.setItem('af-theme',n)}catch(e){}
- document.querySelector('meta[name=theme-color]').content=t==1?'#f3f1ea':t==2?'#0a0a0b':'#070a10'}
+function setTheme(t){const n=t==1?'paper':t==2?'ember':t==3?'spatial':'';document.documentElement.dataset.theme=n;try{localStorage.setItem('af-theme',n)}catch(e){}
+ document.querySelector('meta[name=theme-color]').content=t==1?'#f3f1ea':t==2?'#0a0a0b':t==3?'#03040b':'#070a10'}
 /* ---------------- swarm */
 let SW=null;
 async function loadSwarm(){try{SW=await (await fetch('/api/swarm')).json()}catch(e){return}
@@ -576,12 +618,12 @@ async function swScan(){await act('/api/swarm',JSON.stringify({scan:true}));load
 setInterval(()=>{if(cur=='swarm'&&!document.hidden)loadSwarm()},5000);
 async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setTheme(cfg.theme);
  document.querySelectorAll('form[data-f] [name]').forEach(e=>{const v=cfg[e.name];if(v===undefined)return;if(e.type=='checkbox')e.checked=!!v;else e.value=v;e.dispatchEvent(new Event('input'))});
- const L=cfg.limits;document.querySelector('[name=freq]').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=L.minMv;mv.max=L.maxMv;
+ const L=cfg.limits;document.querySelector('[name=freq]').max=$('fnum').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=$('mvnum').min=L.minMv;mv.max=$('mvnum').max=L.maxMv;ocUi();
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[L.maxPower+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
  $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;
- {const pu=document.querySelector('[name=priceurl]');pu.value='';pu.placeholder=cfg.priceurlSet?'saved (hidden) · type to replace':'https://example.com/price.json'}$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();$('ethrow').style.display=$('ethnote').style.display=cfg.hasEth?'':'none';
+ {const pu=document.querySelector('[name=priceurl]');pu.value='';pu.placeholder=cfg.priceurlSet?'saved (hidden) · type to replace':'https://example.com/price.json'}$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();
  notifyForm();pagesFrom(cfg.pages)}
 document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const d={};
  f.querySelectorAll('[name]').forEach(el=>{d[el.name]=el.type=='checkbox'?el.checked:(el.type=='range'||el.type=='number'||el.tagName=='SELECT')?Number(el.value):el.value});
@@ -599,6 +641,41 @@ function priceLive(p){if(!p)return;const st=$('pricest');
  $('pinfo').textContent=p.error?'⚠ '+p.error:('Now '+now+' · limit '+p.max+' '+(p.unit||'')+(p.slots?.length?' · next '+Math.round(p.slots.length*p.step/3600)+' h':''));
  const sl=p.slots||[],v=sl.filter(x=>x!==null),hi=Math.max(p.max,...v,0.01),lo=Math.min(0,...v);
  $('pbars').innerHTML=sl.map(x=>x===null?'<i style="height:0"></i>':`<i class="${x>p.max?'hi':''}" style="height:${Math.max(2,100*(x-lo)/(hi-lo))}%" title="${x} ct/kWh"></i>`).join('')}
+
+/* ---------------- overclock */
+function ocUi(){const o=cfg.overclock;if(!o)return;const st=$('ocst'),b=$('ocbtn');
+ st.textContent=o.active?'on':o.unlocked?'paused':o.available?'off':'not available';st.style.color=o.active?'var(--orange)':'';
+ b.style.display=o.available||o.unlocked?'':'none';b.textContent=o.unlocked?'Back to stock limits':'Unlock overclocking…';
+ $('ocnote').textContent=!o.available?'Nobody has measured how far past its stock limits this board can safely go, so it stays at '+o.stockFreq+' MHz, '+o.stockMv+' mV and '+o.stockPower+' W.'
+  :(o.unlocked?(o.active?'Overclocked: up to ':'Unlocked, but paused while the power supply check says weak: ')+cfg.limits.maxFreq+' MHz, '+cfg.limits.maxMv+' mV and '+cfg.limits.maxPower.toFixed(0)+' W for the tuner and manual settings (stock: '+o.stockFreq+' MHz, '+o.stockMv+' mV, '+o.stockPower+' W).'
+  :'Stock limits: '+o.stockFreq+' MHz, '+o.stockMv+' mV, '+o.stockPower+' W. Unlocking lets the tuner and manual settings go past them, up to this board\'s measured headroom.')
+  +' Temperature ceilings and emergency cut-offs never move (power cut at '+o.cutoffPower.toFixed(0)+' W). Changing it starts a new tuner search.'}
+async function ocToggle(){const o=cfg.overclock;
+ if(o.unlocked){await act('/api/settings',JSON.stringify({overclock:false}));return loadCfg()}
+ const t=prompt('Overclocking runs the chips past this board\'s stock limits: more heat, more power, shorter life, and it is on you. Temperature cut-offs still apply.\n\nType OVERCLOCK to unlock.');
+ if(t===null)return;await act('/api/settings',JSON.stringify({overclock:true,confirm:t.trim()}));loadCfg()}
+
+/* ---------------- power bill & odds, heatsink */
+function oddsTxt(p){return p>=0.995?'almost certain':p>=0.01?(100*p).toFixed(p<0.1?1:0)+'%':'1 in '+Math.round(1/p).toLocaleString()}
+function money(v,c){return v===undefined?'--':(c||'')+(v<10?v.toFixed(2):Math.round(v).toLocaleString())}
+function energyLive(e){if(!e)return;const c=e.currency;
+ $('enfrom').textContent=e.priceFrom=='yours'?'your price':e.priceFrom=='market'?'market price':'no price set';
+ $('entoday').textContent=e.kwhToday.toFixed(2)+' kWh'+(e.price!==undefined?' · '+money(e.costToday,c):'');
+ $('enday').textContent=e.costPerDay!==undefined?money(e.costPerDay,c):'--';
+ $('ensince').textContent=e.since?new Date(e.since*1000).toLocaleDateString():'start';
+ $('entotal').textContent=e.kwhTotal.toFixed(1)+' kWh'+(e.price!==undefined?' · '+money(e.costTotal,c):'');
+ $('odday').textContent=e.oddsDay!==undefined?oddsTxt(e.oddsDay):'--';$('odmonth').textContent=e.oddsMonth!==undefined?oddsTxt(e.oddsMonth):'--';
+ $('odyear').textContent=e.oddsYear!==undefined?oddsTxt(e.oddsYear):'--';
+ $('odevery').textContent=e.yearsPerBlock!==undefined?(e.yearsPerBlock>=2?Math.round(e.yearsPerBlock).toLocaleString()+' years':Math.round(e.yearsPerBlock*365)+' days'):'--';
+ $('ennote').textContent=e.costPerBlock!==undefined?'On average a block costs about '+money(e.costPerBlock,c)+' of power at this rate. Each try is independent: time already spent doesn\'t bring the next block closer.':e.priceFrom=='none'?'Set your electricity price under Tuning → Electricity price to see the cost.':''}
+function dustLive(d){if(!d)return;const st=$('dustst');
+ st.textContent=d.state=='dirty'?'clean it':d.state=='ok'?'clean':'learning';st.style.color=d.state=='dirty'?'var(--orange)':d.state=='ok'?'var(--green)':'';
+ $('dustt').textContent=d.temp!==undefined?d.temp+' °C (clean: '+d.baseTemp+' °C)':d.baseTemp!==undefined?d.baseTemp+' °C so far':'--';
+ $('dustf').textContent=d.fan!==undefined?d.fan+'% (clean: '+d.baseFan+'%)':d.baseFan!==undefined?d.baseFan+'% so far':'--';
+ $('dustbtn').style.display=d.state=='dirty'?'':'none';
+ $('dustnote').textContent=d.state=='dirty'?'Running '+Math.max(0,d.dTemp)+' °C warmer, fan '+Math.max(0,d.dFan)+' points harder than when it was clean, at the same power. Probably dust: switch it off and clean the heatsink and fan.'
+  :d.state=='ok'?'Running like it did clean ('+(d.dTemp>=0?'+':'')+d.dTemp+' °C, fan '+(d.dFan>=0?'+':'')+d.dFan+' points).'
+  :'Learning how this miner runs at '+(d.refW||'its usual')+(d.refW?' W':' power')+': '+d.baseDays+' of 7 days. It needs a few hours a day of steady mining with the fan on auto.'}
 
 /* ---------------- pools editor */
 let P={pools:[],mode:'split'};
@@ -701,20 +778,37 @@ async function pollLogs(){clearTimeout(logTimer);if(cur!='system')return;
   if(logLines.length&&logSince)logLines[logLines.length-1]+=parts.shift();logLines.push(...parts);if(logLines.length>2000)logLines=logLines.slice(-1500);renderLog()}logSince=r.next}catch(e){}}
  logTimer=setTimeout(pollLogs,1000)}
 
-/* ---------------- 24 h chart, best shares */
-let dayMetric='hashrate',DAY=null;
-document.querySelectorAll('#dayseg button').forEach(b=>b.onclick=()=>{dayMetric=b.dataset.m;document.querySelectorAll('#dayseg button').forEach(x=>x.classList.toggle('on',x==b));drawDay()});
-async function loadDay(){try{DAY=await (await fetch('/api/stats')).json()}catch(e){return}drawDay()}
-function drawDay(){const c=$('daychart');if(!DAY)return;const v=DAY[dayMetric]||[],W=c.clientWidth||600,H=c.clientHeight||150;
- const fmt=dayMetric=='hashrate'?x=>hr(x).join(' '):dayMetric=='temp'?x=>x.toFixed(1)+' °C':x=>x.toFixed(1)+' W';
- $('daynote').textContent=v.length?`${v.length} points, one per ${DAY.step/60} minutes · since boot, up to 24 h`:'';
- const pts=v.map((y,i)=>[v.length>1?i/(v.length-1)*W:W,y]).filter(p=>p[1]>0);
- if(pts.length<2){c.innerHTML=`<text x="${W/2}" y="${H/2}" style="fill:var(--axis)" text-anchor="middle" font-size="12">First point after 5 minutes of mining</text>`;return}
- const mx=Math.max(...pts.map(p=>p[1]))*1.05,mn=Math.min(...pts.map(p=>p[1]))*.95,y=q=>H-6-(q-mn)/(mx-mn||1)*(H-16);
- const line=pts.map(p=>`${p[0].toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');c.setAttribute('viewBox',`0 0 ${W} ${H}`);
- c.innerHTML=`<defs><linearGradient id="cf2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--chart)" stop-opacity=".3"/><stop offset="1" style="stop-color:var(--chart)" stop-opacity="0"/></linearGradient></defs>${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" style="stroke:var(--track)"/>`).join('')}
- <polygon points="${pts[0][0]},${H} ${line} ${pts[pts.length-1][0]},${H}" fill="url(#cf2)"/><polyline points="${line}" fill="none" style="stroke:var(--chart)" stroke-width="2" stroke-linejoin="round"/>
- <text x="${W-4}" y="12" style="fill:var(--axis)" font-size="11" text-anchor="end">max ${fmt(mx/1.05)}</text><text x="${W-4}" y="${H-4}" style="fill:var(--axis)" font-size="11" text-anchor="end">min ${fmt(mn/.95)}</text>`}
+/* ---------------- chart: hashrate / temp / power, last hour or 24 h; best shares */
+let cMetric='hashrate',cRange='hour',HOUR=null,DAY=null,HP=null;  // HP: hover points [x, y, value, seconds ago]
+const cSeg=(id,attr,set)=>document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{set(b.dataset[attr]);document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x==b));drawChart()});
+cSeg('metseg','m',v=>cMetric=v);cSeg('rangeseg','r',v=>cRange=v);
+async function chart(){try{HOUR=await (await fetch('/api/history')).json()}catch(e){return}if(cRange=='hour')drawChart()}
+async function loadDay(){try{DAY=await (await fetch('/api/stats')).json()}catch(e){return}if(cRange=='day')drawChart()}
+const cFmt=x=>cMetric=='hashrate'?hr(x).join(' '):cMetric=='temp'?x.toFixed(1)+' °C':x.toFixed(1)+' W';
+const cAgo=s=>s<30?'now':s<3600?`${Math.round(s/60)} min ago`:`${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min ago`;
+function drawChart(){const c=$('chart'),D=cRange=='hour'?HOUR:DAY,v=D&&D[cMetric]||[],step=D?D.step:30,W=c.clientWidth||600,H=c.clientHeight||150;
+ $('ctitle').textContent=`${{hashrate:'Hashrate',temp:'ASIC temp',power:'Power'}[cMetric]} · last ${cRange=='hour'?'hour':'24 hours'}`;
+ $('eff').style.display=cMetric=='hashrate'?'':'none';
+ const pts=v.map((y,i)=>[v.length>1?i/(v.length-1)*W:W,y,i]).filter(p=>p[1]>0);
+ $('cnote').textContent=cRange=='hour'?`${pts.length} points, one every 30 s`:pts.length?`${pts.length} points, one per ${step/60} minutes · since boot, up to 24 h`:'';
+ if(pts.length<2){HP=null;c.innerHTML=`<text x="${W/2}" y="${H/2}" style="fill:var(--axis)" text-anchor="middle" font-size="12">${cRange=='hour'?'Collecting data — first point after 30 s':'First point after 5 minutes of mining'}</text>`;return}
+ const pad=cRange=='hour'?.08:.05,mx=Math.max(...pts.map(p=>p[1]))*(1+pad),mn=Math.min(...pts.map(p=>p[1]))*(1-pad),y=q=>H-6-(q-mn)/(mx-mn||1)*(H-16);
+ const line=pts.map(p=>`${p[0].toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
+ HP=pts.map(p=>[p[0],y(p[1]),p[1],(v.length-1-p[2])*step]);
+ c.setAttribute('viewBox',`0 0 ${W} ${H}`);
+ c.innerHTML=`<defs><linearGradient id="cf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--chart)" stop-opacity=".35"/><stop offset="1" style="stop-color:var(--chart)" stop-opacity="0"/></linearGradient></defs>
+ ${[.25,.5,.75].map(f=>`<line x1="0" x2="${W}" y1="${H*f}" y2="${H*f}" style="stroke:var(--track)"/>`).join('')}
+ <polygon points="${pts[0][0]},${H} ${line} ${pts[pts.length-1][0]},${H}" fill="url(#cf)"/>
+ <polyline points="${line}" fill="none" style="stroke:var(--chart)" stroke-width="1.4" stroke-linejoin="round" filter="url(#glow)"/>
+ <text x="${W-4}" y="12" style="fill:var(--axis)" font-size="11" text-anchor="end">max ${cFmt(mx/(1+pad))}</text><text x="${W-4}" y="${H-4}" style="fill:var(--axis)" font-size="11" text-anchor="end">min ${cFmt(mn/(1-pad))}</text>
+ <g id="chh" style="display:none"><line id="chhl" y1="0" y2="${H}" style="stroke:var(--axis)" stroke-dasharray="3 3"/><circle id="chhd" r="3.5" style="fill:var(--chart);stroke:var(--panel)" stroke-width="1.5"/>
+ <text id="chht" style="fill:var(--text)" font-size="11" font-weight="700"></text></g>`}
+$('chart').addEventListener('pointermove',e=>{if(!HP)return;const c=$('chart'),r=c.getBoundingClientRect(),W=c.viewBox.baseVal.width||r.width,x=(e.clientX-r.left)/r.width*W;
+ let p=HP[0];for(const q of HP)if(Math.abs(q[0]-x)<Math.abs(p[0]-x))p=q;
+ const t=$('chht'),right=p[0]>W/2;
+ $('chh').style.display='';$('chhl').setAttribute('x1',p[0]);$('chhl').setAttribute('x2',p[0]);$('chhd').setAttribute('cx',p[0]);$('chhd').setAttribute('cy',p[1]);
+ t.textContent=`${cFmt(p[2])} · ${cAgo(p[3])}`;t.setAttribute('x',right?p[0]-8:p[0]+8);t.setAttribute('y',Math.max(26,p[1]-10));t.setAttribute('text-anchor',right?'end':'start')});
+$('chart').addEventListener('pointerleave',()=>{const g=$('chh');if(g)g.style.display='none'});
 // "14:05" today, "27 Oct 14:05" before
 const when=t=>{const d=new Date(t*1000),hm=d.toTimeString().slice(0,5);return d.toDateString()==new Date().toDateString()?hm:d.getDate()+' '+d.toLocaleString('en',{month:'short'})+' '+hm};
 async function loadScores(){let a;try{a=await (await fetch('/api/scoreboard')).json()}catch(e){return}
@@ -739,7 +833,7 @@ async function pollSelftest(){clearTimeout(stTimer);let r;try{r=await (await fet
  $('stbtn').disabled=r.running;if(r.running)stTimer=setTimeout(pollSelftest,2000)}
 
 /* ---------------- notifications */
-const NEV=[[1,'Block found'],[2,'New best share'],[4,'Faults and power cuts'],[8,'No pool for 5 minutes'],[16,'Miner started']];
+const NEV=[[1,'Block found'],[2,'New best share'],[4,'Faults and power cuts'],[8,'No pool for 5 minutes'],[16,'Miner started'],[32,'Time to clean the heatsink']];
 function notifyForm(){$('nevents').innerHTML=NEV.map(([b,n])=>`<label><input type="checkbox" data-b="${b}" ${cfg.notify&b?'checked':''}>${n}</label>`).join('');
  $('ndiscord').value='';$('ndiscord').placeholder=cfg.discordSet?'saved (hidden), paste a new one to replace':'https://discord.com/api/webhooks/...';
  $('ntgtoken').value='';$('ntgtoken').placeholder=cfg.tgSet?'saved (hidden)':'123456789:AA...';$('ntgchat').value=cfg.tgchat||''}

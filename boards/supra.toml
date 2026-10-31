@@ -1,0 +1,20 @@
+name = "Bitaxe Supra"
+id = "supra"
+kconfig = "AF_BOARD_BITAXE_SUPRA"
+family = "bitaxe"
+
+[asic]
+chip = "bm1368"
+count = 1
+diff_min = 128
+diff_max = 512
+
+[regulator]
+ds4432u = true            # rev 400/401
+
+[sensors]
+emc2101 = true
+
+[stock]
+freq_mhz = 490            # reference firmware defaults
+mv = 1166

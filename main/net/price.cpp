@@ -240,6 +240,12 @@ void refresh_now()
 
 bool want_pause() { return s_pause; }
 
+float market_ct_kwh()
+{
+    const Settings &c = settings::get();
+    return c.price_on && c.price_src == SRC_ENERGY_CHARTS ? s_now : NAN;
+}
+
 cJSON *json()
 {
     const Settings &cfg = settings::get();

@@ -1,0 +1,12 @@
+name = "Bitaxe Supra Hex"
+id = "suprahex"
+kconfig = "AF_BOARD_SUPRAHEX"
+family = "hex"
+
+[asic]
+chip = "bm1368"
+job_interval_ms = 83      # 500 ms / 6 chips: same cadence as the reference firmware
+
+[stock]
+freq_mhz = 490            # BM1368 stock point
+mv = 1166

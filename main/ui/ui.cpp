@@ -10,6 +10,7 @@
 #include "sdkconfig.h"
 
 #include "asic/bm13xx.h"
+#include "core/dust.h"
 #include "core/board.h"
 #include "core/settings.h"
 #include "core/state.h"
@@ -669,7 +670,10 @@ static void refresh_header()
     case SysStatus::NoWifi: set_status("NO WIFI", C_ORANGE); break;
     case SysStatus::SetupAP: set_status("SETUP", C_VIOLET); break;
     case SysStatus::Connecting: set_status("CONNECTING", C_ORANGE); break;
-    case SysStatus::Mining: set_status("MINING", C_GREEN); break;
+    case SysStatus::Mining:
+        if (dust::state() == dust::State::Dirty) set_status("CLEAN HEATSINK", C_ORANGE);
+        else set_status("MINING", C_GREEN);
+        break;
     case SysStatus::Fault: set_status("FAULT", C_RED); break;
     case SysStatus::Overheat: set_status("OVERHEAT", C_RED); break;
     case SysStatus::Paused: set_status("PAUSED", C_CYAN); break;

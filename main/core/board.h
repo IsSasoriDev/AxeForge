@@ -35,6 +35,8 @@ uint16_t clamp_freq(int mhz);
 
 void read_telemetry();                   // fills g_state power/thermal fields
 Error check_faults();
+// Logs what the regulator says about itself, where it can (PMBus status registers).
+void log_regulator(const char *why);
 const char *error_text(Error e);
 
 } // namespace board

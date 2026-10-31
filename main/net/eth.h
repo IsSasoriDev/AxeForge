@@ -7,6 +7,7 @@
 // Runs next to Wi-Fi: whichever has an address carries the traffic.
 namespace eth {
 void start();
+bool present();     // a W5500 answered at boot, cable or not
 bool up();          // link up and an address from DHCP
 const char *ip();   // "" when not up
 }

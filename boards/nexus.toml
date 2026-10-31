@@ -1,0 +1,36 @@
+# BitLuck Nexus S1, board version 1010. Pins read from the stock firmware
+# (nexus.v1.0.2); the layout is the NerdQaxe++'s apart from the power pins.
+name = "Nexus S1"
+id = "nexus"
+kconfig = "AF_BOARD_NEXUS"
+experimental = true       # one board tested, see main/core/board_nexus.cpp
+keep_stock_nvs = true
+
+[asic]
+chip = "bm1373"
+count = 4
+bm1373_shufps_init = true # init as the stock firmware does (shufps); the Naja uses bitaxe's
+diff_min = 1024           # about three BM1370s' worth of hashing per chip (shufps' Q1373 values)
+diff_max = 4096
+
+[pins]
+i2c_sda = 44
+i2c_scl = 43
+
+[display]
+lcd = true                # T-Display-S3 panel, same pins as the NerdQaxe++
+
+[regulator]
+# its VR area runs ~67 C at stock clocks (the stock firmware's fans hold it there at
+# ~68%); a 65 C target kept fan 2 pinned at 100%
+fan_target_c = 72.0
+
+[stock]
+freq_mhz = 450            # the Nexus S1's stock point
+mv = 950
+display_type = 1
+
+[envelope]                # 1050 mV drew about 185 W on a Nexus S1 (#33, #35)
+power_pct = 8
+mv = 50
+freq_mhz = 25

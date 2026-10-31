@@ -38,6 +38,9 @@ struct Settings {
     // what the tuner looks for: 0 = most hashrate, 1 = most hashrate under
     // power_cap_w, 2 = best efficiency (J/TH)
     uint8_t tune_goal = 0;
+    // overclock unlocked (typed confirmation in the UI): the tuner and the manual
+    // values may use the board's envelope instead of its stock limits (core/gates.h)
+    bool overclock = false;
     uint16_t power_cap_w = 0;      // 0 = the board's limit
     // per-chip clocks: once locked, the tuner raises each chip on its own;
     // chip_off is each chip's offset (MHz) from the chain clock
@@ -49,7 +52,7 @@ struct Settings {
     // per fan header: 0 = auto (temperature loop), 1 = manual duty
     uint8_t fan_mode[2] = {0, 0};
     uint8_t fan_manual[2] = {60, 60};
-    uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (minimal, e-ink style), 2 = Ember (dark, Bitcoin orange)
+    uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (e-ink style), 2 = Ember (Bitcoin orange), 3 = Spatial (deep space)
     uint8_t brightness = 100;
     uint8_t screen_off_min = 0;   // backlight off after this many idle minutes, 0 = never
 
@@ -83,7 +86,7 @@ struct Settings {
     char discord_url[160] = "";    // https://discord.com/api/webhooks/...
     char tg_token[64] = "";        // Telegram bot token
     char tg_chat[24] = "";         // Telegram chat id
-    uint8_t notify_events = 0x1f;  // NOTIFY_* bits
+    uint8_t notify_events = 0x3f;  // NOTIFY_* bits
 
     bool bap_on = true;            // Bitaxe accessory port
     bool ble_setup = true;         // Bluetooth Wi-Fi setup while in setup mode
@@ -99,6 +102,11 @@ struct Settings {
     char price_url[128] = "";      // returns JSON with a number (or numeric string)
     char price_path[40] = "";      // dotted path to it, e.g. "state" or "data.0.price"
     float price_max = 15;          // ct/kWh for Energy-Charts, the URL's own unit otherwise
+
+    // what the electricity costs, for the power bill card: per kWh in `currency`;
+    // 0 = use the market price from the price mode, if that is on
+    float energy_price = 0;
+    char currency[5] = "€";
 };
 
 // notify_events bits
@@ -107,6 +115,7 @@ struct Settings {
 #define NOTIFY_FAULT 0x04
 #define NOTIFY_POOL 0x08
 #define NOTIFY_BOOT 0x10
+#define NOTIFY_MAINTENANCE 0x20  // clean the heatsink
 
 namespace settings {
 void load();

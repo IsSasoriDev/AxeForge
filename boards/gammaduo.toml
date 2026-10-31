@@ -1,0 +1,19 @@
+name = "Bitaxe Gamma Duo"
+id = "gammaduo"
+kconfig = "AF_BOARD_GAMMA_DUO"
+family = "bitaxe"
+
+[asic]
+chip = "bm1370"
+count = 2                 # in parallel on one 5 V TPS546
+diff_min = 256
+diff_max = 1024
+
+[sensors]
+emc2101 = true            # one diode for both chips
+emc_ideality = 0x24
+emc_beta = 0x00
+
+[stock]
+freq_mhz = 400            # its chips are the BM1370 XP bin
+mv = 1150

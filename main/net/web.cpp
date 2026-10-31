@@ -20,6 +20,9 @@
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
+#include "core/gates.h"
+#include "core/dust.h"
+#include "core/energy.h"
 #include "core/ota_guard.h"
 #include "core/psu.h"
 #include "core/settings.h"
@@ -164,7 +167,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "vrSensor", AF_HAS_VR_SENSOR);
     cJSON_AddBoolToObject(r, "tempOk", s.temp_ok && s.vr_temp_ok);
 #if CONFIG_AF_BOARD_NERDQAXE
-    cJSON_AddStringToObject(r, "board", s.board_rev7 ? "rev7 (TPS546)" : "rev5.1/6 (TPS53647)");
+    cJSON_AddStringToObject(r, "board", s.board_rev7 ? AF_BOARD_NAME " rev7 (TPS546)" : AF_BOARD_NAME " rev5.1/6 (TPS53647)");
 #else
     cJSON_AddStringToObject(r, "board", AF_BOARD_NAME);
 #endif
@@ -232,11 +235,15 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(po, "mohm", p.ohms * 1000);
     }
     cJSON_AddItemToObject(r, "price", price::json());
+    cJSON_AddItemToObject(r, "dust", dust::json());
+    cJSON_AddBoolToObject(r, "overclocked", gates::active());
+    cJSON_AddItemToObject(r, "energy", energy::json());
     cJSON_AddNumberToObject(r, "freeHeap", esp_get_free_heap_size());
     cJSON_AddNumberToObject(r, "freeInternal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     cJSON_AddNumberToObject(r, "freeDma", heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     cJSON_AddNumberToObject(r, "chipsDetected", s.chips_detected);
     cJSON *net = cJSON_AddObjectToObject(r, "eth");
+    cJSON_AddBoolToObject(net, "present", eth::present());
     cJSON_AddBoolToObject(net, "up", eth::up());
     cJSON_AddStringToObject(net, "ip", eth::ip());
     cJSON_AddStringToObject(r, "bleSetup", ble_setup::name());
@@ -373,12 +380,20 @@ static esp_err_t status_get(httpd_req_t *req)
 
 static esp_err_t history_get(httpd_req_t *req)
 {
-    cJSON *a = cJSON_CreateArray();
+    // Same shape as /api/stats, so the dashboard draws both ranges with one function:
+    // {"step":30,"hashrate":[...],"temp":[...],"power":[...]}, oldest first.
+    cJSON *r = cJSON_CreateObject();
+    cJSON_AddNumberToObject(r, "step", 30);
+    cJSON *hr = cJSON_AddArrayToObject(r, "hashrate");
+    cJSON *t = cJSON_AddArrayToObject(r, "temp");
+    cJSON *p = cJSON_AddArrayToObject(r, "power");
     for (int i = 0; i < AF_HISTORY_LEN; i++) {
-        float h = g_state.history[(g_state.history_head + i) % AF_HISTORY_LEN];
-        cJSON_AddItemToArray(a, cJSON_CreateNumber((int) h));
+        int k = (g_state.history_head + i) % AF_HISTORY_LEN;
+        cJSON_AddItemToArray(hr, cJSON_CreateNumber((int) g_state.history[k]));
+        cJSON_AddItemToArray(t, cJSON_CreateNumber((int) (g_state.history_temp[k] * 10 + 0.5f) / 10.0));
+        cJSON_AddItemToArray(p, cJSON_CreateNumber((int) (g_state.history_power[k] * 10 + 0.5f) / 10.0));
     }
-    return send_json(req, a);
+    return send_json(req, r);
 }
 
 static esp_err_t settings_get(httpd_req_t *req)
@@ -405,6 +420,8 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "priceurlSet", c.price_url[0] != 0);  // may hold a token: never sent back
     cJSON_AddStringToObject(r, "pricepath", c.price_path);
     cJSON_AddNumberToObject(r, "pricemax", c.price_max);
+    cJSON_AddNumberToObject(r, "eprice", c.energy_price);
+    cJSON_AddStringToObject(r, "currency", c.currency);
     cJSON_AddNumberToObject(r, "fantgt", c.fan_target_c);
     cJSON_AddNumberToObject(r, "fanmin", c.fan_min_pct);
     cJSON_AddNumberToObject(r, "fmode0", c.fan_mode[0]);
@@ -436,14 +453,22 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "blesetup", c.ble_setup);
     cJSON_AddBoolToObject(r, "hasEth", HAS_ETH);
     cJSON *lim = cJSON_AddObjectToObject(r, "limits");
-    cJSON_AddNumberToObject(lim, "maxFreq", board::limits().max_freq_mhz);
+    cJSON_AddNumberToObject(lim, "maxFreq", gates::max_freq());
     cJSON_AddNumberToObject(lim, "minMv", CONFIG_AF_MIN_CORE_MV);
-    cJSON_AddNumberToObject(lim, "maxMv", board::max_mv());
+    cJSON_AddNumberToObject(lim, "maxMv", gates::max_mv());
     cJSON_AddNumberToObject(lim, "chipCeil", CONFIG_AF_MAX_CHIP_TEMP);
     cJSON_AddNumberToObject(lim, "chipCrit", CONFIG_AF_CRIT_CHIP_TEMP);
     cJSON_AddNumberToObject(lim, "vrCeil", board::limits().vr_ceil_c);
     cJSON_AddNumberToObject(lim, "vrCrit", board::limits().vr_crit_c);
-    cJSON_AddNumberToObject(lim, "maxPower", board::limits().max_power_w);
+    cJSON_AddNumberToObject(lim, "maxPower", gates::max_power());
+    cJSON *oc = cJSON_AddObjectToObject(r, "overclock");
+    cJSON_AddBoolToObject(oc, "available", gates::available());
+    cJSON_AddBoolToObject(oc, "unlocked", c.overclock);
+    cJSON_AddBoolToObject(oc, "active", gates::active());
+    cJSON_AddNumberToObject(oc, "stockFreq", gates::stock_max_freq());
+    cJSON_AddNumberToObject(oc, "stockMv", gates::stock_max_mv());
+    cJSON_AddNumberToObject(oc, "stockPower", gates::stock_max_power());
+    cJSON_AddNumberToObject(oc, "cutoffPower", gates::stock_max_power() * 1.15f);
     return send_json(req, r);
 }
 
@@ -570,11 +595,28 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.autotune = get_bool(j, "atune", c.autotune);
     c.freq_mhz = board::clamp_freq(get_int(j, "freq", c.freq_mhz, 0, 2000));
     c.core_mv = board::clamp_mv(get_int(j, "mv", c.core_mv, 0, 2000));
+    // overclock: unlocking takes the typed confirmation; locking again never does
+    bool oc = get_bool(j, "overclock", c.overclock);
+    if (oc && !c.overclock) {
+        char conf[16] = "";
+        copy_str(j, "confirm", conf, sizeof(conf));
+        if (strcmp(conf, "OVERCLOCK") != 0 || !gates::available()) {
+            cJSON_Delete(j);
+            return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                                       gates::available() ? "Type OVERCLOCK to unlock overclocking."
+                                                          : "No overclock headroom is known for this board.");
+        }
+        ESP_LOGW(TAG, "overclock unlocked (stock limits %u MHz / %u mV / %.0f W)", (unsigned) (gates::stock_max_freq()),
+                 (unsigned) gates::stock_max_mv(), gates::stock_max_power());
+    }
+    bool oc_changed = oc != c.overclock;
+    c.overclock = oc;
+    if (oc_changed && !oc) ESP_LOGW(TAG, "overclock locked: back to the stock limits");
     // a new goal (or cap, or per-chip setting) means a new search
     int goal = get_int(j, "tgoal", c.tune_goal, 0, 2);
     int cap = get_int(j, "pcap", c.power_cap_w, 0, 2000);
     bool chip_tune = get_bool(j, "chiptune", c.chip_tune);
-    bool retune = goal != c.tune_goal || (goal == 1 && cap != c.power_cap_w) || chip_tune != c.chip_tune;
+    bool retune = goal != c.tune_goal || (goal == 1 && cap != c.power_cap_w) || chip_tune != c.chip_tune || oc_changed;
     c.tune_goal = (uint8_t) goal;
     c.power_cap_w = (uint16_t) cap;
     c.chip_tune = chip_tune;
@@ -584,7 +626,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.fan_mode[1] = (uint8_t) get_int(j, "fmode1", c.fan_mode[1], 0, 1);
     c.fan_manual[0] = (uint8_t) get_int(j, "fman0", c.fan_manual[0], 20, 100);
     c.fan_manual[1] = (uint8_t) get_int(j, "fman1", c.fan_manual[1], 20, 100);
-    uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 2);
+    uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 3);
     if (theme != c.theme) {
         c.theme = theme;
         display::rebuild_ui();  // the screen UI is built with the theme's palette
@@ -656,7 +698,10 @@ static esp_err_t settings_post(httpd_req_t *req)
                  (*p >= 'A' && *p <= 'Z');
         if (ok) snprintf(c.tg_chat, sizeof(c.tg_chat), "%s", cv->valuestring);
     }
-    c.notify_events = (uint8_t) get_int(j, "notify", c.notify_events, 0, 0x1f);
+    c.notify_events = (uint8_t) get_int(j, "notify", c.notify_events, 0, 0x3f);
+    cJSON *ep = cJSON_GetObjectItem(j, "eprice");
+    if (cJSON_IsNumber(ep) && ep->valuedouble >= 0 && ep->valuedouble < 1000) c.energy_price = (float) ep->valuedouble;
+    copy_str(j, "currency", c.currency, sizeof(c.currency));
     bool bap_on = get_bool(j, "bap", c.bap_on);
     if (bap_on != c.bap_on) reboot = true;  // the port is opened at boot
     c.bap_on = bap_on;
@@ -704,6 +749,19 @@ static esp_err_t retune_post(httpd_req_t *req)
     settings::save();
     tuner::restart();
     return httpd_resp_sendstr(req, "Auto-tune restarted. A full search takes 1-2 hours.");
+}
+
+// {"reset":true}: the heatsink was cleaned, learn again
+static esp_err_t dust_post(httpd_req_t *req)
+{
+    dust::reset();
+    return httpd_resp_sendstr(req, "Thanks! Learning how it runs clean over the next week.");
+}
+
+static esp_err_t energy_post(httpd_req_t *req)
+{
+    energy::reset_totals();
+    return httpd_resp_sendstr(req, "Energy totals reset.");
 }
 
 static esp_err_t ota_keep_post(httpd_req_t *req)
@@ -1291,6 +1349,8 @@ void start()
         {"/api/restart", HTTP_POST, restart_post, NULL},
         {"/api/ota", HTTP_POST, ota_post, NULL},
         {"/api/ota/keep", HTTP_POST, ota_keep_post, NULL},
+        {"/api/dust", HTTP_POST, dust_post, NULL},
+        {"/api/energy", HTTP_POST, energy_post, NULL},
         {"/api/pools", HTTP_GET, pools_get, NULL},
         {"/api/pools", HTTP_POST, pools_post, NULL},
         {"/api/logs", HTTP_GET, logs_get, NULL},

@@ -9,11 +9,14 @@
 
 namespace theme {
 
-enum Id : uint8_t { FORGE = 0, PAPER = 1, EMBER = 2 };
+enum Id : uint8_t { FORGE = 0, PAPER = 1, EMBER = 2, SPATIAL = 3 };
 
 Id current();         // from settings, read live (a theme change rebuilds the screen)
 bool paper();
 bool ember();
+bool spatial();
+// After the screen UI is built: Spatial draws a starfield behind the pages.
+void decorate(lv_obj_t *scr);
 // mempool.space fee colour for a fee rate (sat/vB); Ember draws blocks with it
 uint32_t mempool_fee_rgb(float fee);
 uint32_t map(uint32_t rgb);
@@ -21,7 +24,7 @@ lv_color_t color(uint32_t rgb);
 void set_text(lv_obj_t *label, const char *text);
 void set_text_fmt(lv_obj_t *label, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 lv_coord_t shadow(lv_coord_t width);
-void apply_lvgl_theme(lv_disp_t *disp);  // light base theme for Paper, orange accent for Ember
+void apply_lvgl_theme(lv_disp_t *disp);  // light base theme for Paper, orange accent for Ember, violet for Spatial
 
 } // namespace theme
 

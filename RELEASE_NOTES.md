@@ -6,6 +6,37 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 _Nothing yet._
 
+## AxeForge v1.4.5
+
+### Fixes
+- **Bitaxe GT: the core voltage no longer drops seconds after power-up.** The GT, Gamma, Gamma Duo, Naja Duo and Gamma Hex now switch their regulator the way AxeOS does: by the PMBus OPERATION command alone. AxeForge also told the TPS546 to obey its CONTROL pin, and on a GT that cut the core during the clock ramp ("Core voltage lost (0.02 V of 1.21 V)") and kept it off on every retry. The Supra Hex keeps its tested setting.
+- When the core voltage is lost, the log now shows every status register of the regulator, so the next report says why.
+
+### New
+- **Clean-heatsink reminder.** Over its first week the miner learns how warm the chips run and how hard the fan works at its usual power. After that it compares every week with the clean one, with the outdoor temperature from the weather page taken out, and tells you when dust is the likely cause: a Discord/Telegram message, *CLEAN HEATSINK* in place of *MINING* on the screen, and a card on the dashboard with a *Done, I cleaned it* button that starts the learning again.
+- **Spatial theme.** Deep space for the web UI and the screen: a near-black indigo sky with a slow-twinkling starfield, nebula glows, a ringed planet off the corner, glass cards (see-through with a thin outline) and starlight, violet and sky-blue accents. *Display → Theme*. On the screen the stars sit behind the cards; on the 128x32 OLED boards themes don't apply.
+- **Power bill & odds.** A dashboard card with the energy used today and since you started, what it cost at your electricity price (set it under *Tuning → Electricity price*, or the market price from the price mode is used), the cost per day at this power, and your chance of finding a block today, this month and this year at your hashrate.
+
+### Overclocking, opt-in (#33) on per-board limits (#35)
+- **Every board has a stock profile and, where it's known, an envelope.** The stock profile is the limits it always had (clock, voltage, tuner power ceiling). The envelope is its measured headroom above them, in `boards/<id>.toml` under `[envelope]`. Only the NerdQaxe++ rev5.1/6 (+10 % power, +50 mV, +50 MHz) and the Nexus S1 (+8 %, +50 mV, +25 MHz) have one so far, from @cbyam's measurements; a board without one can't be overclocked.
+- **Tuning → Overclock** unlocks it after you type OVERCLOCK. The tuner may then climb to the envelope and the manual values may go past stock; an orange banner says so on every page for as long as it's on. Temperature ceilings and every emergency cut-off stay exactly where they were (the power cut-off stays at 115 % of stock). A weak power supply pauses it until the supply check is fine again. Turning it on or off starts a new tuner search.
+- **Exact manual values.** Frequency and voltage have number fields next to the sliders, in 1 MHz and 5 mV steps, so a tuned point like 693 MHz can be typed in.
+
+### Also fixed
+- **The setup network after 5 minutes without Wi-Fi now actually appears.** Starting it (and Bluetooth setup with it) ran on the system event task, whose stack is too small for that, so the miner panicked and rebooted at the 5-minute mark instead, every 5 minutes, without ever showing `AxeForge-XXXX`. Found on a NerdQaxe++ rev6 with a router that refused the connection.
+- **The Ethernet row on the Network page only appears when an adapter is actually fitted.** It showed on every NerdQAxe-family miner because the header exists; now it follows the W5500 probe at boot, and reads "adapter fitted, no cable" when one is there but unplugged. `/api/status` gains `eth.present`.
+
+### Web UI
+- **System → Device shows the board**, and on the NerdQaxe++ the API's `board` now reads "NerdQaxe++ rev7 (TPS546)" rather than the revision alone, so Swarm names it like every other board.
+
+### Dashboard
+- **One chart instead of two.** The hour chart and the "Last 24 hours" card are one chart with hashrate, temperature and power to choose from, a 1 h / 24 h switch, and a crosshair that shows the value and how long ago it was. `/api/history` now returns temperature and power next to the hashrate.
+
+### Build
+- **One file per board.** What the firmware knows about a board (chips, pins, regulator, sensors, stock point) is in `boards/<id>.toml`, turned into the old `core/board_config.h` at build time by `tools/gen_board.py`. Same macros, same binaries; adding a board or changing one no longer means finding its `#elif` in a 300-line header and its stock point in `settings.cpp`. See `boards/README.md`.
+
+Thanks to @cbyam for #52 to #57.
+
 ## AxeForge v1.4.4
 
 ### Tested on hardware

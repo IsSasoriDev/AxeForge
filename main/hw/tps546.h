@@ -45,6 +45,8 @@ float iout();
 float vout();  // per-domain core voltage
 float pout();
 
+// Logs every status register with the readings, before the output is cut.
+void log_status(const char *why);
 uint8_t status_byte();
 uint8_t status_iout();
 uint8_t status_vout();

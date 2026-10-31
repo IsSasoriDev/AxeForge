@@ -1,0 +1,28 @@
+name = "NerdQX"
+id = "nerdqx"
+kconfig = "AF_BOARD_NERDQX"
+family = "nerdq"
+
+[asic]
+chip = "bm1370"
+count = 4
+diff_min = 1024
+diff_max = 4096
+
+[regulator]
+phases = 3
+ifault_a = 142            # reference firmware value
+version_rolling_hz = 35000  # version rolling speed for the higher clocks
+# Without the TMP451 mux this is not a QX: stay at NerdQaxe++ stock levels.
+no_mux_max_freq_mhz = 495
+no_mux_max_mv = 1150
+
+[sensors]
+tmp451_muxes = 1          # per-chip die temperature at 0x4c
+tmp451_pin_a1 = 3
+proxy_die_offset_c = 10.0
+
+[stock]
+freq_mhz = 777            # reference firmware default
+mv = 1200
+rotate_180 = true

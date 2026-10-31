@@ -22,6 +22,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - **The Best shares table moved from the dashboard to the Pools page**, under the pools it belongs to. The dashboard keeps the best share as two figures on the Pools card.
 - **The Weather card shows the weather and nothing else**, and more of it: an icon for the conditions (sun or moon, clouds, rain, snow, thunder, as on the miner's screen), today's low and high, feels-like, humidity and wind. Uptime, Wi-Fi, board and firmware moved to a card of their own, "This miner".
 - **Wi-Fi signal as bars and a word** (Excellent, Good, Fair, Poor) with the dBm beside it, on the dashboard and the Network page.
+- **Best share as two labelled rows**, all time and since boot, instead of two numbers around a slash.
 - **Share response time per pool** on the dashboard's Pools card, as the Pools page already had it.
 - **Network ping to the pool in use** on the same card: round trip and loss over the last 20 pings, every 5 s, so a slow network and a slow pool can be told apart. `/api/status` gains `net`.
 

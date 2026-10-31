@@ -310,7 +310,7 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
  <div class="card"><h3>Auto-tune</h3><div class="tune"><span class="pill" id="tph">--</span><b id="tpt"></b></div><div class="sub" id="tnote" style="margin-top:8px"></div><div class="bar"><i id="tbar" style="background:var(--violet)"></i></div>
   <div class="kv" style="margin-top:12px"><div>Best point</div><div id="tbest">--</div><div>Steps tested</div><div id="tsteps">0</div></div></div>
  <div class="card"><h3>Pools <span class="tag" id="pmode">--</span></h3><div id="pmini"></div>
-  <div class="kv" style="margin-top:10px"><div>Best diff</div><div id="pbest">--</div><div>Blocks found</div><div id="pblk">0</div><div title="ICMP ping to the pool in use, every 5 s. Loss over the last 20.">Network ping</div><div id="pnet">--</div><div title="From sending a share to the pool's answer, last share">Share response</div><div id="presp">--</div></div></div>
+  <div class="kv" style="margin-top:10px"><div title="Highest share difficulty ever, kept across reboots">Best share, all time</div><div id="pbest">--</div><div title="Highest share difficulty since this boot">Best share, since boot</div><div id="pbests">--</div><div>Blocks found</div><div id="pblk">0</div><div title="ICMP ping to the pool in use, every 5 s. Loss over the last 20.">Network ping</div><div id="pnet">--</div><div title="From sending a share to the pool's answer, last share">Share response</div><div id="presp">--</div></div></div>
 </div>
 <div class="grid g2">
  <div class="card"><h3>Weather</h3><div class="wx"><div id="wxi" style="width:48px;height:48px;flex:none"></div><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div>
@@ -654,7 +654,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('pmini').innerHTML=S.pools.map((p,i)=>p.enabled?`<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span class="dot ${p.connected?'ok':'wait'}"></span>
   <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.host)}</span><span class="tag">${PSHORT[p.proto]}</span><b>${p.workPct}%</b>
   <span class="meta" style="color:var(--green)">${p.accepted}</span>/<span class="meta" style="color:var(--red)">${p.rejected}</span>${p.connected&&p.pingMs?`<span class="meta" title="Share response: from sending a share to the pool's answer">${p.pingMs} ms</span>`:''}</div>`:'').join('')||'<span class="meta">No pools enabled</span>';
- $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
+ $('pbest').textContent=sfx(S.pool.bestDiff);$('pbests').textContent=sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const N=S.net||{};$('pnet').innerHTML=N.rttMs?`<b>${N.rttMs.toFixed(0)}</b> ms`+(N.lossPct?` · <b style="color:var(--${N.lossPct>=10?'red':'orange'})">${N.lossPct.toFixed(0)}%</b> loss`:' · no loss'):(N.target?'no answer':'--');
  const ap=S.pools.find(p=>p.enabled&&p.connected&&p.pingMs);$('presp').innerHTML=ap?`<b>${ap.pingMs}</b> ms`+(S.pools.filter(p=>p.enabled).length>1?` <span class="meta">${esc(ap.host)}</span>`:''):'--';
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxi').innerHTML=w.valid?wxIcon(w.code,w.isDay):'';

@@ -269,6 +269,7 @@ void load()
     get_str(h, "ssid", s.wifi_ssid, sizeof(s.wifi_ssid));
     get_str(h, "wpass", s.wifi_pass, sizeof(s.wifi_pass));
     get_str(h, "host", s.hostname, sizeof(s.hostname));
+    get_bool(h, "pmf", s.wifi_pmf);
 
     size_t len = 0;
     if (nvs_get_str(h, "pools", NULL, &len) == ESP_OK && len > 1) {
@@ -353,6 +354,7 @@ void save()
     nvs_set_str(h, "ssid", s.wifi_ssid);
     nvs_set_str(h, "wpass", s.wifi_pass);
     nvs_set_str(h, "host", s.hostname);
+    nvs_set_u8(h, "pmf", s.wifi_pmf);
     char *pools = pools_to_json();
     nvs_set_str(h, "pools", pools);
     free(pools);

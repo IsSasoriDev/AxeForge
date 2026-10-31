@@ -387,6 +387,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON *r = cJSON_CreateObject();
     cJSON_AddStringToObject(r, "ssid", c.wifi_ssid);
     cJSON_AddStringToObject(r, "hostname", c.hostname);
+    cJSON_AddBoolToObject(r, "pmf", c.wifi_pmf);
     cJSON_AddStringToObject(r, "pages", c.pages);
     cJSON_AddNumberToObject(r, "disptype", c.display_type);
     cJSON_AddBoolToObject(r, "mempool", c.mempool_on);
@@ -535,7 +536,7 @@ static esp_err_t settings_post(httpd_req_t *req)
 
     if (via_setup_ap(req)) {
         // from the setup network: Wi-Fi and hostname only, whatever else was sent
-        static const char *const KEEP[] = {"ssid", "wpass", "hostname"};
+        static const char *const KEEP[] = {"ssid", "wpass", "hostname", "pmf"};
         cJSON *it = j->child;
         while (it) {
             cJSON *next = it->next;
@@ -565,6 +566,9 @@ static esp_err_t settings_post(httpd_req_t *req)
     }
     cJSON *wp = cJSON_GetObjectItem(j, "wpass");
     if (cJSON_IsString(wp) && wp->valuestring[0]) reboot |= copy_str(j, "wpass", c.wifi_pass, sizeof(c.wifi_pass));
+    bool pmf = get_bool(j, "pmf", c.wifi_pmf);
+    if (pmf != c.wifi_pmf) reboot = true;  // the station config is set at boot
+    c.wifi_pmf = pmf;
 
     // tuning: picked up live by the tuner
     c.autotune = get_bool(j, "atune", c.autotune);

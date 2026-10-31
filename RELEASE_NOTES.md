@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Network
+- **Require protected management frames** (Network page, off by default): with it on, the miner only joins the router with 802.11w, so forged disconnect frames from someone in radio range no longer drop it (#38). A router without 802.11w then never takes the connection; the switch is also on the setup network's form, so it can be turned off again from there.
 
 ## AxeForge v1.4.4
 

@@ -25,6 +25,7 @@ struct Settings {
     char wifi_ssid[33] = "";
     char wifi_pass[65] = "";
     char hostname[33] = "";       // empty: stock firmware's name, else axeforge-XXXX
+    bool wifi_pmf = false;        // require protected management frames (802.11w) from the router
 
     PoolCfg pools[AF_MAX_POOLS];
     PoolMode pool_mode = PoolMode::Split;

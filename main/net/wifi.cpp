@@ -170,7 +170,10 @@ void start()
         strncpy((char *) sta.sta.ssid, s.wifi_ssid, sizeof(sta.sta.ssid));
         strncpy((char *) sta.sta.password, s.wifi_pass, sizeof(sta.sta.password));
         sta.sta.threshold.authmode = s.wifi_pass[0] ? WIFI_AUTH_WPA_PSK : WIFI_AUTH_OPEN;
+        // 802.11w: always offered; required only when the user says the router has it,
+        // because a router without it then never takes the connection
         sta.sta.pmf_cfg.capable = true;
+        sta.sta.pmf_cfg.required = s.wifi_pmf;
         esp_wifi_set_config(WIFI_IF_STA, &sta);
         g_state.status = SysStatus::Connecting;
     }

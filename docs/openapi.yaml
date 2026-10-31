@@ -158,7 +158,8 @@ paths:
     post:
       summary: Change any subset of settings
       description: |
-        Send only the keys to change. Keys: `ssid`, `wpass`, `hostname`, `atune`, `freq`, `mv`,
+        Send only the keys to change. Keys: `ssid`, `wpass`, `hostname`, `pmf` (require 802.11w),
+        `atune`, `freq`, `mv`,
         `fantgt`, `fanmin`, `fmode0`, `fmode1`, `fman0`, `fman1`, `theme`, `bright`, `scroff`,
         `defpage`, `rotate`, `rot180`, `city`, `fahr`, `h24`, `pages`, `disptype`, `mempool`,
         `mpurl`, `paymode` (0 warn, 1 hold back work), `payfee` (0-100), `jobms` (0 = default),
@@ -167,7 +168,7 @@ paths:
         `tgoal` (0 hashrate, 1 power limit, 2 efficiency), `pcap` (W, 0 = board limit), `chiptune`,
         `otaguard`, `priceon`, `pricesrc` (0 Energy-Charts, 1 URL), `pricezone`, `priceurl`,
         `pricepath`, `pricemax`. A new goal, limit or `chiptune` starts a new tuner search.
-        Wi-Fi, hostname, theme, screen type and the accessory port reboot the miner; the rest
+        Wi-Fi, hostname, `pmf`, theme, screen type and the accessory port reboot the miner; the rest
         applies right away.
       requestBody:
         content: {application/json: {schema: {type: object}, example: {freq: 600, mv: 1150, atune: false}}}

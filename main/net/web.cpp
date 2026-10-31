@@ -270,6 +270,10 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddBoolToObject(net, "up", eth::up());
     cJSON_AddStringToObject(net, "ip", eth::ip());
     cJSON_AddStringToObject(r, "bleSetup", ble_setup::name());
+    cJSON *ping = cJSON_AddObjectToObject(r, "net");
+    cJSON_AddStringToObject(ping, "target", s.net_target);
+    cJSON_AddNumberToObject(ping, "rttMs", s.net_rtt_ms);
+    cJSON_AddNumberToObject(ping, "lossPct", s.net_loss_pct);
 
     cJSON *pool = cJSON_AddObjectToObject(r, "pool");
     cJSON_AddBoolToObject(pool, "connected", s.pool_connected);

@@ -23,6 +23,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - **The Weather card shows the weather and nothing else.** Uptime, Wi-Fi, board and firmware moved to a card of their own, "This miner".
 - **Wi-Fi signal as bars and a word** (Excellent, Good, Fair, Poor) with the dBm beside it, on the dashboard and the Network page.
 - **Share response time per pool** on the dashboard's Pools card, as the Pools page already had it.
+- **Network ping to the pool in use** on the same card: round trip and loss over the last 20 pings, every 5 s, so a slow network and a slow pool can be told apart. `/api/status` gains `net`.
 
 ## AxeForge v1.4.7
 

@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- **The setup network after 5 minutes without Wi-Fi now actually appears.** Starting it (and Bluetooth setup with it) ran on the system event task, whose stack is too small for that, so the miner panicked and rebooted at the 5-minute mark instead, every 5 minutes, without ever showing `AxeForge-XXXX`. Found on a NerdQaxe++ rev6 with a router that refused the connection.
 
 ## AxeForge v1.4.4
 

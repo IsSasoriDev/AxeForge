@@ -47,6 +47,14 @@ static const char *TAG = "monitor";
 #define FAN_STALL_MIN_DUTY 30.0f
 #define FAN_STALL_RPM 300
 #define FAN_STALL_S 10
+// Fans need more to start than to run: some stop at the 30% floor from a cold
+// start. Both get a burst at 100% after every power-up, a fan that reads stopped
+// gets one before it counts as stalled, and a fan that came back from a kick runs
+// a step higher for the rest of the session.
+#define FAN_START_KICK_S 5
+#define FAN_KICK_S 4
+#define FAN_FLOOR_STEP 10
+#define FAN_FLOOR_MAX 60
 // Within this many degrees of the tuner's ceiling the fans go to 100%, whatever the
 // fan target says: the tuner must never back off for heat while cooling is left.
 #define FAN_BOOST_MARGIN_C 3.0f
@@ -109,6 +117,10 @@ static void monitor_task(void *)
     int crit_chip = 0, crit_vr = 0, crit_power = 0;
     int powered_s = 0, vout_low = 0;
     int stall[2] = {0, 0};
+    int kick[2] = {0, 0};            // seconds left at 100% for this fan
+    bool kicked[2] = {false, false}; // this stop already had its kick
+    float fan_floor[2] = {0, 0};     // raised after a kick brought the fan back
+    bool was_powered = false;
     bool price_paused = false;
     int resume_fails = 0, resume_wait = 0;
     char why[64];
@@ -138,11 +150,15 @@ static void monitor_task(void *)
                 if (!g_state.fan_present[i]) ESP_LOGW(TAG, "fan header %d: nothing connected (0 rpm since boot)", i + 1);
         }
 
-        if (!board::is_powered()) powered_s = vout_low = 0;
+        if (!board::is_powered()) powered_s = vout_low = 0, was_powered = false;
         if (board::is_powered()) {
+            if (!was_powered) kick[0] = kick[1] = FAN_START_KICK_S;  // start from a firm spin
+            was_powered = true;
             // a lost sensor reads as -1 here, which the PI treats as "full fan"
-            float a = asic_pi.update(g_state.temp_ok ? g_state.chip_temp_max : -1, cfg.fan_target_c, cfg.fan_min_pct);
-            float v = vr_pi.update(g_state.vr_temp_ok ? g_state.vr_temp : -1, VR_FAN_TARGET_C, cfg.fan_min_pct);
+            float a = asic_pi.update(g_state.temp_ok ? g_state.chip_temp_max : -1, cfg.fan_target_c,
+                                     fmaxf(cfg.fan_min_pct, fan_floor[0]));
+            float v = vr_pi.update(g_state.vr_temp_ok ? g_state.vr_temp : -1, VR_FAN_TARGET_C,
+                                   fmaxf(cfg.fan_min_pct, fan_floor[1]));
 #if AF_HEX_FAMILY
             // both Hex fans blow across chips and regulator alike
             float duty[2] = {v > a ? v : a, v > a ? v : a};
@@ -156,6 +172,7 @@ static void monitor_task(void *)
             if (g_state.chip_temp_max >= CONFIG_AF_MAX_CHIP_TEMP - FAN_BOOST_MARGIN_C) duty[0] = duty[1] = 100;
             if (g_state.vr_temp >= lim.vr_ceil_c - FAN_BOOST_MARGIN_C) duty[1] = 100;
             for (int i = 0; i < 2; i++) {
+                if (kick[i] > 0) duty[i] = 100;
                 fan::set_pct(i, duty[i]);
                 g_state.fan_duty[i] = (uint8_t) duty[i];
             }
@@ -191,6 +208,28 @@ static void monitor_task(void *)
             int stalled = -1;
             for (int i = 0; i < 2; i++) {
                 bool slow = g_state.fan_present[i] && duty[i] >= FAN_STALL_MIN_DUTY && g_state.fan_rpm[i] < FAN_STALL_RPM;
+                if (kick[i] > 0) {
+                    kick[i]--;
+                    if (kicked[i] && !slow) {
+                        // the kick brought it back: it was stopping at its floor, so raise that
+                        fan_floor[i] = fminf(fmaxf(fan_floor[i], (float) cfg.fan_min_pct) + FAN_FLOOR_STEP, FAN_FLOOR_MAX);
+                        ESP_LOGW(TAG, "fan %d turns again after a kick (%u rpm): its floor is %.0f%% until the next boot", i + 1,
+                                 g_state.fan_rpm[i], fan_floor[i]);
+                        kicked[i] = false;
+                        kick[i] = 0;
+                    }
+                    stall[i] = 0;
+                    continue;
+                }
+                if (slow && !kicked[i]) {
+                    ESP_LOGW(TAG, "fan %d reads %u rpm at %.0f%%: 100%% for %d s before calling it stalled", i + 1,
+                             g_state.fan_rpm[i], duty[i], FAN_KICK_S);
+                    kick[i] = FAN_KICK_S;
+                    kicked[i] = true;
+                    stall[i] = 0;
+                    continue;
+                }
+                if (!slow) kicked[i] = false;  // turning normally: the next stop gets its own kick
                 stall[i] = slow ? stall[i] + 1 : 0;
                 if (stall[i] >= FAN_STALL_S) stalled = i;
             }

@@ -414,6 +414,12 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(wx, "temp", w.temp);
     cJSON_AddNumberToObject(wx, "code", w.code);
     cJSON_AddStringToObject(wx, "text", weather::describe(w.code));
+    cJSON_AddBoolToObject(wx, "isDay", w.is_day);
+    cJSON_AddNumberToObject(wx, "feels", w.feels);
+    cJSON_AddNumberToObject(wx, "humidity", w.humidity);
+    cJSON_AddNumberToObject(wx, "wind", w.wind);
+    cJSON_AddNumberToObject(wx, "tmin", w.days[0].tmin);  // today's range
+    cJSON_AddNumberToObject(wx, "tmax", w.days[0].tmax);
     cJSON_AddStringToObject(wx, "error", w.error);
     return send_json(req, r);
 }

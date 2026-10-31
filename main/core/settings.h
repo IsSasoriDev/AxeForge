@@ -83,7 +83,7 @@ struct Settings {
     char discord_url[160] = "";    // https://discord.com/api/webhooks/...
     char tg_token[64] = "";        // Telegram bot token
     char tg_chat[24] = "";         // Telegram chat id
-    uint8_t notify_events = 0x1f;  // NOTIFY_* bits
+    uint8_t notify_events = 0x3f;  // NOTIFY_* bits
 
     bool bap_on = true;            // Bitaxe accessory port
     bool ble_setup = true;         // Bluetooth Wi-Fi setup while in setup mode
@@ -99,6 +99,11 @@ struct Settings {
     char price_url[128] = "";      // returns JSON with a number (or numeric string)
     char price_path[40] = "";      // dotted path to it, e.g. "state" or "data.0.price"
     float price_max = 15;          // ct/kWh for Energy-Charts, the URL's own unit otherwise
+
+    // what the electricity costs, for the power bill card: per kWh in `currency`;
+    // 0 = use the market price from the price mode, if that is on
+    float energy_price = 0;
+    char currency[5] = "€";
 };
 
 // notify_events bits
@@ -107,6 +112,7 @@ struct Settings {
 #define NOTIFY_FAULT 0x04
 #define NOTIFY_POOL 0x08
 #define NOTIFY_BOOT 0x10
+#define NOTIFY_MAINTENANCE 0x20  // clean the heatsink
 
 namespace settings {
 void load();

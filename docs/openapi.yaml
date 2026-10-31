@@ -176,7 +176,7 @@ paths:
         2 best share, 4 faults, 8 no pool, 16 started), `notifyClear`, `bap`, `blesetup`,
         `tgoal` (0 hashrate, 1 power limit, 2 efficiency), `pcap` (W, 0 = board limit), `chiptune`,
         `otaguard`, `priceon`, `pricesrc` (0 Energy-Charts, 1 URL), `pricezone`, `priceurl`,
-        `pricepath`, `pricemax`. A new goal, limit or `chiptune` starts a new tuner search.
+        `pricepath`, `pricemax`, `eprice` (per kWh, 0 = market price), `currency`. A new goal, limit or `chiptune` starts a new tuner search.
         Wi-Fi, hostname, theme, screen type and the accessory port reboot the miner; the rest
         applies right away.
       requestBody:
@@ -303,6 +303,16 @@ paths:
   /api/retune:
     post:
       summary: Start a new auto-tune search
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/dust:
+    post:
+      summary: The heatsink was cleaned; forget the baseline and learn again
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/energy:
+    post:
+      summary: Reset the energy and cost totals
       responses:
         '200': {$ref: '#/components/responses/Text'}
   /api/ota/keep:

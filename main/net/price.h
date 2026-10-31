@@ -12,6 +12,9 @@ void start();
 void refresh_now();
 // True while mining should stop for the price.
 bool want_pause();
+// The current Energy-Charts market price in ct/kWh, NAN when the price mode is off,
+// uses a URL, or has no price for this moment.
+float market_ct_kwh();
 // {"on","src","now","max","unit","pausing","updated","error","slots":[...]} for the web UI.
 cJSON *json();
 }

@@ -233,6 +233,16 @@ html[data-theme=paper] .pill{background:transparent}
  <div class="card"><h3>Live share hash <span class="tag" id="lhd">--</span></h3><div class="hash" id="lh">waiting for the first share…</div>
   <div class="sub" style="margin-top:8px" id="lhn"></div></div>
 </div>
+<div class="grid g2 mb">
+ <div class="card"><h3>Power bill &amp; odds <span class="tag" id="enfrom">--</span></h3>
+  <div class="kv"><div>Today</div><div id="entoday">--</div><div>Per day at this power</div><div id="enday">--</div><div>Since <span id="ensince">--</span></div><div id="entotal">--</div>
+  <div>Block today</div><div id="odday">--</div><div>Block this month</div><div id="odmonth">--</div><div>Block this year</div><div id="odyear">--</div><div>One block every</div><div id="odevery">--</div></div>
+  <p class="note" id="ennote"></p></div>
+ <div class="card"><h3>Heatsink <span class="tag" id="dustst">learning</span></h3>
+  <div class="kv"><div>Chips</div><div id="dustt">--</div><div>Fan</div><div id="dustf">--</div></div>
+  <p class="note" id="dustnote"></p>
+  <div class="btns" id="dustbtn" style="display:none"><button class="btn sm" onclick="act('/api/dust','{}')">Done, I cleaned it</button></div></div>
+</div>
 <div class="mb">
  <div class="card"><h3>Best shares <span class="tag" id="scorecount">--</span></h3>
   <div style="overflow-x:auto"><table class="tbl" id="scores"></table></div>
@@ -296,7 +306,10 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div id="pzrow"><label>Bidding zone</label><input name="pricezone" list="zones" placeholder="DE-LU"><datalist id="zones"><option>AT</option><option>BE</option><option>BG</option><option>CH</option><option>CZ</option><option>DE-LU</option><option>DK1</option><option>DK2</option><option>EE</option><option>ES</option><option>FI</option><option>FR</option><option>GR</option><option>HR</option><option>HU</option><option>IT-North</option><option>LT</option><option>LV</option><option>NL</option><option>NO1</option><option>NO2</option><option>PL</option><option>PT</option><option>RO</option><option>RS</option><option>SE3</option><option>SE4</option><option>SI</option><option>SK</option></datalist></div>
 <div><label>Stop above <span id="punit">ct/kWh</span></label><input name="pricemax" type="number" step="0.01"></div></div>
 <div class="row" id="purlrow"><div><label>URL</label><input name="priceurl" placeholder="https://example.com/price.json"></div><div><label>Path to the number</label><input name="pricepath" placeholder="e.g. data.price or 0.value"></div></div>
-<p class="note" id="pnote"></p><div class="pbars" id="pbars"></div><p class="note" id="pinfo"></p></div>
+<p class="note" id="pnote"></p><div class="pbars" id="pbars"></div><p class="note" id="pinfo"></p>
+<div class="row" style="margin-top:12px"><div><label>Your electricity price (per kWh)</label><input name="eprice" type="number" min="0" step="0.001" placeholder="0 = market price above"></div>
+<div><label>Currency</label><input name="currency" maxlength="4" placeholder="€"></div></div>
+<p class="note">For the power bill card on the dashboard. With no price of your own, the Energy-Charts market price above is used while the price mode is on (wholesale, without taxes and fees).</p></div>
 <div class="card"><h3>Manual point / tuner start</h3><div class="row">
 <div><label>Frequency (MHz) <span class="rv" id="fv"></span></label><input type="range" name="freq" min="400" max="750" step="6.25" oninput="fv.textContent=this.value"></div>
 <div><label>Core voltage (mV) <span class="rv" id="mvv"></span></label><input type="range" name="mv" min="1100" max="1300" step="10" oninput="mvv.textContent=this.value"></div></div>
@@ -528,7 +541,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
- $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);
+ $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);energyLive(S.energy);dustLive(S.dust);
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
  if(navv!==S.ip+S.version){navv=S.ip+S.version;
   // release builds link to their tag's source, local and dev builds to the repo
@@ -588,6 +601,28 @@ function priceLive(p){if(!p)return;const st=$('pricest');
  $('pinfo').textContent=p.error?'⚠ '+p.error:('Now '+now+' · limit '+p.max+' '+(p.unit||'')+(p.slots?.length?' · next '+Math.round(p.slots.length*p.step/3600)+' h':''));
  const sl=p.slots||[],v=sl.filter(x=>x!==null),hi=Math.max(p.max,...v,0.01),lo=Math.min(0,...v);
  $('pbars').innerHTML=sl.map(x=>x===null?'<i style="height:0"></i>':`<i class="${x>p.max?'hi':''}" style="height:${Math.max(2,100*(x-lo)/(hi-lo))}%" title="${x} ct/kWh"></i>`).join('')}
+
+/* ---------------- power bill & odds, heatsink */
+function oddsTxt(p){return p>=0.995?'almost certain':p>=0.01?(100*p).toFixed(p<0.1?1:0)+'%':'1 in '+Math.round(1/p).toLocaleString()}
+function money(v,c){return v===undefined?'--':(c||'')+(v<10?v.toFixed(2):Math.round(v).toLocaleString())}
+function energyLive(e){if(!e)return;const c=e.currency;
+ $('enfrom').textContent=e.priceFrom=='yours'?'your price':e.priceFrom=='market'?'market price':'no price set';
+ $('entoday').textContent=e.kwhToday.toFixed(2)+' kWh'+(e.price!==undefined?' · '+money(e.costToday,c):'');
+ $('enday').textContent=e.costPerDay!==undefined?money(e.costPerDay,c):'--';
+ $('ensince').textContent=e.since?new Date(e.since*1000).toLocaleDateString():'start';
+ $('entotal').textContent=e.kwhTotal.toFixed(1)+' kWh'+(e.price!==undefined?' · '+money(e.costTotal,c):'');
+ $('odday').textContent=e.oddsDay!==undefined?oddsTxt(e.oddsDay):'--';$('odmonth').textContent=e.oddsMonth!==undefined?oddsTxt(e.oddsMonth):'--';
+ $('odyear').textContent=e.oddsYear!==undefined?oddsTxt(e.oddsYear):'--';
+ $('odevery').textContent=e.yearsPerBlock!==undefined?(e.yearsPerBlock>=2?Math.round(e.yearsPerBlock).toLocaleString()+' years':Math.round(e.yearsPerBlock*365)+' days'):'--';
+ $('ennote').textContent=e.costPerBlock!==undefined?'On average a block costs about '+money(e.costPerBlock,c)+' of power at this rate. Each try is independent: time already spent doesn\'t bring the next block closer.':e.priceFrom=='none'?'Set your electricity price under Tuning → Electricity price to see the cost.':''}
+function dustLive(d){if(!d)return;const st=$('dustst');
+ st.textContent=d.state=='dirty'?'clean it':d.state=='ok'?'clean':'learning';st.style.color=d.state=='dirty'?'var(--orange)':d.state=='ok'?'var(--green)':'';
+ $('dustt').textContent=d.temp!==undefined?d.temp+' °C (clean: '+d.baseTemp+' °C)':d.baseTemp!==undefined?d.baseTemp+' °C so far':'--';
+ $('dustf').textContent=d.fan!==undefined?d.fan+'% (clean: '+d.baseFan+'%)':d.baseFan!==undefined?d.baseFan+'% so far':'--';
+ $('dustbtn').style.display=d.state=='dirty'?'':'none';
+ $('dustnote').textContent=d.state=='dirty'?'Running '+Math.max(0,d.dTemp)+' °C warmer, fan '+Math.max(0,d.dFan)+' points harder than when it was clean, at the same power. Probably dust: switch it off and clean the heatsink and fan.'
+  :d.state=='ok'?'Running like it did clean ('+(d.dTemp>=0?'+':'')+d.dTemp+' °C, fan '+(d.dFan>=0?'+':'')+d.dFan+' points).'
+  :'Learning how this miner runs at '+(d.refW||'its usual')+(d.refW?' W':' power')+': '+d.baseDays+' of 7 days. It needs a few hours a day of steady mining with the fan on auto.'}
 
 /* ---------------- pools editor */
 let P={pools:[],mode:'split'};
@@ -745,7 +780,7 @@ async function pollSelftest(){clearTimeout(stTimer);let r;try{r=await (await fet
  $('stbtn').disabled=r.running;if(r.running)stTimer=setTimeout(pollSelftest,2000)}
 
 /* ---------------- notifications */
-const NEV=[[1,'Block found'],[2,'New best share'],[4,'Faults and power cuts'],[8,'No pool for 5 minutes'],[16,'Miner started']];
+const NEV=[[1,'Block found'],[2,'New best share'],[4,'Faults and power cuts'],[8,'No pool for 5 minutes'],[16,'Miner started'],[32,'Time to clean the heatsink']];
 function notifyForm(){$('nevents').innerHTML=NEV.map(([b,n])=>`<label><input type="checkbox" data-b="${b}" ${cfg.notify&b?'checked':''}>${n}</label>`).join('');
  $('ndiscord').value='';$('ndiscord').placeholder=cfg.discordSet?'saved (hidden), paste a new one to replace':'https://discord.com/api/webhooks/...';
  $('ntgtoken').value='';$('ntgtoken').placeholder=cfg.tgSet?'saved (hidden)':'123456789:AA...';$('ntgchat').value=cfg.tgchat||''}

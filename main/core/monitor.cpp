@@ -10,6 +10,8 @@
 
 #include "core/board.h"
 #include "core/board_config.h"
+#include "core/dust.h"
+#include "core/energy.h"
 #include "core/ota_guard.h"
 #include "core/psu.h"
 #include "core/settings.h"
@@ -117,6 +119,8 @@ static void monitor_task(void *)
         board::read_telemetry();
         psu::tick();
         ota_guard::tick();
+        energy::tick();
+        if (g_state.uptime_s % 60 == 0) dust::tick_minute();
         Settings &cfg = settings::get();
         const board::Limits &lim = board::limits();
         bool sensors_ok = g_state.temp_ok && g_state.vr_temp_ok;
@@ -176,6 +180,7 @@ static void monitor_task(void *)
                 vout_low = ++powered_s > VOUT_SETTLE_S && set_v > 0 && g_state.vout < 0.5f * set_v ? vout_low + 1 : 0;
             if (vout_low >= VOUT_LOST_S) {
                 snprintf(why, sizeof(why), "Core voltage lost (%.2f V of %.2f V)", g_state.vout, set_v);
+                board::log_regulator(why);  // before the cut-off clears what it says
                 vout_low = 0;
                 emergency(SysStatus::Fault, why);
                 continue;
@@ -320,6 +325,11 @@ static void monitor_task(void *)
             }
         }
     }
+}
+
+namespace board {
+// boards without a regulator that reports its own status
+__attribute__((weak)) void log_regulator(const char *) {}
 }
 
 namespace monitor {

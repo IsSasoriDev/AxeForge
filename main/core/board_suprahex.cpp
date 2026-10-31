@@ -225,6 +225,8 @@ void read_telemetry()
     g_state.iin = g_state.vin > 1 ? g_state.pin / g_state.vin : 0;
 }
 
+void log_regulator(const char *why) { tps546::log_status(why); }
+
 Error check_faults()
 {
     if (!s_powered) return Error::None;

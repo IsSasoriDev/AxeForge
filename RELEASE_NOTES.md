@@ -4,15 +4,32 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
+_Nothing yet._
+
+## AxeForge v1.4.5
+
 ### Fixes
+- **Bitaxe GT: the core voltage no longer drops seconds after power-up.** The GT, Gamma, Gamma Duo, Naja Duo and Gamma Hex now switch their regulator the way AxeOS does: by the PMBus OPERATION command alone. AxeForge also told the TPS546 to obey its CONTROL pin, and on a GT that cut the core during the clock ramp ("Core voltage lost (0.02 V of 1.21 V)") and kept it off on every retry. The Supra Hex keeps its tested setting.
+- When the core voltage is lost, the log now shows every status register of the regulator, so the next report says why.
+
+### New
+- **Clean-heatsink reminder.** Over its first week the miner learns how warm the chips run and how hard the fan works at its usual power. After that it compares every week with the clean one, with the outdoor temperature from the weather page taken out, and tells you when dust is the likely cause: a Discord/Telegram message, *CLEAN HEATSINK* in place of *MINING* on the screen, and a card on the dashboard with a *Done, I cleaned it* button that starts the learning again.
+- **Power bill & odds.** A dashboard card with the energy used today and since you started, what it cost at your electricity price (set it under *Tuning → Electricity price*, or the market price from the price mode is used), the cost per day at this power, and your chance of finding a block today, this month and this year at your hashrate.
+
+### Also fixed
 - **The setup network after 5 minutes without Wi-Fi now actually appears.** Starting it (and Bluetooth setup with it) ran on the system event task, whose stack is too small for that, so the miner panicked and rebooted at the 5-minute mark instead, every 5 minutes, without ever showing `AxeForge-XXXX`. Found on a NerdQaxe++ rev6 with a router that refused the connection.
 - **The Ethernet row on the Network page only appears when an adapter is actually fitted.** It showed on every NerdQAxe-family miner because the header exists; now it follows the W5500 probe at boot, and reads "adapter fitted, no cable" when one is there but unplugged. `/api/status` gains `eth.present`.
+
 ### Web UI
 - **System → Device shows the board**, and on the NerdQaxe++ the API's `board` now reads "NerdQaxe++ rev7 (TPS546)" rather than the revision alone, so Swarm names it like every other board.
+
 ### Dashboard
 - **One chart instead of two.** The hour chart and the "Last 24 hours" card are one chart with hashrate, temperature and power to choose from, a 1 h / 24 h switch, and a crosshair that shows the value and how long ago it was. `/api/history` now returns temperature and power next to the hashrate.
+
 ### Build
 - **One file per board.** What the firmware knows about a board (chips, pins, regulator, sensors, stock point) is in `boards/<id>.toml`, turned into the old `core/board_config.h` at build time by `tools/gen_board.py`. Same macros, same binaries; adding a board or changing one no longer means finding its `#elif` in a 300-line header and its stock point in `settings.cpp`. See `boards/README.md`.
+
+Thanks to @cbyam for #52 to #57.
 
 ## AxeForge v1.4.4
 

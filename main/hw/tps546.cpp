@@ -74,6 +74,12 @@ static const uint8_t DEVICE_IDS[][6] = {
     {0x54, 0x49, 0x54, 0x6D, 0x24, 0x62},  // TPS546D24S
 };
 
+// ON_OFF_CONFIG as AxeOS writes it for every Bitaxe: the OPERATION command alone
+// switches the output; the CONTROL pin is ignored (bit 2 clear). With the pin
+// obeyed (0x1F) a GT dropped its core seconds after power-up and stayed off.
+// The Supra Hex keeps 0x1F: tested that way.
+#define ON_OFF_CMD_ONLY 0x1B
+
 namespace tps546 {
 const Profile NERDQAXE_REV7 = {"rev7 stack", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.0f, 1.5f,
                                90.0f, 100.0f, 1.10f, 0x18, 0x0001, 0x0000, {0x12, 0x34, 0x42, 0x25, 0x04}};
@@ -82,17 +88,17 @@ const Profile BITAXE_HEX = {"hex", 3, 11.5f, 11.0f, 11.0f, 14.0f, 0.125f, 2.5f /
                             25.0f, 30.0f, 1.16f, 0x1F, 0, 0xFFFF, {0}};
 // reference TPS546_CONFIG_DEFAULT: VIN 4.8/4.5 V (no UV warning), 1..2 V out, 25/30 A
 const Profile BITAXE_SINGLE = {"single", 1, 4.8f, 4.5f, 0.0f, 6.5f, 0.25f, 1.0f, 2.0f,
-                               25.0f, 30.0f, 1.16f, 0x1F, 0, 0xFFFF, {0}};
+                               25.0f, 30.0f, 1.16f, ON_OFF_CMD_ONLY, 0, 0xFFFF, {0}};
 // reference TPS546_CONFIG_NAJA_DUO: VIN 11/10.5 V, 1.8..3.0 V out, 61/68 A, two-phase stack
 const Profile NAJA_DUO = {"naja duo", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.8f / 2, 3.0f / 2,
-                          61.0f, 68.0f, 1.10f, 0x1F, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x25, 0x04}};
+                          61.0f, 68.0f, 1.10f, ON_OFF_CMD_ONLY, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x25, 0x04}};
 // reference TPS546_CONFIG_GAMMA_TURBO: VIN 11/10.5 V, 50/55 A, two-phase stack. The
 // reference allows 1..3 V out; one domain of BM1370s never needs more than 1.5 V
 const Profile GAMMA_TURBO = {"gamma turbo", 1, 11.0f, 10.5f, 11.0f, 14.8f, 0.25f, 1.0f, 1.5f,
-                             50.0f, 55.0f, 1.10f, 0x1F, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x21, 0x04}};
+                             50.0f, 55.0f, 1.10f, ON_OFF_CMD_ONLY, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x21, 0x04}};
 // reference TPS546_CONFIG_GAMMA_HEX: VIN 11/10.5 V, 2.0..3.0 V out, 150/160 A, four-phase stack
 const Profile GAMMA_HEX = {"gamma hex", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 2.0f / 2, 3.0f / 2,
-                           150.0f, 160.0f, 1.10f, 0x1F, 0x0003, 0xFFFF, {0x02, 0x64, 0x82, 0x11, 0x06}};
+                           150.0f, 160.0f, 1.10f, ON_OFF_CMD_ONLY, 0x0003, 0xFFFF, {0x02, 0x64, 0x82, 0x11, 0x06}};
 }
 
 static const tps546::Profile *s_prof = &tps546::NERDQAXE_REV7;
@@ -306,6 +312,16 @@ float vout()
 }
 
 float pout() { return vout() * s_prof->domains * iout(); }
+
+// Why the output went away: every status register in one line, for the log.
+void log_status(const char *why)
+{
+    uint16_t word = 0xffff;
+    if (s_initialized) i2c_bus::read_word_le(ADDR, 0x79, &word);  // STATUS_WORD
+    ESP_LOGE(TAG, "%s: STATUS_WORD %04x VOUT %02x IOUT %02x INPUT %02x TEMP %02x CML %02x | vout %.3f V, iout %.1f A, vin %.2f V",
+             why, word, read_status(STATUS_VOUT), read_status(STATUS_IOUT), read_status(STATUS_INPUT),
+             read_status(STATUS_TEMPERATURE), read_status(0x7E), vout(), iout(), vin());
+}
 
 uint8_t status_byte() { return read_status(STATUS_BYTE); }
 uint8_t status_iout() { return read_status(STATUS_IOUT); }

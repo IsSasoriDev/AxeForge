@@ -272,6 +272,8 @@ void load()
     get_str(h, "priceurl", s.price_url, sizeof(s.price_url));
     get_str(h, "pricepath", s.price_path, sizeof(s.price_path));
     get_float(h, "pricemax", s.price_max);
+    get_float(h, "eprice", s.energy_price);
+    get_str(h, "currency", s.currency, sizeof(s.currency));
     nvs_close(h);
 }
 
@@ -337,6 +339,8 @@ void save()
     nvs_set_str(h, "priceurl", s.price_url);
     nvs_set_str(h, "pricepath", s.price_path);
     set_float(h, "pricemax", s.price_max);
+    set_float(h, "eprice", s.energy_price);
+    nvs_set_str(h, "currency", s.currency);
     nvs_commit(h);
     nvs_close(h);
 }

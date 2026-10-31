@@ -323,6 +323,11 @@ void read_telemetry()
     g_state.iout = 0;
 }
 
+void log_regulator(const char *why)
+{
+    if (s_tps) tps546::log_status(why);
+}
+
 Error check_faults()
 {
     if (!s_powered) return Error::None;

@@ -20,6 +20,8 @@
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
+#include "core/dust.h"
+#include "core/energy.h"
 #include "core/ota_guard.h"
 #include "core/psu.h"
 #include "core/settings.h"
@@ -232,6 +234,8 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(po, "mohm", p.ohms * 1000);
     }
     cJSON_AddItemToObject(r, "price", price::json());
+    cJSON_AddItemToObject(r, "dust", dust::json());
+    cJSON_AddItemToObject(r, "energy", energy::json());
     cJSON_AddNumberToObject(r, "freeHeap", esp_get_free_heap_size());
     cJSON_AddNumberToObject(r, "freeInternal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     cJSON_AddNumberToObject(r, "freeDma", heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
@@ -414,6 +418,8 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "priceurlSet", c.price_url[0] != 0);  // may hold a token: never sent back
     cJSON_AddStringToObject(r, "pricepath", c.price_path);
     cJSON_AddNumberToObject(r, "pricemax", c.price_max);
+    cJSON_AddNumberToObject(r, "eprice", c.energy_price);
+    cJSON_AddStringToObject(r, "currency", c.currency);
     cJSON_AddNumberToObject(r, "fantgt", c.fan_target_c);
     cJSON_AddNumberToObject(r, "fanmin", c.fan_min_pct);
     cJSON_AddNumberToObject(r, "fmode0", c.fan_mode[0]);
@@ -665,7 +671,10 @@ static esp_err_t settings_post(httpd_req_t *req)
                  (*p >= 'A' && *p <= 'Z');
         if (ok) snprintf(c.tg_chat, sizeof(c.tg_chat), "%s", cv->valuestring);
     }
-    c.notify_events = (uint8_t) get_int(j, "notify", c.notify_events, 0, 0x1f);
+    c.notify_events = (uint8_t) get_int(j, "notify", c.notify_events, 0, 0x3f);
+    cJSON *ep = cJSON_GetObjectItem(j, "eprice");
+    if (cJSON_IsNumber(ep) && ep->valuedouble >= 0 && ep->valuedouble < 1000) c.energy_price = (float) ep->valuedouble;
+    copy_str(j, "currency", c.currency, sizeof(c.currency));
     bool bap_on = get_bool(j, "bap", c.bap_on);
     if (bap_on != c.bap_on) reboot = true;  // the port is opened at boot
     c.bap_on = bap_on;
@@ -713,6 +722,19 @@ static esp_err_t retune_post(httpd_req_t *req)
     settings::save();
     tuner::restart();
     return httpd_resp_sendstr(req, "Auto-tune restarted. A full search takes 1-2 hours.");
+}
+
+// {"reset":true}: the heatsink was cleaned, learn again
+static esp_err_t dust_post(httpd_req_t *req)
+{
+    dust::reset();
+    return httpd_resp_sendstr(req, "Thanks! Learning how it runs clean over the next week.");
+}
+
+static esp_err_t energy_post(httpd_req_t *req)
+{
+    energy::reset_totals();
+    return httpd_resp_sendstr(req, "Energy totals reset.");
 }
 
 static esp_err_t ota_keep_post(httpd_req_t *req)
@@ -1300,6 +1322,8 @@ void start()
         {"/api/restart", HTTP_POST, restart_post, NULL},
         {"/api/ota", HTTP_POST, ota_post, NULL},
         {"/api/ota/keep", HTTP_POST, ota_keep_post, NULL},
+        {"/api/dust", HTTP_POST, dust_post, NULL},
+        {"/api/energy", HTTP_POST, energy_post, NULL},
         {"/api/pools", HTTP_GET, pools_get, NULL},
         {"/api/pools", HTTP_POST, pools_post, NULL},
         {"/api/logs", HTTP_GET, logs_get, NULL},

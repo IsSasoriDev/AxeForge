@@ -18,6 +18,8 @@
 #include "core/board_config.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
+#include "core/dust.h"
+#include "core/energy.h"
 #include "core/ota_guard.h"
 #include "core/settings.h"
 #include "core/state.h"
@@ -138,6 +140,8 @@ extern "C" void app_main(void)
     Settings &cfg = settings::get();
     ota_guard::boot(rr);  // before the stock fallback: a bad update goes back to the last AxeForge
     stats::load();
+    dust::load();
+    energy::load();
     otp::load();
     asic::set_vr_freq(cfg.vr_hz, false);  // used by the chip init below
     if (cfg.autotune && cfg.tuned_freq) asic::set_chip_offsets(cfg.chip_off, false);  // the tuner's per-chip clocks

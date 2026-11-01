@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Dashboard
+- **Every ASIC card shows its clock.** Chips at the chain clock print it too, not only the ones the per-chip tuner raised; the raised ones stay highlighted, and hovering the clock says by how much.
 
 ## AxeForge v1.4.6
 

@@ -156,7 +156,12 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
             esp_wifi_set_mode(WIFI_MODE_STA);
             s_setup = false;
         }
-        ESP_LOGI(TAG, "connected, ip %s", g_state.ip);
+        wifi_ap_record_t ap;
+        if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK)
+            ESP_LOGI(TAG, "connected, ip %s, AP %02x:%02x:%02x:%02x:%02x:%02x channel %d, %d dBm", g_state.ip, ap.bssid[0],
+                     ap.bssid[1], ap.bssid[2], ap.bssid[3], ap.bssid[4], ap.bssid[5], ap.primary, ap.rssi);
+        else
+            ESP_LOGI(TAG, "connected, ip %s", g_state.ip);
     }
 }
 
@@ -191,6 +196,10 @@ void start()
         strncpy((char *) sta.sta.password, s.wifi_pass, sizeof(sta.sta.password));
         sta.sta.threshold.authmode = s.wifi_pass[0] ? WIFI_AUTH_WPA_PSK : WIFI_AUTH_OPEN;
         sta.sta.pmf_cfg.capable = true;
+        // several access points may carry the same name (a mesh, an extender):
+        // scan every channel and take the strongest, not the first to answer
+        sta.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+        sta.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
         esp_wifi_set_config(WIFI_IF_STA, &sta);
         g_state.status = SysStatus::Connecting;
     }

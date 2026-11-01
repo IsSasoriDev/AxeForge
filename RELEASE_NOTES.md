@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Web UI
+- **Overclock shows as a pill, not a banner.** The orange bar across the top of every page is now an orange *Overclocked* pill beside the mining state in the header; hover for what it means, click to open Tuning → Overclock.
 
 ## AxeForge v1.4.7
 

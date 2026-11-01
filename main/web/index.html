@@ -236,9 +236,8 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
 <div class="foot" id="navfoot"></div>
 </nav>
 <main>
-<header><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="meta" id="up"></span></header>
+<header><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="pill" id="ocpill" style="display:none;color:var(--orange);cursor:pointer" title="Overclocked: the tuner and manual settings may go past this board&#x27;s stock limits. Click for Tuning → Overclock." onclick="tab('tuning')">Overclocked</span><span class="meta" id="up"></span></header>
 <div class="banner" id="fault"></div>
-<div class="banner" id="ocban" style="display:none;background:var(--orange);color:#000">Overclocked: the tuner and manual settings may go past this board's stock limits. Tuning → Overclock to go back.</div>
 
 <!-- ============================== DASHBOARD -->
 <section id="dash" class="on">
@@ -565,7 +564,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*(S.smallCores||2040)*(S.asicCount||4)/1000));
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status+(S.purifier?' · purifier '+S.purifier:'');st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
- $('fault').style.display=S.fault?'block':'none';$('ocban').style.display=S.overclocked?'block':'none';$('fault').textContent='⚠ '+S.fault;
+ $('fault').style.display=S.fault?'block':'none';$('ocpill').style.display=S.overclocked?'inline-flex':'none';$('fault').textContent='⚠ '+S.fault;
  $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
  $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
  $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);

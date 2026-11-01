@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Dashboard
+- **The four telemetry cards are gauges.** ASIC temperature, VR temperature, power and fan each show a half-arc with tick marks at the lines the firmware acts on: the tuner ceiling and the shutdown temperature, the power ceiling, the 95 % line where the tuner stops climbing and the emergency cut-off. The arc and a word under the number say which zone the value is in; a stopped fan turns the fan gauge red. The ticks move when Overclock is turned on or off.
 
 ## AxeForge v1.4.7
 

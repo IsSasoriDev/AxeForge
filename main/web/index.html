@@ -35,6 +35,11 @@ header h1{font-size:20px;margin:0;flex:1}
 .big{font-size:30px;font-weight:750;letter-spacing:-.5px}.big small{font-size:14px;color:var(--dim);font-weight:600;margin-left:3px}
 .sub{color:var(--dim);font-size:12px;margin-top:2px}
 .bar{height:5px;background:var(--line);border-radius:3px;margin-top:12px;overflow:hidden}.bar i{display:block;height:100%;border-radius:3px;transition:width .6s}
+.meter{display:grid;justify-items:center}.meter svg{width:100%;max-width:190px;height:auto;display:block;overflow:visible}
+.meter .track{fill:none;stroke:var(--track);stroke-width:10;stroke-linecap:round}.meter .fill{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset .6s,stroke .6s}
+.meter .tick{stroke:var(--text);stroke-width:1.5;opacity:.55}.meter .tick.soft{stroke-dasharray:2 2;opacity:.4}.meter .tl{font-size:9px;fill:var(--dim);font-weight:700}
+.meter .v{font-size:30px;font-weight:750;letter-spacing:-.5px;fill:var(--text)}.meter .u{font-size:12px;fill:var(--dim);font-weight:600}
+.zone{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-top:-2px}.zone i{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
 .hero{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-bottom:14px}
 .gauge{display:grid;place-items:center;padding:10px}
 .gauge svg{width:210px;height:210px}.gauge .v{font-size:40px;font-weight:800;fill:var(--text)}.gauge .u{font-size:15px;fill:var(--cyan);font-weight:700}.gauge .s{font-size:11px;fill:var(--dim)}
@@ -175,7 +180,7 @@ html[data-theme=paper]{color-scheme:light;--bg:#f3f1ea;--bg2:#f3f1ea;--panel:#fb
 html[data-theme=paper] *{box-shadow:none!important;text-shadow:none!important;animation:none!important}
 html[data-theme=paper] [filter]{filter:none}
 html[data-theme=paper] body{background:var(--bg)}
-html[data-theme=paper] .big,html[data-theme=paper] .gauge .v,html[data-theme=paper] .logo{font-family:Georgia,"Iowan Old Style",serif;font-weight:700;letter-spacing:0}
+html[data-theme=paper] .big,html[data-theme=paper] .gauge .v,html[data-theme=paper] .meter .v,html[data-theme=paper] .logo{font-family:Georgia,"Iowan Old Style",serif;font-weight:700;letter-spacing:0}
 html[data-theme=paper] .card,html[data-theme=paper] .pool{border-width:1.5px}
 html[data-theme=paper] .card h3{color:var(--text);border-bottom:1px solid var(--line);padding-bottom:6px}
 html[data-theme=paper] .accent{display:none}
@@ -257,10 +262,10 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
   <svg class="chart" id="chart" preserveAspectRatio="none"></svg><p class="note" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span id="cnote"></span><span class="tag" id="eff">--</span></p></div>
 </div>
 <div class="grid g4 mb">
- <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="big" id="ct">--</div><div class="sub" id="cts"></div><div class="bar"><i id="ctb" style="background:var(--orange)"></i></div></div>
- <div class="card"><i class="accent" style="background:var(--violet)"></i><h3>VR temp</h3><div class="big" id="vt">--</div><div class="sub" id="vts"></div><div class="bar"><i id="vtb" style="background:var(--violet)"></i></div></div>
- <div class="card"><i class="accent" style="background:var(--mag)"></i><h3>Power</h3><div class="big" id="pw">--</div><div class="sub" id="pws"></div><div class="bar"><i id="pwb" style="background:var(--mag)"></i></div></div>
- <div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>Fan</h3><div class="big" id="fn">--</div><div class="sub" id="fns"></div><div class="bar"><i id="fnb" style="background:var(--cyan)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="meter" id="m-ct"></div><div class="sub" id="cts" style="text-align:center"></div></div>
+ <div class="card"><i class="accent" style="background:var(--violet)"></i><h3>VR temp</h3><div class="meter" id="m-vt"></div><div class="sub" id="vts" style="text-align:center"></div></div>
+ <div class="card"><i class="accent" style="background:var(--mag)"></i><h3>Power</h3><div class="meter" id="m-pw"></div><div class="sub" id="pws" style="text-align:center"></div></div>
+ <div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>Fan</h3><div class="meter" id="m-fn"></div><div class="sub" id="fns" style="text-align:center"></div></div>
 </div>
 <div class="grid g4 chips mb" id="chips"></div>
 <div class="card mb"><h3>Blocks <span class="tag" id="fees">--</span></h3><div class="cubes" id="cubes"></div></div>
@@ -522,11 +527,27 @@ const ember=()=>document.documentElement.dataset.theme=='ember';
 // One temperature rule: amber where the fans are forced to 100% and the tuner stops
 // climbing (3 C under its ceiling), red at the ceiling, where a tuning step fails.
 const tempCol=(t,ceil)=>t>=ceil?'var(--red)':t>=ceil-3?'var(--orange)':'var(--green)';
-function emberBars(S,L){const st=(v,warn,bad)=>v>=bad?'var(--red)':v>=warn?'var(--orange)':'var(--green)';
- $('ctb').style.background=tempCol(S.chipTemp,L.chipCeil||68);
- $('vtb').style.background=tempCol(S.vrTemp,L.vrCeil||85);
- $('pwb').style.background=st(S.power,(L.maxPower||100)*.95,(L.maxPower||100)*1.05);
- $('fnb').style.background='var(--cyan)'}
+/* telemetry meters: a half arc with ticks at the lines the firmware acts on */
+const MR=70,MCX=90,MCY=86,MLEN=Math.PI*MR,mpt=(f,r=MR)=>{const a=Math.PI*(1-f);return [MCX+r*Math.cos(a),MCY-r*Math.sin(a)]};
+const ZC={ok:'var(--green)',warn:'var(--orange)',crit:'var(--red)',none:'var(--dim)'},ZW={ok:'ok',warn:'near ceiling',crit:'over',none:'no sensor'};
+function meterHtml(id,o){const ticks=o.ticks.map(t=>{const f=(t.v-o.min)/(o.max-o.min),[x1,y1]=mpt(f,MR-9),[x2,y2]=mpt(f,MR+9),[lx,ly]=mpt(f,MR+18);
+ return `<line class="tick${t.soft?' soft':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"><title>${t.label}: ${t.v}${o.unit}</title></line><text class="tl" x="${lx}" y="${ly+3}" text-anchor="middle">${t.short}</text>`}).join('');
+ return `<svg viewBox="0 -4 180 100" role="img"><title>${o.title}</title><path class="track" d="M ${MCX-MR} ${MCY} A ${MR} ${MR} 0 0 1 ${MCX+MR} ${MCY}"/><path class="fill" id="${id}-f" d="M ${MCX-MR} ${MCY} A ${MR} ${MR} 0 0 1 ${MCX+MR} ${MCY}" stroke-dasharray="${MLEN}" stroke-dashoffset="${MLEN}"/>${ticks}<text class="v" x="${MCX}" y="${MCY-6}" text-anchor="middle" id="${id}-v">--</text><text class="u" x="${MCX}" y="${MCY+12}" text-anchor="middle">${o.unit}</text></svg><div class="zone" id="${id}-z"><i></i><span></span></div>`}
+let meterSig='',METERS={};
+function buildMeters(L){const cut=cfg.overclock?.cutoffPower||(L.maxPower||100)*1.15,cc=L.chipCeil||68,ck=L.chipCrit||80,vc=L.vrCeil||85,vk=L.vrCrit||100,mp=L.maxPower||100;
+ METERS={ct:{title:'ASIC temperature',unit:'°C',min:30,max:Math.max(90,ck+10),ticks:[{v:cc,label:'tuner ceiling',short:cc},{v:ck,label:'shutdown',short:ck}]},
+  vt:{title:'Regulator temperature',unit:'°C',min:30,max:Math.max(110,vk+10),ticks:[{v:vc,label:'tuner ceiling',short:vc},{v:vk,label:'shutdown',short:vk}]},
+  pw:{title:'Input power',unit:'W',min:0,max:cut,ticks:[{v:Math.round(mp*.95*10)/10,label:'tuner stops climbing',short:'95%',soft:true},{v:mp,label:'ceiling',short:Math.round(mp)},{v:Math.round(cut*10)/10,label:'emergency cut-off',short:Math.round(cut)}]},
+  fn:{title:'Fan speed',unit:'%',min:0,max:100,ticks:[{v:30,label:'floor',short:'30'},{v:100,label:'full',short:'100'}]}};
+ for(const k in METERS)$('m-'+k).innerHTML=meterHtml(k,METERS[k])}
+function setMeter(id,v,zone,txt){const o=METERS[id],f=v==null?0:Math.max(0,Math.min(1,(v-o.min)/(o.max-o.min))),e=$(id+'-f');e.style.strokeDashoffset=MLEN*(1-f);e.style.stroke=ZC[zone];
+ $(id+'-v').textContent=txt;const z=$(id+'-z');z.style.color=ZC[zone];z.querySelector('span').textContent=ZW[zone]}
+const zoneOf=(v,ceil,crit)=>v>=crit?'crit':v>=ceil?'warn':'ok';
+function meters(S,L){const sig=JSON.stringify([L,cfg.overclock?.cutoffPower]);if(sig!=meterSig){buildMeters(L);meterSig=sig}
+ setMeter('ct',S.chipTemp,zoneOf(S.chipTemp,L.chipCeil||68,L.chipCrit||80),S.chipTemp.toFixed(1));
+ if(S.vrSensor===false)setMeter('vt',null,'none','--');else setMeter('vt',S.vrTemp,zoneOf(S.vrTemp,L.vrCeil||85,L.vrCrit||100),S.vrTemp.toFixed(1));
+ const cut=cfg.overclock?.cutoffPower||(L.maxPower||100)*1.15;setMeter('pw',S.power,zoneOf(S.power,L.maxPower||100,cut),S.power.toFixed(1));
+ const dead=(S.fans||[]).some(f=>f.connected&&!f.rpm);setMeter('fn',S.fanPct,dead?'crit':S.fanPct>=95?'warn':'ok',String(S.fanPct))}
 const feeCol=f=>ember()?mpCol(f):f<2?'#5b3fd9':f<5?'#3d7bff':f<10?'#1fbfa0':f<20?'#8fd12b':f<50?'#ffb21c':'#ff3b5c';
 const PROTO=['Stratum V1','V1 + TLS','Stratum V2'],PSHORT=['V1','TLS','SV2'];
 function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p=t=>[cx+r*Math.cos(a0+sw*t),cy+r*Math.sin(a0+sw*t)];
@@ -566,11 +587,10 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status+(S.purifier?' · purifier '+S.purifier:'');st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
  $('fault').style.display=S.fault?'block':'none';$('ocban').style.display=S.overclocked?'block':'none';$('fault').textContent='⚠ '+S.fault;
- $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
- $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
- $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
- $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=fanText(S);$('fnb').style.width=S.fanPct+'%';
- if(ember())emberBars(S,L);
+ meters(S,L);$('cts').textContent='hottest of '+(S.chipsDetected||S.asicCount||4)+' chips';
+ $('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';
+ $('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';
+ $('fns').textContent=fanText(S);
  chips(S.chips);blocks(S.mempool);fanStatus();
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;const pc=phaseCol[t.phase]||(ember()?'var(--cyan)':'var(--violet)');tp.style.color=pc;if(ember())$('tbar').style.background=pc;
  $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;if(cur=='tuning')headroom(S);

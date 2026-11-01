@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fans
+- **A fan that stops at its floor gets a kick before it counts as stalled.** Fans need more to start than to run, and one that was seen turning at boot and then stopped at the 30% floor tripped the stall cut-off every 46 seconds (fault, power off, retry, fault). Now both fans get 5 s at 100% after every power-up, a fan that reads stopped gets 4 s at 100% first, and one that comes back from that runs 10 points higher for the rest of the session (logged). A fan that stays stopped after the kick still cuts power within about 15 s.
 
 ## AxeForge v1.4.5
 

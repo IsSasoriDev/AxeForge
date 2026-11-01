@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- **The max power tile on the Tuning page no longer prints a float.** With Overclock on, the envelope limit is stock times a percentage, and a Nexus S1 showed "183.6000061035156 W". It now reads 183.6 W, and whole numbers stay whole.
 
 ## AxeForge v1.4.5
 

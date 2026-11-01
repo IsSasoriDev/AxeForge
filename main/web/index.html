@@ -619,7 +619,7 @@ setInterval(()=>{if(cur=='swarm'&&!document.hidden)loadSwarm()},5000);
 async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setTheme(cfg.theme);
  document.querySelectorAll('form[data-f] [name]').forEach(e=>{const v=cfg[e.name];if(v===undefined)return;if(e.type=='checkbox')e.checked=!!v;else e.value=v;e.dispatchEvent(new Event('input'))});
  const L=cfg.limits;document.querySelector('[name=freq]').max=$('fnum').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=$('mvnum').min=L.minMv;mv.max=$('mvnum').max=L.maxMv;ocUi();
- $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[L.maxPower+' W','max power']]
+ $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[(+L.maxPower).toFixed(L.maxPower%1?1:0)+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
  $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;
@@ -631,7 +631,7 @@ document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDef
 
 /* ---------------- tuning goal & electricity price */
 function goalUi(){const g=+$('tgoal').value;$('pcaprow').style.display=g==1?'':'none';
- $('goalnote').textContent=['Climbs until a thermal, power or error wall.','Same climb, but the wall is your power limit (measured at the input, below the board limit of '+(cfg.limits?.maxPower||'?')+' W).','Holds the voltage, climbs while joules per terahash keep falling, then trims the voltage.'][g]}
+ $('goalnote').textContent=['Climbs until a thermal, power or error wall.','Same climb, but the wall is your power limit (measured at the input, below the board limit of '+(cfg.limits?.maxPower?(+cfg.limits.maxPower).toFixed(cfg.limits.maxPower%1?1:0):'?')+' W).','Holds the voltage, climbs while joules per terahash keep falling, then trims the voltage.'][g]}
 function priceUi(){const u=+$('pricesrc').value==1;$('pzrow').style.display=u?'none':'';$('purlrow').style.display=u?'':'none';$('punit').textContent=u?'(the URL\'s unit)':'ct/kWh';
  $('pnote').textContent=u?'Any URL that returns JSON with the price in it, read every 5 minutes. A Home Assistant sensor needs a token, so put it behind a public template or proxy.':'Wholesale day-ahead price (no taxes or grid fees) from energy-charts.info, for your bidding zone.'}
 function priceLive(p){if(!p)return;const st=$('pricest');

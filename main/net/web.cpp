@@ -461,6 +461,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "fman0", c.fan_manual[0]);
     cJSON_AddNumberToObject(r, "fman1", c.fan_manual[1]);
     cJSON_AddNumberToObject(r, "theme", c.theme);
+    cJSON_AddNumberToObject(r, "tiles", c.tiles);
     cJSON_AddNumberToObject(r, "bright", c.brightness);
     cJSON_AddNumberToObject(r, "scroff", c.screen_off_min);
     cJSON_AddNumberToObject(r, "defpage", c.default_page);
@@ -666,6 +667,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.fan_mode[1] = (uint8_t) get_int(j, "fmode1", c.fan_mode[1], 0, 1);
     c.fan_manual[0] = (uint8_t) get_int(j, "fman0", c.fan_manual[0], 20, 100);
     c.fan_manual[1] = (uint8_t) get_int(j, "fman1", c.fan_manual[1], 20, 100);
+    c.tiles = (uint8_t) get_int(j, "tiles", c.tiles, 0, 1);
     uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 3);
     if (theme != c.theme) {
         c.theme = theme;

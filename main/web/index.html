@@ -39,6 +39,7 @@ header h1{font-size:20px;margin:0;flex:1}
 .meter .track{fill:none;stroke:var(--track);stroke-width:10;stroke-linecap:round}.meter .fill{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset .6s,stroke .6s}
 .meter .tick{stroke:var(--text);stroke-width:1.5;opacity:.55}.meter .tick.soft{stroke-dasharray:2 2;opacity:.4}.meter .tl{font-size:9px;fill:var(--dim);font-weight:700}
 .meter .v{font-size:30px;font-weight:750;letter-spacing:-.5px;fill:var(--text)}.meter .u{font-size:12px;fill:var(--dim);font-weight:600}
+#tele:not(.bars) .tb{display:none}#tele:not(.bars) .sub{text-align:center}#tele.bars .meter{display:none}
 .zone{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-top:-2px}.zone i{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
 .hero{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-bottom:14px}
 .gauge{display:grid;place-items:center;padding:10px}
@@ -261,11 +262,11 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
   <span class="seg xs" id="rangeseg"><button data-r="hour" class="on">1 h</button><button data-r="day">24 h</button></span></span></h3>
   <svg class="chart" id="chart" preserveAspectRatio="none"></svg><p class="note" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span id="cnote"></span><span class="tag" id="eff">--</span></p></div>
 </div>
-<div class="grid g4 mb">
- <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="meter" id="m-ct"></div><div class="sub" id="cts" style="text-align:center"></div></div>
- <div class="card"><i class="accent" style="background:var(--violet)"></i><h3>VR temp</h3><div class="meter" id="m-vt"></div><div class="sub" id="vts" style="text-align:center"></div></div>
- <div class="card"><i class="accent" style="background:var(--mag)"></i><h3>Power</h3><div class="meter" id="m-pw"></div><div class="sub" id="pws" style="text-align:center"></div></div>
- <div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>Fan</h3><div class="meter" id="m-fn"></div><div class="sub" id="fns" style="text-align:center"></div></div>
+<div class="grid g4 mb" id="tele">
+ <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="meter" id="m-ct"></div><div class="big tb" id="ct">--</div><div class="sub" id="cts"></div><div class="bar tb"><i id="ctb" style="background:var(--orange)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--violet)"></i><h3>VR temp</h3><div class="meter" id="m-vt"></div><div class="big tb" id="vt">--</div><div class="sub" id="vts"></div><div class="bar tb"><i id="vtb" style="background:var(--violet)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--mag)"></i><h3>Power</h3><div class="meter" id="m-pw"></div><div class="big tb" id="pw">--</div><div class="sub" id="pws"></div><div class="bar tb"><i id="pwb" style="background:var(--mag)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>Fan</h3><div class="meter" id="m-fn"></div><div class="big tb" id="fn">--</div><div class="sub" id="fns"></div><div class="bar tb"><i id="fnb" style="background:var(--cyan)"></i></div></div>
 </div>
 <div class="grid g4 chips mb" id="chips"></div>
 <div class="card mb"><h3>Blocks <span class="tag" id="fees">--</span></h3><div class="cubes" id="cubes"></div></div>
@@ -405,6 +406,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <form data-f><div class="card"><h3>Screen settings</h3>
 <div class="lcd"><label style="margin-top:0" title="Which panel the miner has. The miner reboots to switch. If the screen goes blank afterwards, hold the bottom button at power-on to flip back.">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p></div>
+<label title="Gauges draw each value on a half arc with the firmware's limits as tick marks. Bars is the compact row with a thin bar under the number.">Dashboard tiles</label><select name="tiles"><option value="0">Bars, compact</option><option value="1">Gauges, with the limits as ticks</option></select>
 <label title="Forge is dark, Paper is for daylight and e-ink-like screens, Ember is dark with Bitcoin orange, Spatial is deep space. Applies to the miner&#x27;s screen and this page.">Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">Spatial: deep space, stars and planets</option></select>
 <label title="Backlight level. Applies at once.">Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <div class="lcd"><label title="Backlight off after this many idle minutes. A button wakes it; faults, overheating and a found block wake it too.">Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select></div>
@@ -543,6 +545,12 @@ function buildMeters(L){const cut=cfg.overclock?.cutoffPower||(L.maxPower||100)*
 function setMeter(id,v,zone,txt){const o=METERS[id],f=v==null?0:Math.max(0,Math.min(1,(v-o.min)/(o.max-o.min))),e=$(id+'-f');e.style.strokeDashoffset=MLEN*(1-f);e.style.stroke=ZC[zone];
  $(id+'-v').textContent=txt;const z=$(id+'-z');z.style.color=ZC[zone];z.querySelector('span').textContent=ZW[zone]}
 const zoneOf=(v,ceil,crit)=>v>=crit?'crit':v>=ceil?'warn':'ok';
+function barTiles(S,L){const st=(v,warn,bad)=>v>=bad?'var(--red)':v>=warn?'var(--orange)':'var(--green)';
+ $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('ctb').style.width=pct(S.chipTemp,L.chipCrit||80);
+ $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vtb').style.width=pct(S.vrTemp,L.vrCrit||100);
+ $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pwb').style.width=pct(S.power,L.maxPower||100);
+ $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fnb').style.width=S.fanPct+'%';
+ if(ember()){$('ctb').style.background=tempCol(S.chipTemp,L.chipCeil||68);$('vtb').style.background=tempCol(S.vrTemp,L.vrCeil||85);$('pwb').style.background=st(S.power,(L.maxPower||100)*.95,(L.maxPower||100)*1.05)}}
 function meters(S,L){const sig=JSON.stringify([L,cfg.overclock?.cutoffPower]);if(sig!=meterSig){buildMeters(L);meterSig=sig}
  setMeter('ct',S.chipTemp,zoneOf(S.chipTemp,L.chipCeil||68,L.chipCrit||80),S.chipTemp.toFixed(1));
  if(S.vrSensor===false)setMeter('vt',null,'none','--');else setMeter('vt',S.vrTemp,zoneOf(S.vrTemp,L.vrCeil||85,L.vrCrit||100),S.vrTemp.toFixed(1));
@@ -587,7 +595,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status+(S.purifier?' · purifier '+S.purifier:'');st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
  $('fault').style.display=S.fault?'block':'none';$('ocban').style.display=S.overclocked?'block':'none';$('fault').textContent='⚠ '+S.fault;
- meters(S,L);$('cts').textContent='hottest of '+(S.chipsDetected||S.asicCount||4)+' chips';
+ const bars=cfg.tiles!=1;$('tele').classList.toggle('bars',bars);if(bars)barTiles(S,L);else meters(S,L);$('cts').textContent='hottest of '+(S.chipsDetected||S.asicCount||4)+' chips';
  $('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';
  $('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';
  $('fns').textContent=fanText(S);

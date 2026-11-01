@@ -53,6 +53,7 @@ struct Settings {
     // per fan header: 0 = auto (temperature loop), 1 = manual duty
     uint8_t fan_mode[2] = {0, 0};
     uint8_t fan_manual[2] = {60, 60};
+    uint8_t tiles = 0;             // dashboard telemetry cards: 0 = bars (as before), 1 = gauges
     uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (e-ink style), 2 = Ember (Bitcoin orange), 3 = Spatial (deep space)
     uint8_t brightness = 100;
     uint8_t screen_off_min = 0;   // backlight off after this many idle minutes, 0 = never

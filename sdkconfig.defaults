@@ -70,3 +70,8 @@ CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
 # W5500 Ethernet adapter on the NerdQAxe-family header
 CONFIG_ETH_USE_SPI_ETHERNET=y
 CONFIG_ETH_SPI_ETHERNET_W5500=y
+
+# 802.11k/v: radio measurements and BSS transition, so a mesh can steer the
+# miner to its best radio (net/wifi.cpp); the scan cache speeds the move up
+CONFIG_ESP_WIFI_11KV_SUPPORT=y
+CONFIG_ESP_WIFI_SCAN_CACHE=y

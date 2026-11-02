@@ -5,7 +5,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ## Unreleased
 
 ### Web UI
-- **The menu collapses to icons.** A chevron at the bottom of the left menu folds it to an icon rail, hover names the page, and the choice is remembered. The AxeForge logo moves into the page header, so phones, where the menu is a bar along the bottom, see it too.
+- **The menu collapses to icons.** A menu button at the top of the left menu folds it to an icon rail, hover names the page, and the choice is remembered. The AxeForge logo moves into the page header, so phones, where the menu is a bar along the bottom, see it too.
 
 ## AxeForge v1.4.7
 

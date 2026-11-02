@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- Tuning → Electricity price no longer shows an empty band under the price source while the price mode is off or no prices have arrived yet.
 
 ## AxeForge v1.4.5
 

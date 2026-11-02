@@ -18,12 +18,20 @@
 // supply turns overclocking off until it recovers.
 namespace gates {
 
+// the power cut-off sits at 115 % of the stock limit: an envelope's ceiling stays clear of it
+constexpr int MAX_POWER_PCT = 10;
+
 bool available();  // this board has headroom above stock
 bool active();     // unlocked, available and the supply is fine
 
 uint16_t max_freq();  // MHz
 uint16_t max_mv();
 float max_power();    // W, the tuner's ceiling
+
+// the board file's [envelope], as compiled (0 where the board has none or can't use it)
+uint16_t env_freq();
+uint16_t env_mv();
+uint8_t env_power_pct();
 
 uint16_t stock_max_freq();
 uint16_t stock_max_mv();

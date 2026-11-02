@@ -100,6 +100,27 @@ paths:
                   chips:
                     type: array
                     items: {type: object, properties: {ghs: {type: number}, errGhs: {type: number}, temp: {type: number}}}
+                  tuner:
+                    type: object
+                    description: Auto-tune state. The wall and peak fields cover the current search only; a lock restored at boot has none.
+                    properties:
+                      phase: {type: string, enum: [manual, warmup, testing, stepping, locked, backoff]}
+                      note: {type: string, description: what the tuner is doing, as on the Tuning page}
+                      progress: {type: integer, description: 0-100 of the current window}
+                      steps: {type: integer, description: windows measured in this search}
+                      bestFreq: {type: integer, description: MHz of the best stable point, 0 while searching}
+                      bestMv: {type: integer}
+                      bestGhs: {type: number}
+                      trialFreq: {type: integer, description: the point under test}
+                      trialMv: {type: integer}
+                      goal: {type: integer, description: '0 hashrate, 1 power limit, 2 efficiency'}
+                      wall: {type: string, enum: ['', gate, mvgate, thermal, power, errors, hold, peak], description: 'what ended the climb: the clock limit, the voltage limit (errors that more voltage might have fixed), the temperature or power ceiling, hardware errors, a fault hold, the efficiency peak; empty before a wall is found, and after a restored lock'}
+                      wallFreq: {type: integer, description: MHz of the point that failed, or the last stable one at the clock limit}
+                      wallMv: {type: integer}
+                      wallWatch: {type: boolean, description: the wall was found later by the watch phase (the lock failed), not by the climb}
+                      peakW: {type: number, description: highest input power over this search's stable windows (failing steps don't count)}
+                      peakChipC: {type: number, description: highest over every window, failing ones included}
+                      peakVrC: {type: number}
   /api/history:
     get:
       summary: The last hour, 120 points 30 s apart, oldest first (same shape as /api/stats)
@@ -164,7 +185,40 @@ paths:
       description: The Discord webhook and the Telegram token are never returned; `discordSet` / `tgSet` say whether they are saved.
       security: []
       responses:
-        '200': {description: Settings, content: {application/json: {schema: {type: object}}}}
+        '200':
+          description: Settings. Only the limit and overclock objects are typed here; the other keys match the POST keys below.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  limits:
+                    type: object
+                    description: What the tuner and manual settings work within right now (the envelope while overclocking is active)
+                    properties:
+                      maxFreq: {type: integer, description: MHz}
+                      minMv: {type: integer}
+                      maxMv: {type: integer}
+                      chipCeil: {type: number, description: tuner chip-temperature ceiling, °C}
+                      chipCrit: {type: number, description: emergency chip-temperature cut, °C}
+                      vrCeil: {type: number}
+                      vrCrit: {type: number}
+                      maxPower: {type: number, description: the tuner's power ceiling, W}
+                  overclock:
+                    type: object
+                    properties:
+                      available: {type: boolean, description: 'the board file has an [envelope] (never on a NerdQaxe++ rev7)'}
+                      unlocked: {type: boolean, description: the user unlocked it}
+                      active: {type: boolean, description: unlocked, and the power supply check is not weak or bad}
+                      stockFreq: {type: integer}
+                      stockMv: {type: integer}
+                      stockPower: {type: number}
+                      cutoffPower: {type: number, description: 'the power cut-off, 115 % of stock; never moves'}
+                      boardId: {type: string, description: 'the board file, boards/<id>.toml'}
+                      envFreq: {type: integer, description: 'MHz an unlock adds: the board file''s envelope, 0 where overclocking is not available'}
+                      envMv: {type: integer}
+                      envPowerPct: {type: integer, description: at most maxPowerPct}
+                      maxPowerPct: {type: integer, description: 'the most an envelope may add to the stock power limit (10, below the 115 % cut-off)'}
     post:
       summary: Change any subset of settings
       description: |
@@ -176,7 +230,9 @@ paths:
         2 best share, 4 faults, 8 no pool, 16 started), `notifyClear`, `bap`, `blesetup`,
         `tgoal` (0 hashrate, 1 power limit, 2 efficiency), `pcap` (W, 0 = board limit), `chiptune`,
         `otaguard`, `priceon`, `pricesrc` (0 Energy-Charts, 1 URL), `pricezone`, `priceurl`,
-        `pricepath`, `pricemax`, `chipworkers`, `eprice` (per kWh, 0 = market price), `currency`. A new goal, limit or `chiptune` starts a new tuner search.
+        `pricepath`, `pricemax`, `chipworkers`, `eprice` (per kWh, 0 = market price), `currency`, `overclock` (true
+        needs `confirm: "OVERCLOCK"` as well, and a board with `overclock.available`;
+        false always works). A new goal, limit, `chiptune` or `overclock` starts a new tuner search.
         Wi-Fi, hostname, theme, screen type and the accessory port reboot the miner; the rest
         applies right away.
       requestBody:

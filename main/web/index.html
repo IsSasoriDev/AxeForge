@@ -266,7 +266,7 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
 <div class="card mb"><h3>Blocks <span class="tag" id="fees">--</span></h3><div class="cubes" id="cubes"></div></div>
 <div class="grid g2 mb">
  <div class="card"><h3>Now mining <span class="tag" id="nmpool">--</span></h3>
-  <div class="big" id="nmh">--</div><div class="sub" id="nmtag"></div>
+  <div class="big" id="nmh">--</div>
   <div class="kv" style="margin-top:12px"><div>Block reward</div><div id="nmrew">--</div><div>Transactions</div><div id="nmtx">--</div><div>Previous block</div><div id="nmprev" class="hash" style="font-size:11px">--</div>
   <div>Payout</div><div id="nmpay" title="Who a block found on this template would pay. Solo pools pay the address in your username.">--</div></div>
   <div class="outs" id="nmouts"></div></div>
@@ -580,7 +580,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('tbar').style.width=(t.phase=='locked'||t.phase=='manual'?100:t.progress)+'%';
  $('tbest').textContent=t.bestFreq?`${t.bestFreq} MHz @ ${t.bestMv} mV (${hr(t.bestGhs).join(' ')})`:'searching…';$('tsteps').textContent=t.steps;
  // template + hash
- const tm=S.template;if(tm.valid){$('nmh').textContent=tm.height.toLocaleString();$('nmtag').textContent=tm.tag||'';
+ const tm=S.template;if(tm.valid){$('nmh').textContent=tm.height.toLocaleString();
   $('nmpool').textContent='pool '+(tm.pool+1)+' · '+(S.pools[tm.pool]?.host||'');$('nmrew').textContent=tm.reward.toFixed(8)+' BTC';
   $('nmtx').textContent='~'+(2**tm.branches).toLocaleString()+' (merkle depth '+tm.branches+')';$('nmprev').textContent=tm.prevHash;
   $('nmpay').innerHTML=payHtml(tm);

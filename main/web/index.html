@@ -273,7 +273,7 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
  <div class="card"><h3>Live share hash <span class="tag" id="lhd">--</span></h3><div class="hash" id="lh">waiting for the first share…</div>
   <div class="sub" style="margin-top:8px" id="lhn"></div>
   <div class="kv" style="margin-top:12px"><div>Block height</div><div id="lhht">--</div><div>Network difficulty</div><div id="lhnd">--</div></div>
-  <div class="sub" style="margin-top:10px" title="The coinbase input script: BIP34 height, the pool's tag, then the extranonce (extranonce2 shown as zeros, it changes with every job)">ScriptSig</div>
+  <div class="sub" style="margin-top:10px" title="The coinbase input script as text, dots for bytes that are not printable: BIP34 height, the pool's tag, then the extranonce (extranonce2 as zeros, it changes with every job). Hover the line for the hex.">ScriptSig</div>
   <div class="hash" style="font-size:11px" id="lhsig">--</div></div>
 </div>
 <div class="grid g2 mb">
@@ -585,7 +585,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
   $('nmtx').textContent='~'+(2**tm.branches).toLocaleString()+' (merkle depth '+tm.branches+')';$('nmprev').textContent=tm.prevHash;
   $('nmpay').innerHTML=payHtml(tm);
   $('lhht').textContent=tm.height.toLocaleString();$('lhnd').textContent=sfx(S.pool.networkDiff);
-  const sig=tm.scriptSig||'';$('lhsig').textContent=sig||'--';$('lhsig').title=sig.replace(/../g,b=>{const c=parseInt(b,16);return c>=32&&c<127?String.fromCharCode(c):'·'});
+  const sig=tm.scriptSig||'';$('lhsig').textContent=sig.replace(/../g,b=>{const c=parseInt(b,16);return c>=32&&c<127?String.fromCharCode(c):'.'})||'--';$('lhsig').title=sig;
   $('nmouts').innerHTML=(tm.outputs||[]).map(o=>`<div><span title="${esc(o.addr)}">${o.yours?'<b>you</b> · ':''}${esc(shortAddr(o.addr)||'non-standard script')}</span><span>${(o.sats/1e8).toFixed(8)} BTC</span></div>`).join('')}
  if(S.lastHash){$('lh').innerHTML=hashHtml(S.lastHash);$('lhd').textContent='diff '+sfx(S.lastHashDiff);
   $('lhn').textContent=(S.lastHash.match(/^0*/)[0].length)+' leading zeros · '+S.hashesChecked.toLocaleString()+' shares verified on the ESP32'}

@@ -7,7 +7,7 @@
 // built on shufps' NerdQAxe code. Apart from the power pins the layout is the
 // NerdQaxe++'s: UART1 17/18, I2C 44/43, the same display pins.
 //
-// Experimental: tested on one board (450 MHz / 950 mV matches stock, 475 MHz /
+// Tested on one board (450 MHz / 950 mV matches stock, 475 MHz /
 // 975 mV ran clean). With no schematics the limits stay close to stock. Wi-Fi
 // and pools are imported from the stock firmware's settings.
 #include "sdkconfig.h"

@@ -3,7 +3,6 @@
 name = "Nexus S1"
 id = "nexus"
 kconfig = "AF_BOARD_NEXUS"
-experimental = true       # one board tested, see main/core/board_nexus.cpp
 keep_stock_nvs = true
 
 [asic]

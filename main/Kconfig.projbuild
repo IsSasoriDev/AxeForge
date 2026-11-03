@@ -41,7 +41,7 @@ menu "AxeForge"
         config AF_BOARD_NAJA
             bool "Bitaxe Naja Duo 1201 (2x BM1373)"
         config AF_BOARD_NEXUS
-            bool "Nexus S1 (4x BM1373) - EXPERIMENTAL"
+            bool "Nexus S1 (4x BM1373)"
     endchoice
 
 

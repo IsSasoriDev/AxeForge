@@ -316,6 +316,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(tm, "reward", bt.reward_btc);
     cJSON_AddNumberToObject(tm, "branches", bt.branches);
     cJSON_AddStringToObject(tm, "tag", bt.tag);
+    cJSON_AddStringToObject(tm, "scriptSig", bt.script_sig);
     cJSON_AddNumberToObject(tm, "ntime", bt.ntime);
     // solo payout check: 0 unknown, 1 username isn't an address, 2 pays you, 3 doesn't
     cJSON_AddNumberToObject(tm, "payout", (int) bt.payout);

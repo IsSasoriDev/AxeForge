@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### New
+- **Nexus S1 release files and web flasher.** The BitLuck Nexus S1 is no longer experimental: every release now ships `axeforge-nexus.bin` and `axeforge-nexus-factory.bin`, and the web flasher lists it. Wi-Fi and pools carry over from the stock firmware.
 
 ## AxeForge v1.4.5
 

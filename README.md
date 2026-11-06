@@ -32,7 +32,7 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 | **Bitaxe Gamma Duo** 650 | 2× BM1370 | TPS546 | 40 W | `axeforge-gammaduo.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe GT** 801 | 2× BM1370 | TPS546 stack, 2-phase | 60 W | `axeforge-gt.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Gamma Hex** 1300 | 6× BM1370 | TPS546 stack, 4-phase, 2 stacked domains | 180 W | `axeforge-gammahex.bin` | ⚠️ Not tested on hardware yet |
-| **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | build from source | ⚠️ Experimental (one board tested) |
+| **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | `axeforge-nexus.bin` | ✅ Tested (one board) |
 | **HX-6** rev B ([open hardware](https://github.com/IsSasoriDev/HX6-Miner)) | 6× BM1370 | TPS53647, 4-phase | 130 W | `axeforge-hx6.bin` | ⚠️ No board built yet |
 
 - Each board has its own firmware file. A file for another board is refused, because the boards switch their core power on differently.
@@ -41,7 +41,7 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 - A NerdQX without its die sensors is treated as an unknown board and stays at 495 MHz / 1150 mV.
 - On a Bitaxe, AxeForge replaces AxeOS (see [Bitaxe](#bitaxe)). The Supra Hex, Ultra Hex, Supra and Gamma use the 128×32 OLED; the Naja Duo's color screen gets the full small-screen UI.
 - The Gamma and the Naja Duo read the chip's own temperature diode once it has power; the Supra 400/401 uses the fan controller's sensor next to the chip, as AxeOS does.
-- The Nexus S1 is experimental. BitLuck publishes no source or schematics, so its pins and power sequence were read from the stock firmware. Its limits stay close to stock (500 MHz, 1000 mV, 170 W), and there is no release file yet: build it with `sdkconfig.defaults.nexus`.
+- BitLuck publishes no source or schematics for the Nexus S1, so its pins and power sequence were read from the stock firmware, and it has been run on one board. Its limits stay close to stock (500 MHz, 1000 mV, 170 W). Wi-Fi and pools carry over from the stock firmware.
 - If you run one of the untested boards, please open an issue with your log (*System → Log*), working or not.
 - Other Bitaxe models (Ultra, Max, GT, Gamma Duo, Gamma Hex) are not supported yet.
 

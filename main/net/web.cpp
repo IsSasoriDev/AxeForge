@@ -277,6 +277,10 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(o, "workPct", ps.work_pct);
         cJSON_AddNumberToObject(o, "jobs", ps.jobs);
         cJSON_AddNumberToObject(o, "pingMs", ps.ping_ms);
+        cJSON_AddNumberToObject(o, "chipWorkers", ps.chip_workers);
+        cJSON_AddNumberToObject(o, "lagMs", ps.lag_ms);
+        cJSON_AddNumberToObject(o, "lagBlocks", ps.lag_blocks);
+        cJSON_AddNumberToObject(o, "lagFirst", ps.lag_first);
         cJSON_AddNumberToObject(o, "payout", ps.payout);
         cJSON_AddNumberToObject(o, "payoutPct", ps.payout_pct);
         cJSON_AddBoolToObject(o, "payoutBlocked", ps.payout_blocked);
@@ -412,6 +416,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "tgoal", c.tune_goal);
     cJSON_AddNumberToObject(r, "pcap", c.power_cap_w);
     cJSON_AddBoolToObject(r, "chiptune", c.chip_tune);
+    cJSON_AddBoolToObject(r, "chipworkers", c.chip_workers);
     cJSON_AddBoolToObject(r, "chipClock", asic::PER_CHIP_CLOCK);
     cJSON_AddBoolToObject(r, "otaguard", c.ota_guard);
     cJSON_AddBoolToObject(r, "priceon", c.price_on);
@@ -595,6 +600,9 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.autotune = get_bool(j, "atune", c.autotune);
     c.freq_mhz = board::clamp_freq(get_int(j, "freq", c.freq_mhz, 0, 2000));
     c.core_mv = board::clamp_mv(get_int(j, "mv", c.core_mv, 0, 2000));
+    bool chip_workers = get_bool(j, "chipworkers", c.chip_workers);
+    bool workers_changed = chip_workers != c.chip_workers;
+    c.chip_workers = chip_workers;
     // overclock: unlocking takes the typed confirmation; locking again never does
     bool oc = get_bool(j, "overclock", c.overclock);
     if (oc && !c.overclock) {
@@ -730,6 +738,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     cJSON_Delete(j);
     settings::save();
     price::refresh_now();
+    if (workers_changed) pools::reconfigure();  // workers are authorized on connect
     if (retune && c.autotune) tuner::restart();
     if (wx_changed) weather::refresh_now();
     if (mp_changed) mempool::refresh_now();
@@ -749,6 +758,39 @@ static esp_err_t retune_post(httpd_req_t *req)
     settings::save();
     tuner::restart();
     return httpd_resp_sendstr(req, "Auto-tune restarted. A full search takes 1-2 hours.");
+}
+
+// Prometheus text format, for Grafana and friends.
+static esp_err_t metrics_get(httpd_req_t *req)
+{
+    const MinerState &s = g_state;
+    const size_t cap = 3072;
+    char *b = (char *) heap_caps_malloc(cap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!b) return httpd_resp_send_500(req);
+    size_t n = 0;
+#define ADD(...) n += snprintf(b + n, n < cap ? cap - n : 0, __VA_ARGS__)
+    ADD("axeforge_info{board=\"%s\",version=\"%s\",asic=\"%s\"} 1\n", AF_BOARD_ID, esp_app_get_description()->version, asic::MODEL);
+    ADD("axeforge_hashrate_ghs %.1f\naxeforge_expected_ghs %.1f\naxeforge_error_percent %.3f\n", s.hashrate_ghs, s.expected_ghs, s.error_pct);
+    ADD("axeforge_power_watts %.2f\naxeforge_input_volts %.3f\naxeforge_core_volts %.3f\naxeforge_core_amps %.2f\n", s.pin, s.vin, s.vout, s.iout);
+    ADD("axeforge_chip_temp_max_celsius %.1f\naxeforge_vr_temp_celsius %.1f\n", s.chip_temp_max, s.vr_temp);
+    ADD("axeforge_frequency_mhz %u\naxeforge_core_mv %u\naxeforge_uptime_seconds %lu\n", s.freq_mhz, s.core_mv, (unsigned long) s.uptime_s);
+    ADD("axeforge_mining %d\naxeforge_overclocked %d\n", s.status == SysStatus::Mining, gates::active());
+    ADD("axeforge_shares_accepted_total %lu\naxeforge_shares_rejected_total %lu\naxeforge_blocks_found_total %lu\naxeforge_best_difficulty %.0f\n",
+        (unsigned long) s.shares_accepted, (unsigned long) s.shares_rejected, (unsigned long) s.blocks_found, s.best_diff);
+    for (int i = 0; i < 2; i++) ADD("axeforge_fan_rpm{fan=\"%d\"} %u\naxeforge_fan_percent{fan=\"%d\"} %u\n", i + 1, s.fan_rpm[i], i + 1, s.fan_duty[i]);
+    for (int i = 0; i < AF_NUM_ASICS; i++) ADD("axeforge_chip_ghs{chip=\"%d\"} %.1f\naxeforge_chip_temp_celsius{chip=\"%d\"} %.1f\n", i + 1, s.chip_ghs[i], i + 1, s.chip_temp[i]);
+    for (int i = 0; i < AF_POOLS; i++) {
+        const PoolState &p = s.pools[i];
+        if (!p.enabled) continue;
+        ADD("axeforge_pool_connected{pool=\"%d\"} %d\naxeforge_pool_ping_ms{pool=\"%d\"} %lu\n", i + 1, p.connected, i + 1, (unsigned long) p.ping_ms);
+        ADD("axeforge_pool_accepted_total{pool=\"%d\"} %lu\naxeforge_pool_rejected_total{pool=\"%d\"} %lu\n", i + 1, (unsigned long) p.accepted, i + 1, (unsigned long) p.rejected);
+        if (p.lag_blocks) ADD("axeforge_pool_block_lag_ms{pool=\"%d\"} %lu\n", i + 1, (unsigned long) p.lag_ms);
+    }
+#undef ADD
+    httpd_resp_set_type(req, "text/plain; version=0.0.4");
+    esp_err_t r = httpd_resp_send(req, b, n < cap ? n : cap - 1);
+    free(b);
+    return r;
 }
 
 // {"reset":true}: the heatsink was cleaned, learn again
@@ -1341,6 +1383,7 @@ void start()
     const httpd_uri_t uris[] = {
         {"/", HTTP_GET, index_get, NULL},
         {"/api/status", HTTP_GET, status_get, NULL},
+        {"/api/metrics", HTTP_GET, metrics_get, NULL},
         {"/favicon.ico", HTTP_GET, favicon_get, NULL},
         {"/api/history", HTTP_GET, history_get, NULL},
         {"/api/settings", HTTP_GET, settings_get, NULL},

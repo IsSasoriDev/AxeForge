@@ -62,6 +62,7 @@ static uint32_t shown_diff(double d) { return d >= 4294967295.0 ? UINT32_MAX : (
 #define ID_SUBSCRIBE 2
 #define ID_AUTHORIZE 3
 #define ID_SUGGEST 4
+#define ID_CHIP_AUTH_BASE 10  // + chip; more than any board has chips, below the submit ids
 #define ID_SUBMIT_BASE 100
 #define SUGGEST_DIFF 1024
 #define DEFAULT_VERSION_MASK 0x1fffe000
@@ -89,6 +90,7 @@ struct Pool {
     uint32_t version_mask = DEFAULT_VERSION_MASK;
     double diff = SUGGEST_DIFF;  // pools may send fractional difficulties
     uint32_t submit_id = ID_SUBMIT_BASE;
+    uint32_t chip_ok = 0;        // chips whose own worker the pool accepted
     int64_t submit_t_us = 0;
 
     // SV2 channel
@@ -101,6 +103,8 @@ struct Pool {
     uint8_t ext_prefix_len = 0;
     uint8_t ext_size = 0;
     uint8_t prev_hash[32] = {};
+    uint8_t lag_prev[32] = {};   // last previous-block hash seen from this pool
+    bool lag_have = false;
     uint32_t prev_nbits = 0;
     bool has_prev = false;
     sv2_ext_job_t *pending[SV2_PENDING_JOBS_SIZE] = {};
@@ -135,9 +139,47 @@ static void set_status(Pool &p, const char *fmt, const char *arg = "")
     snprintf(g_state.pools[p.idx].status, sizeof(g_state.pools[p.idx].status), fmt, arg);
 }
 
+// New-block lag: when a pool's previous-block hash changes, how long after the
+// first pool it came. Work on the old block is wasted, so this is the number that
+// tells a slow pool from a good one. It takes two pools to measure.
+#define LAG_MAX_MS 30000  // longer than this it wasn't lag: the pool was down
+static portMUX_TYPE s_lag_mux = portMUX_INITIALIZER_UNLOCKED;
+static uint8_t s_tip[32], s_old_tip[32];
+static int64_t s_tip_us;
+
+static void note_new_block(Pool &p, const uint8_t prev[32])
+{
+    if (p.lag_have && !memcmp(p.lag_prev, prev, 32)) return;
+    bool first_job = !p.lag_have;  // just connected: it says nothing about lag
+    memcpy(p.lag_prev, prev, 32);
+    p.lag_have = true;
+
+    int64_t now = esp_timer_get_time();
+    uint32_t lag = 0;
+    bool stale = false;
+    portENTER_CRITICAL(&s_lag_mux);
+    if (!memcmp(prev, s_tip, 32)) {
+        lag = (uint32_t) ((now - s_tip_us) / 1000);
+    } else if (!memcmp(prev, s_old_tip, 32)) {
+        stale = true;
+    } else {
+        memcpy(s_old_tip, s_tip, 32);
+        memcpy(s_tip, prev, 32);
+        s_tip_us = now;
+    }
+    portEXIT_CRITICAL(&s_lag_mux);
+    if (first_job || stale || lag > LAG_MAX_MS) return;
+
+    PoolState &ps = g_state.pools[p.idx];
+    ps.lag_ms = ps.lag_blocks ? (ps.lag_ms * 7 + lag) / 8 : lag;
+    ps.lag_blocks++;
+    if (!lag) ps.lag_first++;
+}
+
 // Publishes a new template and wakes the job task on clean jobs.
 static void publish(Pool &p, StratumJob &j, const char *coinb1_hex, const char *coinb2_hex)
 {
+    note_new_block(p, j.prev_hash_raw);
     xSemaphoreTake(p.lock, portMAX_DELAY);
     free(p.job.coinb1);
     free(p.job.coinb2);
@@ -216,6 +258,12 @@ static void transport_close(Pool &p)
         j = nullptr;
     }
     p.has_prev = false;
+}
+
+// "address.rig" -> "address.rig-chip2", "address" -> "address.chip2"
+static void chip_worker(const char *user, int chip, char *out, size_t len)
+{
+    snprintf(out, len, "%s%schip%d", user, strchr(user, '.') ? "-" : ".", chip + 1);
 }
 
 static bool send_line(Pool &p, const char *line)
@@ -315,6 +363,14 @@ static void v1_message(Pool &p, const char *line)
             }
         } else if (rid == ID_AUTHORIZE) {
             if (!cJSON_IsTrue(result)) set_status(p, "Worker rejected - check address");
+        } else if (rid >= ID_CHIP_AUTH_BASE && rid < ID_CHIP_AUTH_BASE + AF_NUM_ASICS) {
+            // a refused chip keeps submitting under the normal worker
+            if (cJSON_IsTrue(result)) {
+                p.chip_ok |= 1u << (rid - ID_CHIP_AUTH_BASE);
+                g_state.pools[p.idx].chip_workers++;
+            } else {
+                ESP_LOGW(TAG, "[%d] pool refused the worker for chip %d", p.idx, rid - ID_CHIP_AUTH_BASE + 1);
+            }
         } else if (rid >= ID_SUBMIT_BASE) {
             char *err = cJSON_IsTrue(result) ? nullptr : cJSON_PrintUnformatted(cJSON_GetObjectItem(root, "error"));
             on_share_result(p, cJSON_IsTrue(result), err);
@@ -344,7 +400,19 @@ static void run_v1(Pool &p, const PoolCfg &cfg)
              "{\"id\":%d,\"method\":\"mining.suggest_difficulty\",\"params\":[%d]}\n",
              ID_AUTHORIZE, cfg.user, cfg.pass, ID_SUGGEST, SUGGEST_DIFF);
     send_line(p, line);
+    p.chip_ok = 0;
+    g_state.pools[p.idx].chip_workers = 0;
+    if (settings::get().chip_workers && AF_NUM_ASICS > 1) {
+        for (int c = 0; c < AF_NUM_ASICS; c++) {
+            char worker[112];
+            chip_worker(cfg.user, c, worker, sizeof(worker));
+            snprintf(line, sizeof(line), "{\"id\":%d,\"method\":\"mining.authorize\",\"params\":[\"%s\",\"%s\"]}\n",
+                     ID_CHIP_AUTH_BASE + c, worker, cfg.pass);
+            send_line(p, line);
+        }
+    }
     g_state.pools[p.idx].connected = true;
+    p.lag_have = false;
     set_status(p, cfg.proto == PoolProto::V1Tls ? "Connected (TLS)" : "Connected");
 
     char *buf = (char *) malloc(V1_RX_BUF);
@@ -613,6 +681,7 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
     }
     p.version_mask = DEFAULT_VERSION_MASK;
     g_state.pools[p.idx].connected = true;
+    p.lag_have = false;
     g_state.pools[p.idx].diff = shown_diff(p.diff);
     set_status(p, have_key ? "Connected (SV2, verified)" : "Connected (SV2, encrypted)");
     ESP_LOGI(TAG, "[%d] SV2 channel %lu open, diff %.2f", p.idx, (unsigned long) p.channel_id, p.diff);
@@ -765,7 +834,7 @@ bool take_clean_flag(int i)
     return c;
 }
 
-void submit(int i, const Work &w, uint32_t nonce, uint32_t version)
+void submit(int i, const Work &w, uint32_t nonce, uint32_t version, int chip)
 {
     Pool &p = s_pools[i];
     if (!g_state.pools[i].connected) return;
@@ -780,10 +849,15 @@ void submit(int i, const Work &w, uint32_t nonce, uint32_t version)
         if (n > 0) send_frame(p, frame, n);
         return;
     }
-    char line[320];
+    char line[340], worker[112];
+    const char *user = settings::get().pools[i].user;
+    if (chip >= 0 && chip < AF_NUM_ASICS && (p.chip_ok & (1u << chip))) {
+        chip_worker(user, chip, worker, sizeof(worker));
+        user = worker;
+    }
     snprintf(line, sizeof(line),
              "{\"id\":%lu,\"method\":\"mining.submit\",\"params\":[\"%s\",\"%s\",\"%s\",\"%08lx\",\"%08lx\",\"%08lx\"]}\n",
-             (unsigned long) p.submit_id++, settings::get().pools[i].user, w.job_id, w.extranonce2,
+             (unsigned long) p.submit_id++, user, w.job_id, w.extranonce2,
              (unsigned long) w.ntime, (unsigned long) nonce, (unsigned long) (version & w.version_mask));
     send_line(p, line);
 }

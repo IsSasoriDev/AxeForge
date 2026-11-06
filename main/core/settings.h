@@ -28,6 +28,7 @@ struct Settings {
 
     PoolCfg pools[AF_MAX_POOLS];
     PoolMode pool_mode = PoolMode::Split;
+    bool chip_workers = false;     // Stratum V1: each chip submits under its own worker name
 
     uint16_t freq_mhz = 600;     // stock NerdQaxe++ point
     uint16_t core_mv = 1150;

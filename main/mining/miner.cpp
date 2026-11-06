@@ -369,7 +369,7 @@ static void result_task(void *)
                          (unsigned long) w.pool_diff);
             else
                 ESP_LOGD(TAG, "share pool %d chip %d diff %.0f", w.pool + 1, r.chip, diff);
-            pools::submit(w.pool, w, r.nonce, version);
+            pools::submit(w.pool, w, r.nonce, version, r.chip);
             if (diff >= work::nbits_to_difficulty(w.nbits)) {
                 g_state.blocks_found++;
                 ESP_LOGW(TAG, "!!! BLOCK FOUND !!! diff %.0f on pool %d", diff, w.pool);

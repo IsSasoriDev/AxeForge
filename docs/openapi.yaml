@@ -176,7 +176,7 @@ paths:
         2 best share, 4 faults, 8 no pool, 16 started), `notifyClear`, `bap`, `blesetup`,
         `tgoal` (0 hashrate, 1 power limit, 2 efficiency), `pcap` (W, 0 = board limit), `chiptune`,
         `otaguard`, `priceon`, `pricesrc` (0 Energy-Charts, 1 URL), `pricezone`, `priceurl`,
-        `pricepath`, `pricemax`, `eprice` (per kWh, 0 = market price), `currency`. A new goal, limit or `chiptune` starts a new tuner search.
+        `pricepath`, `pricemax`, `chipworkers`, `eprice` (per kWh, 0 = market price), `currency`. A new goal, limit or `chiptune` starts a new tuner search.
         Wi-Fi, hostname, theme, screen type and the accessory port reboot the miner; the rest
         applies right away.
       requestBody:
@@ -305,6 +305,14 @@ paths:
       summary: Start a new auto-tune search
       responses:
         '200': {$ref: '#/components/responses/Text'}
+  /api/metrics:
+    get:
+      summary: Prometheus text format (hashrate, power, temperatures, fans, chips, pools)
+      security: []
+      responses:
+        '200':
+          description: Metrics
+          content: {text/plain: {schema: {type: string}}}
   /api/dust:
     post:
       summary: The heatsink was cleaned; forget the baseline and learn again

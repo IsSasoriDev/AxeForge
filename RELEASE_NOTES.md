@@ -7,6 +7,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ### Fixes
 - Tuning → Electricity price no longer shows an empty band under the price source while the price mode is off or no prices have arrived yet.
 - **The max power tile on the Tuning page no longer prints a float.** With Overclock on, the envelope limit is stock times a percentage, and a Nexus S1 showed "183.6000061035156 W". It now reads 183.6 W, and whole numbers stay whole.
+### Fans
+- **A fan that stops at its floor gets a kick before it counts as stalled.** Fans need more to start than to run, and one that was seen turning at boot and then stopped at the 30% floor tripped the stall cut-off every 46 seconds (fault, power off, retry, fault). Now both fans get 5 s at 100% after every power-up, a fan that reads stopped gets 4 s at 100% first, and one that comes back from that runs 10 points higher for the rest of the session (logged). A fan that stays stopped after the kick still cuts power within about 15 s.
 
 ## AxeForge v1.4.5
 

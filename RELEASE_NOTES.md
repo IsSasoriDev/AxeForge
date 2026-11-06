@@ -10,6 +10,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ### Fans
 - **A fan that stops at its floor gets a kick before it counts as stalled.** Fans need more to start than to run, and one that was seen turning at boot and then stopped at the 30% floor tripped the stall cut-off every 46 seconds (fault, power off, retry, fault). Now both fans get 5 s at 100% after every power-up, a fan that reads stopped gets 4 s at 100% first, and one that comes back from that runs 10 points higher for the rest of the session (logged). A fan that stays stopped after the kick still cuts power within about 15 s.
 ### Network
+- **802.11k/v roaming.** A mesh or a controller that steers clients can now move the miner to a better radio, and below -75 dBm the miner asks for one itself (at most once a minute). A move drops the pool connection for a few seconds; that beats sitting on a far radio.
 - **The miner joins the strongest access point of its network, not the first to answer.** With a mesh or an extender broadcasting the same name, a miner could sit on a far radio at -80 dBm with a near one at -50 dBm in the same room. It now scans every channel and picks by signal, and the log says which access point and channel it joined.
 
 ## AxeForge v1.4.5

@@ -75,3 +75,6 @@ CONFIG_ETH_SPI_ETHERNET_W5500=y
 # miner to its best radio (net/wifi.cpp); the scan cache speeds the move up
 CONFIG_ESP_WIFI_11KV_SUPPORT=y
 CONFIG_ESP_WIFI_SCAN_CACHE=y
+
+# the Wi-Fi handlers log more than the 2304 byte default leaves room for
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=3072

@@ -305,6 +305,14 @@ paths:
       summary: Start a new auto-tune search
       responses:
         '200': {$ref: '#/components/responses/Text'}
+  /api/metrics:
+    get:
+      summary: Prometheus text format (hashrate, power, temperatures, fans, chips, pools)
+      security: []
+      responses:
+        '200':
+          description: Metrics
+          content: {text/plain: {schema: {type: string}}}
   /api/dust:
     post:
       summary: The heatsink was cleaned; forget the baseline and learn again

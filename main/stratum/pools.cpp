@@ -101,6 +101,8 @@ struct Pool {
     uint8_t ext_prefix_len = 0;
     uint8_t ext_size = 0;
     uint8_t prev_hash[32] = {};
+    uint8_t lag_prev[32] = {};   // last previous-block hash seen from this pool
+    bool lag_have = false;
     uint32_t prev_nbits = 0;
     bool has_prev = false;
     sv2_ext_job_t *pending[SV2_PENDING_JOBS_SIZE] = {};
@@ -135,9 +137,47 @@ static void set_status(Pool &p, const char *fmt, const char *arg = "")
     snprintf(g_state.pools[p.idx].status, sizeof(g_state.pools[p.idx].status), fmt, arg);
 }
 
+// New-block lag: when a pool's previous-block hash changes, how long after the
+// first pool it came. Work on the old block is wasted, so this is the number that
+// tells a slow pool from a good one. It takes two pools to measure.
+#define LAG_MAX_MS 30000  // longer than this it wasn't lag: the pool was down
+static portMUX_TYPE s_lag_mux = portMUX_INITIALIZER_UNLOCKED;
+static uint8_t s_tip[32], s_old_tip[32];
+static int64_t s_tip_us;
+
+static void note_new_block(Pool &p, const uint8_t prev[32])
+{
+    if (p.lag_have && !memcmp(p.lag_prev, prev, 32)) return;
+    bool first_job = !p.lag_have;  // just connected: it says nothing about lag
+    memcpy(p.lag_prev, prev, 32);
+    p.lag_have = true;
+
+    int64_t now = esp_timer_get_time();
+    uint32_t lag = 0;
+    bool stale = false;
+    portENTER_CRITICAL(&s_lag_mux);
+    if (!memcmp(prev, s_tip, 32)) {
+        lag = (uint32_t) ((now - s_tip_us) / 1000);
+    } else if (!memcmp(prev, s_old_tip, 32)) {
+        stale = true;
+    } else {
+        memcpy(s_old_tip, s_tip, 32);
+        memcpy(s_tip, prev, 32);
+        s_tip_us = now;
+    }
+    portEXIT_CRITICAL(&s_lag_mux);
+    if (first_job || stale || lag > LAG_MAX_MS) return;
+
+    PoolState &ps = g_state.pools[p.idx];
+    ps.lag_ms = ps.lag_blocks ? (ps.lag_ms * 7 + lag) / 8 : lag;
+    ps.lag_blocks++;
+    if (!lag) ps.lag_first++;
+}
+
 // Publishes a new template and wakes the job task on clean jobs.
 static void publish(Pool &p, StratumJob &j, const char *coinb1_hex, const char *coinb2_hex)
 {
+    note_new_block(p, j.prev_hash_raw);
     xSemaphoreTake(p.lock, portMAX_DELAY);
     free(p.job.coinb1);
     free(p.job.coinb2);
@@ -345,6 +385,7 @@ static void run_v1(Pool &p, const PoolCfg &cfg)
              ID_AUTHORIZE, cfg.user, cfg.pass, ID_SUGGEST, SUGGEST_DIFF);
     send_line(p, line);
     g_state.pools[p.idx].connected = true;
+    p.lag_have = false;
     set_status(p, cfg.proto == PoolProto::V1Tls ? "Connected (TLS)" : "Connected");
 
     char *buf = (char *) malloc(V1_RX_BUF);
@@ -613,6 +654,7 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
     }
     p.version_mask = DEFAULT_VERSION_MASK;
     g_state.pools[p.idx].connected = true;
+    p.lag_have = false;
     g_state.pools[p.idx].diff = shown_diff(p.diff);
     set_status(p, have_key ? "Connected (SV2, verified)" : "Connected (SV2, encrypted)");
     ESP_LOGI(TAG, "[%d] SV2 channel %lu open, diff %.2f", p.idx, (unsigned long) p.channel_id, p.diff);

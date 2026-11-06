@@ -462,6 +462,9 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <p class="note">Saved tokens stay hidden; leave a field empty to keep it. Telegram: make a bot with @BotFather, send it a message, then use your chat id.</p>
 <div class="btns"><button class="btn" onclick="saveNotify()">Save</button><button class="btn alt" onclick="act('/api/notify')">Send test</button><button class="btn alt" onclick="clearNotify()">Remove all</button></div></div>
 </div>
+<div class="card" style="margin-top:16px"><h3>Backup</h3>
+<p class="note" style="margin-top:0">Saves pools, tuning, screen and every other setting to a file you can load back here or on another miner. Pool logins are in the file, so keep it private. Your Wi-Fi, hostname, Discord and Telegram details stay out of it, and overclocking stays locked after a restore.</p>
+<div class="btns"><button class="btn alt" onclick="backup()">Download settings</button><button class="btn alt" onclick="$('restfile').click()">Restore from file</button><input type="file" id="restfile" accept=".json" hidden onchange="restore(this)"></div></div>
 <div class="card" style="margin-top:16px"><h3>Two-factor login <span class="tag" id="otpst">--</span></h3><div id="otpbox"></div></div>
 </section>
 </main></div>
@@ -643,6 +646,18 @@ function priceLive(p){if(!p)return;const st=$('pricest');
  const sl=p.slots||[],v=sl.filter(x=>x!==null),hi=Math.max(p.max,...v,0.01),lo=Math.min(0,...v);
  $('pbars').innerHTML=sl.map(x=>x===null?'<i style="height:0"></i>':`<i class="${x>p.max?'hi':''}" style="height:${Math.max(2,100*(x-lo)/(hi-lo))}%" title="${x} ct/kWh"></i>`).join('')}
 
+/* ---------------- backup */
+const NOBACKUP=['ssid','hostname','wpass','limits','overclock','discordSet','tgSet','tgchat','hasBap','hasEth','vrSupported','chipClock','jobmsDefault','priceurlSet'];
+async function backup(){const [s,p]=await Promise.all([fetch('/api/settings').then(r=>r.json()),fetch('/api/pools').then(r=>r.json())]);
+ NOBACKUP.forEach(k=>delete s[k]);
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({axeforge:S.version,board:S.board,settings:s,pools:p},null,1)],{type:'application/json'}));
+ a.download='axeforge-'+(S.hostname||'miner')+'.json';a.click();URL.revokeObjectURL(a.href)}
+async function restore(el){const f=el.files[0];el.value='';if(!f)return;let b;try{b=JSON.parse(await f.text())}catch(e){return toast('That file is not a backup')}
+ if(!b.settings||!b.pools)return toast('That file is not a backup');
+ if(!confirm('Load settings from '+f.name+(b.board?' ('+b.board+')':'')+'? This replaces the pools and settings on this miner.'))return;
+ NOBACKUP.forEach(k=>delete b.settings[k]);
+ await act('/api/pools',JSON.stringify(b.pools));await act('/api/settings',JSON.stringify(b.settings));loadCfg()}
+
 /* ---------------- overclock */
 function ocUi(){const o=cfg.overclock;if(!o)return;const st=$('ocst'),b=$('ocbtn');
  st.textContent=o.active?'on':o.unlocked?'paused':o.available?'off':'not available';st.style.color=o.active?'var(--orange)':'';
@@ -701,7 +716,7 @@ function renderPools(){$('pooleds').innerHTML=P.pools.map((p,i)=>`<div class="po
 function poolLive(){if(!S.pools)return;S.pools.forEach((p,i)=>{const d=$('pd'+i);if(!d)return;
  d.className='dot '+(p.connected?'ok':p.enabled?'wait':'');$('ps'+i).textContent=p.status||'';
  $('pl'+i).innerHTML=p.enabled?`<span><b>${p.workPct}%</b> of work</span><span><b>${hr(p.ghs).join(' ')}</b> est.</span><span>diff <b>${p.diff}</b></span>
- <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>${p.payout==2?`<span style="color:var(--green)">✓ pays you <b>${p.payoutPct}%</b></span>`:p.payout==3?'<span style="color:var(--red)">✗ coinbase doesn\'t pay your address</span>':''}${p.payoutBlocked?'<span style="color:var(--red)"><b>no work</b> (payout check)</span>':''}`:''})}
+ <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>${p.lagBlocks>=3&&S.pools.filter(x=>x.connected).length>1?`<span title="How long after your fastest pool this one sends work on a new block, over ${p.lagBlocks} blocks">new blocks <b>${p.lagMs<50?'first':'+'+(p.lagMs/1000).toFixed(1)+' s'}</b></span>`:''}${p.payout==2?`<span style="color:var(--green)">✓ pays you <b>${p.payoutPct}%</b></span>`:p.payout==3?'<span style="color:var(--red)">✗ coinbase doesn\'t pay your address</span>':''}${p.payoutBlocked?'<span style="color:var(--red)"><b>no work</b> (payout check)</span>':''}`:''})}
 async function savePools(){await act('/api/pools',JSON.stringify(P))}
 
 /* ---------------- screen preview + pages */

@@ -136,8 +136,27 @@ static void setup_ap_task(void *)
 // transition query); the network answers with candidates and the supplicant
 // moves. Re-armed after each event; asked at most once a minute.
 #define ROAM_RSSI -75
-#define ROAM_MIN_GAP_US (60 * 1000000LL)
-static int64_t s_roam_asked_us = 0;
+#define ROAM_GAP_US (60 * 1000000ULL)
+static esp_timer_handle_t s_roam_timer;
+static bool s_roam_wait = false;  // the query went out, this firing re-arms the threshold
+
+// Runs on the timer task: the event task's stack is too small for this, and
+// re-arming right away would fire again at once while the signal stays low.
+static void roam_cb(void *)
+{
+    if (s_roam_wait) {
+        s_roam_wait = false;
+        esp_wifi_set_rssi_threshold(ROAM_RSSI);
+        return;
+    }
+    if (esp_wnm_is_btm_supported_connection()) {
+        int r = esp_wnm_send_bss_transition_mgmt_query(REASON_RSSI, NULL, 0);
+        if (r < 0) ESP_LOGW(TAG, "weak signal, but the query for a better radio failed");
+        else ESP_LOGW(TAG, "weak signal: asked the access point for a better radio");
+    }
+    s_roam_wait = true;
+    esp_timer_start_once(s_roam_timer, ROAM_GAP_US);
+}
 
 static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
 {
@@ -148,15 +167,7 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
         ESP_LOGI(TAG, "802.11k %s, 802.11v %s on this access point",
                  esp_rrm_is_rrm_supported_connection() ? "yes" : "no", esp_wnm_is_btm_supported_connection() ? "yes" : "no");
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_BSS_RSSI_LOW) {
-        auto *ev = (wifi_event_bss_rssi_low_t *) data;
-        int64_t now = esp_timer_get_time();
-        if (esp_wnm_is_btm_supported_connection() && now - s_roam_asked_us >= ROAM_MIN_GAP_US) {
-            s_roam_asked_us = now;
-            int r = esp_wnm_send_bss_transition_mgmt_query(REASON_RSSI, NULL, 0);
-            ESP_LOGW(TAG, "signal %ld dBm: asked the access point for a better radio%s", (long) ev->rssi,
-                     r < 0 ? " (query failed)" : "");
-        }
-        esp_wifi_set_rssi_threshold(ROAM_RSSI);  // one event per crossing: arm it again
+        if (!esp_timer_is_active(s_roam_timer)) esp_timer_start_once(s_roam_timer, 1000);
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         auto *ev = (wifi_event_sta_disconnected_t *) data;
         if (ev->reason == WIFI_REASON_ROAMING) {
@@ -203,6 +214,10 @@ void start()
     targs.callback = reconnect_cb;
     targs.name = "wifi_rc";
     esp_timer_create(&targs, &s_reconnect_timer);
+    esp_timer_create_args_t roam_args = {};
+    roam_args.callback = roam_cb;
+    roam_args.name = "wifi_roam";
+    esp_timer_create(&roam_args, &s_roam_timer);
     esp_netif_init();
     esp_event_loop_create_default();
     esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();

@@ -9,6 +9,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - **The max power tile on the Tuning page no longer prints a float.** With Overclock on, the envelope limit is stock times a percentage, and a Nexus S1 showed "183.6000061035156 W". It now reads 183.6 W, and whole numbers stay whole.
 ### Fans
 - **A fan that stops at its floor gets a kick before it counts as stalled.** Fans need more to start than to run, and one that was seen turning at boot and then stopped at the 30% floor tripped the stall cut-off every 46 seconds (fault, power off, retry, fault). Now both fans get 5 s at 100% after every power-up, a fan that reads stopped gets 4 s at 100% first, and one that comes back from that runs 10 points higher for the rest of the session (logged). A fan that stays stopped after the kick still cuts power within about 15 s.
+### Network
+- **The miner joins the strongest access point of its network, not the first to answer.** With a mesh or an extender broadcasting the same name, a miner could sit on a far radio at -80 dBm with a near one at -50 dBm in the same room. It now scans every channel and picks by signal, and the log says which access point and channel it joined.
 
 ## AxeForge v1.4.5
 

@@ -81,6 +81,7 @@ struct PoolState {
     uint32_t lag_ms = 0;         // how far behind the first pool it gets new blocks (average)
     uint16_t lag_blocks = 0;     // blocks measured
     uint16_t lag_first = 0;      // of those, how many it had first
+    uint8_t chip_workers = 0;    // chips this pool accepted a worker for
     uint8_t payout = 0;          // Payout of this pool's latest template
     uint8_t payout_pct = 0;      // share of the coinbase paid to your address
     bool payout_blocked = false; // payout check enforced: this pool gets no work

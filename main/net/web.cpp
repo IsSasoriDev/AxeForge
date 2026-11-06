@@ -277,6 +277,7 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(o, "workPct", ps.work_pct);
         cJSON_AddNumberToObject(o, "jobs", ps.jobs);
         cJSON_AddNumberToObject(o, "pingMs", ps.ping_ms);
+        cJSON_AddNumberToObject(o, "chipWorkers", ps.chip_workers);
         cJSON_AddNumberToObject(o, "lagMs", ps.lag_ms);
         cJSON_AddNumberToObject(o, "lagBlocks", ps.lag_blocks);
         cJSON_AddNumberToObject(o, "lagFirst", ps.lag_first);
@@ -415,6 +416,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "tgoal", c.tune_goal);
     cJSON_AddNumberToObject(r, "pcap", c.power_cap_w);
     cJSON_AddBoolToObject(r, "chiptune", c.chip_tune);
+    cJSON_AddBoolToObject(r, "chipworkers", c.chip_workers);
     cJSON_AddBoolToObject(r, "chipClock", asic::PER_CHIP_CLOCK);
     cJSON_AddBoolToObject(r, "otaguard", c.ota_guard);
     cJSON_AddBoolToObject(r, "priceon", c.price_on);
@@ -598,6 +600,9 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.autotune = get_bool(j, "atune", c.autotune);
     c.freq_mhz = board::clamp_freq(get_int(j, "freq", c.freq_mhz, 0, 2000));
     c.core_mv = board::clamp_mv(get_int(j, "mv", c.core_mv, 0, 2000));
+    bool chip_workers = get_bool(j, "chipworkers", c.chip_workers);
+    bool workers_changed = chip_workers != c.chip_workers;
+    c.chip_workers = chip_workers;
     // overclock: unlocking takes the typed confirmation; locking again never does
     bool oc = get_bool(j, "overclock", c.overclock);
     if (oc && !c.overclock) {
@@ -733,6 +738,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     cJSON_Delete(j);
     settings::save();
     price::refresh_now();
+    if (workers_changed) pools::reconfigure();  // workers are authorized on connect
     if (retune && c.autotune) tuner::restart();
     if (wx_changed) weather::refresh_now();
     if (mp_changed) mempool::refresh_now();

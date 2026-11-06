@@ -12,6 +12,7 @@ _Nothing yet._
 - New-block lag: with two or more pools, each pool now shows how long after your fastest pool it sends work on a new block (*Pools*, after 3 blocks). Work on the old block is wasted, so this tells you which pool to keep.
 - Backup: *System → Backup* saves your settings to a file and loads them back, here or on another miner. Pool logins are in the file; Wi-Fi, hostname, Discord and Telegram details aren't, and overclocking stays locked.
 - `/api/metrics` for Prometheus and Grafana: hashrate, power, temperatures, fans, per chip and per pool.
+- A worker for each chip: with this on (*Pools*, off by default), each chip submits under its own worker, so the pool shows `address.chip1`, `address.chip2` and so on. They still mine the same job and pay the same address. Stratum V1 and TLS only.
 - **Nexus S1 release files and web flasher.** The BitLuck Nexus S1 is no longer experimental: every release now ships `axeforge-nexus.bin` and `axeforge-nexus-factory.bin`, and the web flasher lists it. Wi-Fi and pools carry over from the stock firmware.
 
 ### Fixes

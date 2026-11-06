@@ -26,7 +26,8 @@ uint32_t generation(int pool);
 bool take_clean_flag(int pool);
 
 // Thread-safe; called from the result task.
-void submit(int pool, const Work &w, uint32_t nonce, uint32_t version);
+// `chip` picks the chip's own worker if per-chip workers are on and the pool took it.
+void submit(int pool, const Work &w, uint32_t nonce, uint32_t version, int chip);
 
 // Restart connections after settings changed.
 void reconfigure();

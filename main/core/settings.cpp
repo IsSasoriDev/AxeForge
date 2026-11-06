@@ -221,6 +221,7 @@ void load()
     get_u8(h, "pmode", mode);
     s.pool_mode = mode ? PoolMode::Failover : PoolMode::Split;
 
+    get_bool(h, "chipwork", s.chip_workers);
     get_u16(h, "freq", s.freq_mhz);
     get_u16(h, "mv", s.core_mv);
     get_bool(h, "atune", s.autotune);
@@ -293,6 +294,7 @@ void save()
     nvs_set_str(h, "pools", pools);
     free(pools);
     nvs_set_u8(h, "pmode", (uint8_t) s.pool_mode);
+    nvs_set_u8(h, "chipwork", s.chip_workers);
     nvs_set_u16(h, "freq", s.freq_mhz);
     nvs_set_u16(h, "mv", s.core_mv);
     nvs_set_u8(h, "atune", s.autotune);

@@ -62,6 +62,7 @@ static uint32_t shown_diff(double d) { return d >= 4294967295.0 ? UINT32_MAX : (
 #define ID_SUBSCRIBE 2
 #define ID_AUTHORIZE 3
 #define ID_SUGGEST 4
+#define ID_CHIP_AUTH_BASE 10  // + chip; more than any board has chips, below the submit ids
 #define ID_SUBMIT_BASE 100
 #define SUGGEST_DIFF 1024
 #define DEFAULT_VERSION_MASK 0x1fffe000
@@ -89,6 +90,7 @@ struct Pool {
     uint32_t version_mask = DEFAULT_VERSION_MASK;
     double diff = SUGGEST_DIFF;  // pools may send fractional difficulties
     uint32_t submit_id = ID_SUBMIT_BASE;
+    uint32_t chip_ok = 0;        // chips whose own worker the pool accepted
     int64_t submit_t_us = 0;
 
     // SV2 channel
@@ -258,6 +260,12 @@ static void transport_close(Pool &p)
     p.has_prev = false;
 }
 
+// "address.rig" -> "address.rig-chip2", "address" -> "address.chip2"
+static void chip_worker(const char *user, int chip, char *out, size_t len)
+{
+    snprintf(out, len, "%s%schip%d", user, strchr(user, '.') ? "-" : ".", chip + 1);
+}
+
 static bool send_line(Pool &p, const char *line)
 {
     xSemaphoreTake(p.io, portMAX_DELAY);
@@ -355,6 +363,14 @@ static void v1_message(Pool &p, const char *line)
             }
         } else if (rid == ID_AUTHORIZE) {
             if (!cJSON_IsTrue(result)) set_status(p, "Worker rejected - check address");
+        } else if (rid >= ID_CHIP_AUTH_BASE && rid < ID_CHIP_AUTH_BASE + AF_NUM_ASICS) {
+            // a refused chip keeps submitting under the normal worker
+            if (cJSON_IsTrue(result)) {
+                p.chip_ok |= 1u << (rid - ID_CHIP_AUTH_BASE);
+                g_state.pools[p.idx].chip_workers++;
+            } else {
+                ESP_LOGW(TAG, "[%d] pool refused the worker for chip %d", p.idx, rid - ID_CHIP_AUTH_BASE + 1);
+            }
         } else if (rid >= ID_SUBMIT_BASE) {
             char *err = cJSON_IsTrue(result) ? nullptr : cJSON_PrintUnformatted(cJSON_GetObjectItem(root, "error"));
             on_share_result(p, cJSON_IsTrue(result), err);
@@ -384,6 +400,17 @@ static void run_v1(Pool &p, const PoolCfg &cfg)
              "{\"id\":%d,\"method\":\"mining.suggest_difficulty\",\"params\":[%d]}\n",
              ID_AUTHORIZE, cfg.user, cfg.pass, ID_SUGGEST, SUGGEST_DIFF);
     send_line(p, line);
+    p.chip_ok = 0;
+    g_state.pools[p.idx].chip_workers = 0;
+    if (settings::get().chip_workers && AF_NUM_ASICS > 1) {
+        for (int c = 0; c < AF_NUM_ASICS; c++) {
+            char worker[112];
+            chip_worker(cfg.user, c, worker, sizeof(worker));
+            snprintf(line, sizeof(line), "{\"id\":%d,\"method\":\"mining.authorize\",\"params\":[\"%s\",\"%s\"]}\n",
+                     ID_CHIP_AUTH_BASE + c, worker, cfg.pass);
+            send_line(p, line);
+        }
+    }
     g_state.pools[p.idx].connected = true;
     p.lag_have = false;
     set_status(p, cfg.proto == PoolProto::V1Tls ? "Connected (TLS)" : "Connected");
@@ -807,7 +834,7 @@ bool take_clean_flag(int i)
     return c;
 }
 
-void submit(int i, const Work &w, uint32_t nonce, uint32_t version)
+void submit(int i, const Work &w, uint32_t nonce, uint32_t version, int chip)
 {
     Pool &p = s_pools[i];
     if (!g_state.pools[i].connected) return;
@@ -822,10 +849,15 @@ void submit(int i, const Work &w, uint32_t nonce, uint32_t version)
         if (n > 0) send_frame(p, frame, n);
         return;
     }
-    char line[320];
+    char line[340], worker[112];
+    const char *user = settings::get().pools[i].user;
+    if (chip >= 0 && chip < AF_NUM_ASICS && (p.chip_ok & (1u << chip))) {
+        chip_worker(user, chip, worker, sizeof(worker));
+        user = worker;
+    }
     snprintf(line, sizeof(line),
              "{\"id\":%lu,\"method\":\"mining.submit\",\"params\":[\"%s\",\"%s\",\"%s\",\"%08lx\",\"%08lx\",\"%08lx\"]}\n",
-             (unsigned long) p.submit_id++, settings::get().pools[i].user, w.job_id, w.extranonce2,
+             (unsigned long) p.submit_id++, user, w.job_id, w.extranonce2,
              (unsigned long) w.ntime, (unsigned long) nonce, (unsigned long) (version & w.version_mask));
     send_line(p, line);
 }

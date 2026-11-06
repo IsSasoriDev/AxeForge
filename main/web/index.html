@@ -321,6 +321,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
  <div class="seg" id="pmodeseg"><button data-m="split" class="on">Split by %</button><button data-m="failover">Failover</button></div>
  <p class="note" id="pmodenote"></p></div>
 <div id="pooleds"></div>
+<div class="switch" id="cwrow" style="display:none"><div><b>A worker for each chip</b><span>Each chip submits under its own worker, like address.chip1, so the pool lists them separately. They all still mine the same job and pay the same address. Stratum V1 and TLS only. A pool that refuses a chip's worker gets that chip's shares under your normal one.</span></div><input class="tg" type="checkbox" id="chipworkers" onchange="act('/api/settings',JSON.stringify({chipworkers:this.checked}))"></div>
 <div class="btns"><button class="btn" onclick="savePools()">Save &amp; reconnect</button><span class="meta">No reboot needed. Weights are normalized across enabled pools.</span></div>
 <form data-f><div class="card" style="margin-top:16px"><h3>Solo payout check</h3>
 <label style="margin-top:0">When a pool's coinbase doesn't pay the address in its username</label>
@@ -585,7 +586,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
- $('otabox').style.display=S.otaPending?'':'none';priceLive(S.price);energyLive(S.energy);dustLive(S.dust);
+ $('otabox').style.display=S.otaPending?'':'none';$('cwrow').style.display=S.asicCount>1?'':'none';priceLive(S.price);energyLive(S.energy);dustLive(S.dust);
  $('svout').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('sfan2').textContent=S.fan2Rpm+' rpm';$('sheap').textContent=(S.freeHeap/1024|0)+' kB';$('sup').textContent=dur(S.uptime)+(S.resetReason?' (last reset: '+S.resetReason+')':'');
  if(navv!==S.ip+S.version){navv=S.ip+S.version;
   // release builds link to their tag's source, local and dev builds to the repo
@@ -626,7 +627,7 @@ async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setThem
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[(+L.maxPower).toFixed(L.maxPower%1?1:0)+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
- $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;
+ $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;$('chipworkers').checked=!!cfg.chipworkers;
  {const pu=document.querySelector('[name=priceurl]');pu.value='';pu.placeholder=cfg.priceurlSet?'saved (hidden) · type to replace':'https://example.com/price.json'}$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();
  notifyForm();pagesFrom(cfg.pages)}
 document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const d={};
@@ -716,7 +717,7 @@ function renderPools(){$('pooleds').innerHTML=P.pools.map((p,i)=>`<div class="po
 function poolLive(){if(!S.pools)return;S.pools.forEach((p,i)=>{const d=$('pd'+i);if(!d)return;
  d.className='dot '+(p.connected?'ok':p.enabled?'wait':'');$('ps'+i).textContent=p.status||'';
  $('pl'+i).innerHTML=p.enabled?`<span><b>${p.workPct}%</b> of work</span><span><b>${hr(p.ghs).join(' ')}</b> est.</span><span>diff <b>${p.diff}</b></span>
- <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>${p.lagBlocks>=3&&S.pools.filter(x=>x.connected).length>1?`<span title="How long after your fastest pool this one sends work on a new block, over ${p.lagBlocks} blocks">new blocks <b>${p.lagMs<50?'first':'+'+(p.lagMs/1000).toFixed(1)+' s'}</b></span>`:''}${p.payout==2?`<span style="color:var(--green)">✓ pays you <b>${p.payoutPct}%</b></span>`:p.payout==3?'<span style="color:var(--red)">✗ coinbase doesn\'t pay your address</span>':''}${p.payoutBlocked?'<span style="color:var(--red)"><b>no work</b> (payout check)</span>':''}`:''})}
+ <span><b style="color:var(--green)">${p.accepted}</b> / <b style="color:var(--red)">${p.rejected}</b></span><span>best <b>${sfx(p.best)}</b></span><span><b>${p.pingMs}</b> ms</span>${p.chipWorkers?`<span><b>${p.chipWorkers}</b> workers</span>`:''}${p.lagBlocks>=3&&S.pools.filter(x=>x.connected).length>1?`<span title="How long after your fastest pool this one sends work on a new block, over ${p.lagBlocks} blocks">new blocks <b>${p.lagMs<50?'first':'+'+(p.lagMs/1000).toFixed(1)+' s'}</b></span>`:''}${p.payout==2?`<span style="color:var(--green)">✓ pays you <b>${p.payoutPct}%</b></span>`:p.payout==3?'<span style="color:var(--red)">✗ coinbase doesn\'t pay your address</span>':''}${p.payoutBlocked?'<span style="color:var(--red)"><b>no work</b> (payout check)</span>':''}`:''})}
 async function savePools(){await act('/api/pools',JSON.stringify(P))}
 
 /* ---------------- screen preview + pages */

@@ -12,6 +12,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - The Heatsink card on the dashboard prints chip temperatures with one decimal, not "60.20000076293945 °C so far".
 ### Dashboard
 - **Every ASIC card shows its clock.** Chips at the chain clock print it too, not only the ones the per-chip tuner raised; the raised ones stay highlighted, and hovering the clock says by how much.
+### Web UI
+- **Hover help on the settings fields.** Every numeric or choice field on the Pools, Tuning, Display, Clock and Network pages explains itself when the pointer rests on its label: what it does and what happens if you raise it. The notes under each card stay for phones, where there is no hover.
 
 ## AxeForge v1.4.6
 

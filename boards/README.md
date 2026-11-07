@@ -49,4 +49,31 @@ Top level: `name` (shown in the UI), `id` (file names and the board tag an updat
 | envelope | mv | `AF_ENV_MV` | overclock: core voltage above the stock limit |
 | envelope | freq_mhz | `AF_ENV_FREQ_MHZ` | overclock: clock above the stock limit |
 
-The stock limits (max clock, voltage, power, temperatures) still live in `main/Kconfig.projbuild` as `default X if AF_BOARD_*` chains, so they can be changed in menuconfig. The `[envelope]` table is the board's known headroom above them, used only once overclocking is unlocked (`core/gates.h`). Leave it out for a board nobody has measured: that board can't be overclocked. Temperature ceilings and emergency cut-offs never move.
+The stock limits (max clock, voltage, power, temperatures) still live in `main/Kconfig.projbuild` as `default X if AF_BOARD_*` chains, so they can be changed in menuconfig. The `[envelope]` table is the board's known headroom above them, used only once overclocking is unlocked (`core/gates.h`). Leave it out for a board nobody has measured: that board can't be overclocked, though a search at its stock limits still says something (next section). Temperature ceilings and emergency cut-offs never move.
+
+## Measuring an envelope
+
+Most board files have no `[envelope]`, because nobody has run the board into a wall and written down where it was. The firmware measures it for you; the numbers just have to come back.
+
+1. Flash the board, let it join a pool, and leave auto-tune on with the goal "most hashrate" and no power limit. On a board with an envelope, unlock overclocking under Tuning > Overclock so the tuner can go past the stock limits; it takes the typed confirmation and starts a new search. A board without one searches within its stock limits.
+2. Wait for the search to lock. That takes an hour or two; the Tuning page shows the phase.
+3. Leave it locked for a day. The watch phase backs the clock off a step if the lock stops being stable, and a back-off is part of the result.
+4. Read Tuning > Measured headroom. It shows the lock point, what ended the climb (the temperature ceiling, the power ceiling, hardware errors, or the clock or voltage limit), the most power the stable windows drew and the highest temperatures seen, and the `[envelope]` block those numbers justify: exactly what the lock used, never rounded past it. Copy it, or use "Report it on GitHub", which opens an envelope issue with the block filled in. Add how the board is cooled and how warm the room was.
+
+The readout covers the current search only: a lock restored at boot has no climb behind it, so read it before rebooting or start a new search. A search under the efficiency goal, under a power limit of your own, or held down after a fault says "not a measurement" and offers no block, because your settings ended it, not the board.
+
+What the result means:
+
+- The climb ended on temperature or power, below the stock limits: the board needs no envelope. Its wall is inside the stock limits and the file can say so in a comment.
+- The climb ended on temperature, power or errors above the stock limits (an unlocked board): the block is the envelope, or a wider one than the file has.
+- The climb ended at the clock or voltage limit (the readout says "inconclusive"): the board had more to give and the gate stopped it. On a board with an envelope that means the envelope's `freq_mhz` or `mv` is too small; report it, and a maintainer can widen it. On a board without one it means the stock limits stopped it, so it may have headroom nobody has measured yet, which is worth an issue on its own.
+
+## What to do with a report
+
+For maintainers, when an envelope issue comes in:
+
+- Compare it with the board's file. A report inside the current envelope changes nothing. One beyond it is evidence for widening, one report at a time: two owners with the same number beats one.
+- Take the smaller of several reports, and leave room: a board in a warm room with dusty fans has to hold the envelope too. The reporter's cooling line says how much the numbers depend on the setup.
+- `power_pct` is capped at 10 by `core/gates.cpp` (the cut-off at 115 % never moves), so a report asking for more means the stock power limit in `Kconfig.projbuild` is the thing to look at, not the envelope.
+- Write the issue number next to the values, as `nerdqaxe.toml` and `nexus.toml` do, so the next person knows where the numbers came from.
+- A board that locks below its stock limits (the first case above) gets a comment in its file saying so, and no `[envelope]`.

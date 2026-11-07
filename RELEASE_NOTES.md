@@ -6,6 +6,26 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 _Nothing yet._
 
+## AxeForge v1.4.7
+
+### Boards
+- StarMiner, the Bitaxe Gamma 601 some sellers ship with a 12 V supply. It runs the Gamma image: at boot the regulator's input voltage decides between the 5 V and the 12 V input limits (a 5 V setup makes the TPS546 refuse 12 V). It has its own entry in the web flasher. Not tested on hardware yet.
+- Heatbit Bitair V1.22, the heater/purifier with a Bitaxe Gamma 601 inside. It mines only while the purifier is on: switching it off on the top panel turns the chip off, and switching it back on starts it again. Silent, auto and turbo each set the least the fan runs at, and the front LED works as on the stock firmware (breathing until Wi-Fi is up, brightness for the mode, three flashes on a fault). The accessory port is off because the purifier uses its pins, and there's no display or fan speed reading on this board. Ported from skot's Bitair work in ESP-Miner. Not tested on hardware yet.
+
+### Fixes
+- Bitaxe Gamma: a board stopped at "Voltage regulator not found" right after flashing (#68). The most likely cause is an input-voltage warning the Gamma doesn't use, which its regulator refused; AxeForge no longer writes it, as AxeOS doesn't. If a regulator refuses any setting, the log now names it, so a board that still stops will say why.
+- The Heatsink card on the dashboard prints chip temperatures with one decimal, not "60.20000076293945 °C so far".
+- Display tab on boards with the small OLED (Bitaxe Gamma, Supra, Supra Hex, Ultra Hex): the live screen stayed empty and the miner logged "display busy" every 3 s, because the OLED can't be captured. The tab now says so, stops asking for the picture, and hides the LCD-only settings (pages and order, layout editor, screen type, screen-off timer, start page). Prev and Next still change the OLED's page.
+
+### Dashboard
+- **Every ASIC card shows its clock.** Chips at the chain clock print it too, not only the ones the per-chip tuner raised; the raised ones stay highlighted, and hovering the clock says by how much.
+
+### Web UI
+- **Hover help on the settings fields.** Every numeric or choice field on the Pools, Tuning, Display, Clock and Network pages explains itself when the pointer rests on its label: what it does and what happens if you raise it. The notes under each card stay for phones, where there is no hover.
+
+### Tuning
+- **Measured headroom.** Once the tuner locks, a card on the Tuning page shows the lock point, what ended the climb (temperature, power, errors, or the clock or voltage limit), the most power its stable windows drew and the highest temperatures, and the `[envelope]` block that lock justifies in the board's file (exactly what it used, never rounded past it), with a copy button and a link that opens a GitHub issue with it filled in. A search the user's own settings ended (efficiency goal, a power limit, a fault hold) is shown as not a measurement. Most boards have no envelope because nobody has measured one; this is how the numbers come back. `boards/README.md` says how to run the measurement and what maintainers do with a report. The status API gains `tuner.wall`, `wallFreq`, `wallMv`, `wallWatch`, `peakW`, `peakChipC`, `peakVrC`, and the config's `overclock` object gains `boardId`, `envFreq`, `envMv`, `envPowerPct`, `maxPowerPct`.
+
 ## AxeForge v1.4.6
 
 ### New

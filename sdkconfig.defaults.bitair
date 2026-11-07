@@ -1,0 +1,7 @@
+# Heatbit Bitair build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_bitair -D SDKCONFIG=build_bitair/sdkconfig \
+#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.bitair" build
+CONFIG_AF_BOARD_BITAIR=y
+# no display is fitted, but the OLED code looks for one and runs headless without
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-bitair"

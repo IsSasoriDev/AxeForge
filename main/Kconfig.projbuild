@@ -28,6 +28,8 @@ menu "AxeForge"
             bool "Bitaxe Supra 400-403 (1x BM1368)"
         config AF_BOARD_BITAXE_GAMMA
             bool "Bitaxe Gamma 600-603 (1x BM1370)"
+        config AF_BOARD_BITAIR
+            bool "Heatbit Bitair V1.22 (1x BM1370, no display)"
         config AF_BOARD_BITAXE_ULTRA
             bool "Bitaxe Ultra 201-207 (1x BM1366)"
         config AF_BOARD_BITAXE_MAX
@@ -46,7 +48,7 @@ menu "AxeForge"
 
 
     menu "Big display (3.5in 480x320)"
-        depends on !AF_BOARD_SUPRAHEX && !AF_BOARD_ULTRAHEX && !AF_BOARD_BITAXE_SUPRA && !AF_BOARD_BITAXE_GAMMA && !AF_BOARD_BITAXE_ULTRA && !AF_BOARD_GAMMA_DUO && !AF_BOARD_BITAXE_GT && !AF_BOARD_BITAXE_MAX
+        depends on !AF_BOARD_SUPRAHEX && !AF_BOARD_ULTRAHEX && !AF_BOARD_BITAXE_SUPRA && !AF_BOARD_BITAXE_GAMMA && !AF_BOARD_BITAIR && !AF_BOARD_BITAXE_ULTRA && !AF_BOARD_GAMMA_DUO && !AF_BOARD_BITAXE_GT && !AF_BOARD_BITAXE_MAX
         choice AF_LCD_BUS
             prompt "Interface"
             default AF_LCD_BUS_I80
@@ -163,6 +165,7 @@ menu "AxeForge"
             default 800 if AF_BOARD_BITAXE_GT || AF_BOARD_GAMMA_HEX
             default 1000 if AF_BOARD_NERDQX
             default 800 if AF_BOARD_BITAXE_GAMMA
+            default 650 if AF_BOARD_BITAIR  # 25 W budget; 600 MHz drew ~19 W in skot's bring-up
             default 450 if AF_BOARD_NAJA
             default 500 if AF_BOARD_NEXUS  # stock v1.0.2 stops at 450; 475 MHz / 975 mV ran clean
             default 750
@@ -178,7 +181,7 @@ menu "AxeForge"
             int "Min core voltage (mV)"
             range 900 1200
             default 900 if AF_BOARD_NEXUS
-            default 1000 if AF_BOARD_BITAXE_GAMMA || AF_BOARD_NAJA || AF_BOARD_GAMMA_DUO || AF_BOARD_BITAXE_GT || AF_BOARD_GAMMA_HEX
+            default 1000 if AF_BOARD_BITAXE_GAMMA || AF_BOARD_BITAIR || AF_BOARD_NAJA || AF_BOARD_GAMMA_DUO || AF_BOARD_BITAXE_GT || AF_BOARD_GAMMA_HEX
             default 1100
         config AF_MAX_CHIP_TEMP
             int "Tuner chip temperature ceiling (C)"
@@ -200,7 +203,7 @@ menu "AxeForge"
             default 90 if AF_BOARD_ULTRAHEX  # reference firmware's max_power
             default 15 if AF_BOARD_NERDAXE
             default 40 if AF_BOARD_BITAXE_SUPRA || AF_BOARD_BITAXE_GAMMA || AF_BOARD_GAMMA_DUO
-            default 25 if AF_BOARD_BITAXE_ULTRA || AF_BOARD_BITAXE_MAX
+            default 25 if AF_BOARD_BITAXE_ULTRA || AF_BOARD_BITAXE_MAX || AF_BOARD_BITAIR  # Bitair: its own firmware's power range
             default 60 if AF_BOARD_BITAXE_GT
             default 180 if AF_BOARD_GAMMA_HEX  # reference firmware's max_power
             default 60 if AF_BOARD_NAJA

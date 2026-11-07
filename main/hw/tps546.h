@@ -26,6 +26,8 @@ extern const Profile NERDQAXE_REV7;
 extern const Profile BITAXE_HEX;
 // Bitaxe Gamma / Supra 402-403: one TPS546 on 5 V, one chip
 extern const Profile BITAXE_SINGLE;
+// the same board fed 12 V (StarMiner's Gamma 601): only the input limits differ
+extern const Profile BITAXE_SINGLE_12V;
 // Bitaxe Naja Duo: two stacked TPS546s on 12 V, 2 domains of 1 chip
 extern const Profile NAJA_DUO;
 // Bitaxe GT: two stacked TPS546s on 12 V, one domain of 2 chips
@@ -34,6 +36,7 @@ extern const Profile GAMMA_TURBO;
 extern const Profile GAMMA_HEX;
 
 bool detect();                     // IC_DEVICE_ID matches a TPS546D24A/S
+float read_vin();                  // input voltage, readable before init(); NAN on error
 bool init(const Profile &profile); // run-time config (RAM only, never NVM), output left off
 bool set_core(float volts);  // sets VOUT and switches the output on
 bool off();                  // PMBus OPERATION off

@@ -89,6 +89,9 @@ const Profile BITAXE_HEX = {"hex", 3, 11.5f, 11.0f, 11.0f, 14.0f, 0.125f, 2.5f /
 // reference TPS546_CONFIG_DEFAULT: VIN 4.8/4.5 V (no UV warning), 1..2 V out, 25/30 A
 const Profile BITAXE_SINGLE = {"single", 1, 4.8f, 4.5f, 0.0f, 6.5f, 0.25f, 1.0f, 2.0f,
                                25.0f, 30.0f, 1.16f, ON_OFF_CMD_ONLY, 0, 0xFFFF, {0}};
+// BITAXE_SINGLE with the input limits of AxeOS's 12 V boards (VIN 11/10.5 V, OV 14.8 V)
+const Profile BITAXE_SINGLE_12V = {"single 12V", 1, 11.0f, 10.5f, 11.0f, 14.8f, 0.25f, 1.0f, 2.0f,
+                                   25.0f, 30.0f, 1.16f, ON_OFF_CMD_ONLY, 0, 0xFFFF, {0}};
 // reference TPS546_CONFIG_NAJA_DUO: VIN 11/10.5 V, 1.8..3.0 V out, 61/68 A, two-phase stack
 const Profile NAJA_DUO = {"naja duo", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.8f / 2, 3.0f / 2,
                           61.0f, 68.0f, 1.10f, ON_OFF_CMD_ONLY, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x25, 0x04}};
@@ -132,8 +135,61 @@ static uint16_t float_to_slinear11(float x)
 static float ulinear16_to_float(uint16_t v) { return v * powf(2.0f, (float) s_vout_exp); }
 static uint16_t float_to_ulinear16(float x) { return (uint16_t) lroundf(x / powf(2.0f, (float) s_vout_exp)); }
 
-static bool w8(uint8_t cmd, uint8_t v) { return i2c_bus::write_byte(ADDR, cmd, v) == ESP_OK; }
-static bool w16(uint8_t cmd, uint16_t v) { return i2c_bus::write_word_le(ADDR, cmd, v) == ESP_OK; }
+static const char *cmd_name(uint8_t cmd)
+{
+    switch (cmd) {
+    case OPERATION: return "OPERATION";
+    case ON_OFF_CONFIG: return "ON_OFF_CONFIG";
+    case PHASE: return "PHASE";
+    case VOUT_COMMAND: return "VOUT_COMMAND";
+    case VOUT_MAX: return "VOUT_MAX";
+    case VOUT_MARGIN_HIGH: return "VOUT_MARGIN_HIGH";
+    case VOUT_MARGIN_LOW: return "VOUT_MARGIN_LOW";
+    case VOUT_SCALE_LOOP: return "VOUT_SCALE_LOOP";
+    case VOUT_MIN: return "VOUT_MIN";
+    case FREQUENCY_SWITCH: return "FREQUENCY_SWITCH";
+    case VIN_ON: return "VIN_ON";
+    case VIN_OFF: return "VIN_OFF";
+    case VOUT_OV_FAULT_LIMIT: return "VOUT_OV_FAULT_LIMIT";
+    case VOUT_OV_WARN_LIMIT: return "VOUT_OV_WARN_LIMIT";
+    case VOUT_UV_WARN_LIMIT: return "VOUT_UV_WARN_LIMIT";
+    case VOUT_UV_FAULT_LIMIT: return "VOUT_UV_FAULT_LIMIT";
+    case IOUT_OC_FAULT_LIMIT: return "IOUT_OC_FAULT_LIMIT";
+    case IOUT_OC_FAULT_RESPONSE: return "IOUT_OC_FAULT_RESPONSE";
+    case IOUT_OC_WARN_LIMIT: return "IOUT_OC_WARN_LIMIT";
+    case OT_FAULT_LIMIT: return "OT_FAULT_LIMIT";
+    case OT_FAULT_RESPONSE: return "OT_FAULT_RESPONSE";
+    case OT_WARN_LIMIT: return "OT_WARN_LIMIT";
+    case VIN_OV_FAULT_LIMIT: return "VIN_OV_FAULT_LIMIT";
+    case VIN_OV_FAULT_RESPONSE: return "VIN_OV_FAULT_RESPONSE";
+    case VIN_UV_WARN_LIMIT: return "VIN_UV_WARN_LIMIT";
+    case TON_DELAY: return "TON_DELAY";
+    case TON_RISE: return "TON_RISE";
+    case TON_MAX_FAULT_LIMIT: return "TON_MAX_FAULT_LIMIT";
+    case TON_MAX_FAULT_RESPONSE: return "TON_MAX_FAULT_RESPONSE";
+    case TOFF_DELAY: return "TOFF_DELAY";
+    case TOFF_FALL: return "TOFF_FALL";
+    case COMPENSATION_CONFIG: return "COMPENSATION_CONFIG";
+    case SYNC_CONFIG: return "SYNC_CONFIG";
+    case STACK_CONFIG: return "STACK_CONFIG";
+    case PIN_DETECT_OVERRIDE: return "PIN_DETECT_OVERRIDE";
+    default: return "?";
+    }
+}
+
+// A refused write names its command, with STATUS_CML, so a report says which
+// one the part rejected (#68 only said "config write failed").
+static bool checked(uint8_t cmd, esp_err_t err)
+{
+    if (err == ESP_OK) return true;
+    uint8_t cml = 0xff;
+    i2c_bus::read(ADDR, 0x7E, &cml, 1);  // STATUS_CML
+    ESP_LOGE(TAG, "write %s (%02x) refused: %s, STATUS_CML %02x", cmd_name(cmd), cmd, esp_err_to_name(err), cml);
+    return false;
+}
+
+static bool w8(uint8_t cmd, uint8_t v) { return checked(cmd, i2c_bus::write_byte(ADDR, cmd, v)); }
+static bool w16(uint8_t cmd, uint16_t v) { return checked(cmd, i2c_bus::write_word_le(ADDR, cmd, v)); }
 static bool wlin(uint8_t cmd, float v) { return w16(cmd, float_to_slinear11(v)); }
 static bool wvout(uint8_t cmd, float v) { return w16(cmd, float_to_ulinear16(v)); }
 
@@ -154,7 +210,7 @@ static bool write_block(uint8_t cmd, const uint8_t *data, size_t len)
     buf[0] = cmd;
     buf[1] = (uint8_t) len;
     memcpy(buf + 2, data, len);
-    return i2c_bus::write(ADDR, buf, len + 2) == ESP_OK;
+    return checked(cmd, i2c_bus::write(ADDR, buf, len + 2));
 }
 
 static float read_lin(uint8_t cmd)
@@ -204,6 +260,8 @@ bool detect()
     return false;
 }
 
+float read_vin() { return read_lin(READ_VIN); }
+
 bool init(const Profile &profile)
 {
     s_initialized = false;
@@ -220,6 +278,9 @@ bool init(const Profile &profile)
 
     const float vout = 1.2f * domains;
     bool ok = w8(OPERATION, OP_OFF);
+    // STATUS_CML latches: start clean so a refusal below logs its own bits,
+    // not one left from an earlier boot (output is off here)
+    clear_faults();
     ok &= w8(ON_OFF_CONFIG, profile.on_off_config);
     if (profile.stack_config) {
         ok &= w16(STACK_CONFIG, profile.stack_config);
@@ -229,7 +290,9 @@ bool init(const Profile &profile)
     ok &= wlin(FREQUENCY_SWITCH, 650);  // kHz
     if (profile.compensation[0]) ok &= write_block(COMPENSATION_CONFIG, profile.compensation, sizeof(profile.compensation));
 
-    ok &= wlin(VIN_UV_WARN_LIMIT, profile.vin_uv_warn);
+    // No warning in the profile: leave the register alone, as AxeOS does. A
+    // Gamma's TPS546 refused 0 here and the board never powered up (#68).
+    if (profile.vin_uv_warn > 0) ok &= wlin(VIN_UV_WARN_LIMIT, profile.vin_uv_warn);
     ok &= wlin(VIN_ON, profile.vin_on);
     ok &= wlin(VIN_OFF, profile.vin_off);
     ok &= wlin(VIN_OV_FAULT_LIMIT, profile.vin_ov_fault);

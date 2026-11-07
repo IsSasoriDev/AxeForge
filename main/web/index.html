@@ -220,6 +220,7 @@ html[data-theme=paper] .pill{background:transparent}
 .qr{background:#fff;padding:8px;border-radius:10px;width:200px;max-width:100%;margin-top:10px}.qr svg{display:block;width:100%;height:auto}
 #login{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 #login.on{display:flex}#login .card{max-width:360px;width:100%}
+html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{display:none!important}
 </style></head>
 <body><div class="app">
 <nav id="nav">
@@ -380,15 +381,16 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <!-- ============================== DISPLAY -->
 <section id="display">
 <div class="grid g2 mb">
- <div class="card"><h3>Live screen <span class="tag" id="scrkind">--</span></h3>
-  <div class="screen"><img id="scr" alt="screen"></div>
+ <div class="card"><h3><span class="lcd">Live screen</span><span class="oled">Screen</span> <span class="tag lcd" id="scrkind">--</span></h3>
+  <div class="screen lcd"><img id="scr" alt="screen"></div>
+  <p class="note oled" style="margin-top:0">This board has a 128 × 32 OLED, which can't be captured to show here. Prev and Next still change its page, and the settings below are the ones it uses.</p>
   <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="pageGo(-1)">◀ Prev</button><button class="btn alt sm" onclick="pageGo(1)">Next ▶</button>
-  <label style="margin:0 0 0 6px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="scrlive" checked style="width:auto"> live</label></div>
-  <p class="note">This is the real LCD, captured from the miner every 2 s.</p></div>
- <div class="card"><h3>Pages &amp; order</h3><ul class="plist" id="plist"></ul>
+  <label class="lcd" style="margin:0 0 0 6px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="scrlive" checked style="width:auto"> live</label></div>
+  <p class="note lcd">This is the real LCD, captured from the miner every 2 s.</p></div>
+ <div class="card lcd"><h3>Pages &amp; order</h3><ul class="plist" id="plist"></ul>
   <div class="btns"><button class="btn" onclick="savePages()">Save pages</button><span class="meta">Use the arrows to reorder. System stays on (it has the setup QR).</span></div></div>
 </div>
-<div class="card mb"><h3>Layout editor <span class="seg" id="edseg"><button data-p="0" class="on">Custom 1</button><button data-p="1">Custom 2</button></span></h3>
+<div class="card mb lcd"><h3>Layout editor <span class="seg" id="edseg"><button data-p="0" class="on">Custom 1</button><button data-p="1">Custom 2</button></span></h3>
  <p class="note" id="edsmall" style="display:none;margin-top:0">Custom pages need the 3.5" screen. On the T-Display-S3 they're skipped, but layouts you save here are kept for later.</p>
  <div class="ed-wrap"><div><div class="canvas" id="canvas"></div>
   <p class="note">Drag to move, drag the corner to resize, click to select. 12 × 8 grid, same as the 480 × 272 page area. Fonts scale with widget size on the device.</p></div>
@@ -396,15 +398,16 @@ hashrate as one chip per pool — or uses them as failover.</div>
    <div id="props" style="margin-top:12px"></div></div></div>
  <div class="btns"><button class="btn" onclick="saveLayout()">Save &amp; show on screen</button><button class="btn alt" onclick="clearLayout()">Clear page</button></div></div>
 <form data-f><div class="card"><h3>Screen settings</h3>
-<label style="margin-top:0" title="Which panel the miner has. The miner reboots to switch. If the screen goes blank afterwards, hold the bottom button at power-on to flip back.">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
-<p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
+<div class="lcd"><label style="margin-top:0" title="Which panel the miner has. The miner reboots to switch. If the screen goes blank afterwards, hold the bottom button at power-on to flip back.">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
+<p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p></div>
 <label title="Forge is dark, Paper is for daylight and e-ink-like screens, Ember is dark with Bitcoin orange, Spatial is deep space. Applies to the miner&#x27;s screen and this page.">Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">Spatial: deep space, stars and planets</option></select>
 <label title="Backlight level. Applies at once.">Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
-<label title="Backlight off after this many idle minutes. A button wakes it; faults, overheating and a found block wake it too.">Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
-<div class="row"><div><label title="The screen page shown after boot.">Start page</label><select name="defpage" id="defpage"></select></div>
+<div class="lcd"><label title="Backlight off after this many idle minutes. A button wakes it; faults, overheating and a found block wake it too.">Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select></div>
+<div class="row"><div class="lcd"><label title="The screen page shown after boot.">Start page</label><select name="defpage" id="defpage"></select></div>
 <div><label title="Cycle the screen pages every this many seconds. 0 stays on one page.">Auto-rotate pages</label><select name="rotate"><option value="0">Off</option><option value="10">Every 10 s</option><option value="20">Every 20 s</option><option value="30">Every 30 s</option><option value="60">Every minute</option></select></div></div>
 <div class="switch" style="margin-top:8px"><div><b>Rotate 180°</b><span>Flip the screen if the miner is mounted upside down.</span></div><input class="tg" type="checkbox" name="rot180"></div>
-<p class="note">Buttons on the miner: short press = next/previous page, hold top = backlight, hold bottom = restart auto-tune.</p></div>
+<p class="note lcd">Buttons on the miner: short press = next/previous page, hold top = backlight, hold bottom = restart auto-tune.</p>
+<p class="note oled">The button on the miner: short press = next page, hold = screen off or on.</p></div>
 <div class="btns"><button class="btn">Save screen settings</button></div></form>
 </section>
 
@@ -556,6 +559,7 @@ function blocks(m){
  $('fees').textContent=`fees ${m.feeFast.toFixed(0)} / ${m.feeHour.toFixed(0)} / ${m.feeEco.toFixed(0)} sat/vB`}
 
 async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){return}
+ document.documentElement.dataset.scr=S.screen||'';
  const L=cfg.limits||{chipCrit:80,vrCrit:100,maxPower:100,maxFreq:750};
  const [v,u]=hr(S.hashrate);$('hrv').textContent=v;$('hru').textContent=u;
  const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*(S.smallCores||2040)*(S.asicCount||4)/1000));
@@ -771,7 +775,8 @@ function renderPages(){$('plist').innerHTML=order.map((p,i)=>`<li class="${p.on?
 function mv(i,d){const j=i+d;if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];renderPages()}
 async function savePages(){await act('/api/settings',JSON.stringify({pages:order.filter(p=>p.on).map(p=>p.k).join('')}));setTimeout(shot,800)}
 let shooting=false;
-function shot(){if(shooting)return;shooting=true;const i=$('scr'),n=new Image();
+function shot(){if(shooting||S.screen=='oled')return;  // an OLED can't be captured
+ shooting=true;const i=$('scr'),n=new Image();
  n.onload=()=>{i.classList.toggle('small',n.naturalWidth<400);i.src=n.src;shooting=false};n.onerror=()=>{shooting=false};n.src='/api/screen.bmp?'+Date.now()}
 async function pageGo(d){const r=await (await fetch('/api/page',{method:'POST',body:JSON.stringify({dir:d})})).json();$('scrkind').textContent=PAGES[r.kind]||r.kind;shot()}
 async function showKind(k){const r=await (await fetch('/api/page',{method:'POST',body:JSON.stringify({kind:k})})).json();$('scrkind').textContent=PAGES[r.kind]||r.kind;shot()}

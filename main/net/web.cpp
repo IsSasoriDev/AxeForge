@@ -126,6 +126,21 @@ static const char *phase_name(TunerPhase p)
     return "";
 }
 
+static const char *wall_name(TunerWall w)
+{
+    switch (w) {
+    case TunerWall::None: return "";
+    case TunerWall::Gate: return "gate";
+    case TunerWall::MvGate: return "mvgate";
+    case TunerWall::Thermal: return "thermal";
+    case TunerWall::Power: return "power";
+    case TunerWall::Errors: return "errors";
+    case TunerWall::Hold: return "hold";
+    case TunerWall::Peak: return "peak";
+    }
+    return "";
+}
+
 static const char *status_name(SysStatus s)
 {
     switch (s) {
@@ -363,6 +378,14 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(tu, "trialFreq", t.trial_freq);
     cJSON_AddNumberToObject(tu, "trialMv", t.trial_mv);
     cJSON_AddNumberToObject(tu, "goal", settings::get().tune_goal);
+    // what ended the climb and the highest readings of this search (the headroom readout)
+    cJSON_AddStringToObject(tu, "wall", wall_name(t.wall));
+    cJSON_AddNumberToObject(tu, "wallFreq", t.wall_freq);
+    cJSON_AddNumberToObject(tu, "wallMv", t.wall_mv);
+    cJSON_AddBoolToObject(tu, "wallWatch", t.wall_watch);
+    cJSON_AddNumberToObject(tu, "peakW", t.peak_w);
+    cJSON_AddNumberToObject(tu, "peakChipC", t.peak_chip_c);
+    cJSON_AddNumberToObject(tu, "peakVrC", t.peak_vr_c);
 
     cJSON *chips = cJSON_AddArrayToObject(r, "chips");
     for (int i = 0; i < AF_NUM_ASICS; i++) {
@@ -478,6 +501,11 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(oc, "stockMv", gates::stock_max_mv());
     cJSON_AddNumberToObject(oc, "stockPower", gates::stock_max_power());
     cJSON_AddNumberToObject(oc, "cutoffPower", gates::stock_max_power() * 1.15f);
+    cJSON_AddStringToObject(oc, "boardId", AF_BOARD_ID);  // boards/<id>.toml
+    cJSON_AddNumberToObject(oc, "envFreq", gates::env_freq());
+    cJSON_AddNumberToObject(oc, "envMv", gates::env_mv());
+    cJSON_AddNumberToObject(oc, "envPowerPct", gates::env_power_pct());
+    cJSON_AddNumberToObject(oc, "maxPowerPct", gates::MAX_POWER_PCT);
     return send_json(req, r);
 }
 

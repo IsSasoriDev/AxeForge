@@ -70,6 +70,7 @@ input[type=range]{padding:0;height:6px;accent-color:var(--cyan);background:none;
 .pbars i:first-child{outline:1px solid var(--text)}
 .info{background:rgba(139,92,255,.1);border:1px solid rgba(139,92,255,.4);border-radius:12px;padding:12px 14px;color:#d9ccff;font-size:13px;margin-bottom:14px}
 .lim{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+pre.toml{background:var(--panel2);border-radius:10px;padding:10px 12px;margin:0 0 10px;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
 .lim div{background:var(--panel2);border-radius:10px;padding:10px}.lim b{display:block;font-size:18px}.lim span{font-size:11px;color:var(--dim)}
 .drop{border:2px dashed var(--line);border-radius:var(--r);padding:28px;text-align:center;color:var(--dim);cursor:pointer;transition:.2s}
 .drop:hover,.drop.over{border-color:var(--cyan);color:var(--text)}
@@ -370,6 +371,10 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div class="card"><h3>Overclock <span class="tag" id="ocst">--</span></h3>
 <p class="note" style="margin-top:0" id="ocnote"></p>
 <div class="btns"><button type="button" class="btn alt" id="ocbtn" onclick="ocToggle()">--</button></div></div>
+<div class="card"><h3>Measured headroom <span class="tag" id="hrst">--</span></h3>
+<p class="note" style="margin-top:0" id="hrnote"></p>
+<pre class="toml" id="hrtoml" style="display:none"></pre>
+<div class="btns" id="hrbtns" style="display:none"><button type="button" class="btn alt" onclick="hrCopy()">Copy</button><a class="btn alt" id="hrissue" target="_blank" rel="noopener">Report it on GitHub</a></div></div>
 <div class="btns"><button class="btn">Save tuning</button><button type="button" class="btn alt" onclick="act('/api/retune')">Restart auto-tune search</button></div></form></section>
 
 <!-- ============================== DISPLAY -->
@@ -564,7 +569,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  if(ember())emberBars(S,L);
  chips(S.chips);blocks(S.mempool);fanStatus();
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;const pc=phaseCol[t.phase]||(ember()?'var(--cyan)':'var(--violet)');tp.style.color=pc;if(ember())$('tbar').style.background=pc;
- $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;
+ $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;if(cur=='tuning')headroom(S);
  $('tbar').style.width=(t.phase=='locked'||t.phase=='manual'?100:t.progress)+'%';
  $('tbest').textContent=t.bestFreq?`${t.bestFreq} MHz @ ${t.bestMv} mV (${hr(t.bestGhs).join(' ')})`:'searching…';$('tsteps').textContent=t.steps;
  // template + hash
@@ -671,6 +676,40 @@ async function ocToggle(){const o=cfg.overclock;
  if(o.unlocked){await act('/api/settings',JSON.stringify({overclock:false}));return loadCfg()}
  const t=prompt('Overclocking runs the chips past this board\'s stock limits: more heat, more power, shorter life, and it is on you. Temperature cut-offs still apply.\n\nType OVERCLOCK to unlock.');
  if(t===null)return;await act('/api/settings',JSON.stringify({overclock:true,confirm:t.trim()}));loadCfg()}
+
+/* ---------------- measured headroom: the lock, what ended the climb, and the envelope it would justify */
+const WALLS={gate:'the clock limit',mvgate:'the voltage limit',thermal:'the temperature ceiling',power:'the power ceiling',errors:'hardware errors',hold:'a fault hold',peak:'the efficiency peak'};
+let hrToml='';
+const setText=(el,v)=>{if(el.textContent!==v)el.textContent=v};  // unchanged text keeps a selection in place
+function headroom(S){const t=S.tuner,o=cfg.overclock,st=$('hrst'),n=$('hrnote'),p=$('hrtoml'),b=$('hrbtns');if(!o||!t)return;
+ const file='boards/'+o.boardId+'.toml',hide=()=>{p.style.display=b.style.display='none';hrToml=''};
+ if(!((t.phase=='locked'||t.phase=='backoff')&&t.bestFreq>0&&t.wall)){setText(st,t.phase=='manual'?'auto-tune off':'waiting for a lock');
+  setText(n,'Once a search locks, this shows the lock point, what ended the climb, and the [envelope] it would justify in '+file+'. A lock restored at boot has no climb behind it: start a new search to measure.');return hide()}
+ const lock='Locked '+t.bestFreq+' MHz @ '+t.bestMv+' mV, '+(t.bestGhs/1000).toFixed(2)+' TH/s, at most '+t.peakW.toFixed(0)+' W while stable. ';
+ // a climb the user's settings ended says nothing about the board
+ const capped=t.goal==1&&cfg.pcap>0&&cfg.pcap<cfg.limits.maxPower;
+ const why=t.goal==2||t.wall=='peak'?'the efficiency goal stops at the best J/TH, not at a wall':capped?'your power limit ('+cfg.pcap+' W) ended the climb, not the board':t.wall=='hold'?'a fault held the clock down':'';
+ if(why){setText(st,'not a measurement');setText(n,lock+'This search can\'t measure headroom: '+why+'. To measure, set the goal to most hashrate with no power limit and start a new search.');return hide()}
+ const df=Math.max(0,t.bestFreq-o.stockFreq),dmv=Math.max(0,t.bestMv-o.stockMv),dp=o.stockPower>0?Math.max(0,Math.ceil((t.peakW/o.stockPower-1)*100)):0;
+ // exactly what the lock used, never rounded past it
+ const env={freq_mhz:df,mv:dmv,power_pct:Math.min(o.maxPowerPct,dp)},gate=t.wall=='gate'||t.wall=='mvgate',none=!df&&!dmv&&!dp;
+ const over=[df&&df+' MHz',dmv&&dmv+' mV',dp&&env.power_pct+' % power'].filter(Boolean).join(', ');
+ const cur=o.envFreq||o.envMv||o.envPowerPct?'The board file\'s envelope is +'+o.envFreq+' MHz, +'+o.envMv+' mV, +'+o.envPowerPct+' % power.':'This board has no envelope.';
+ setText(st,gate?'inconclusive':'measured');
+ setText(n,lock+'The wall: '+WALLS[t.wall]+' at '+t.wallFreq+' MHz @ '+t.wallMv+' mV'+(t.wallWatch?', found later while watching the lock. ':'. ')
+  +(gate?'It reached '+WALLS[t.wall]+' without finding a wall, so the real headroom is still unknown; the block below is only what this search proved. To find the wall the limit has to move: see boards/README.md, "Measuring an envelope". '
+   :none?'That is inside the stock limits ('+o.stockFreq+' MHz, '+o.stockMv+' mV, '+o.stockPower+' W): this board needs no envelope, which is worth reporting too. '
+   :'Over the stock limits by '+over+': the block below is exactly what this lock used. ')
+  +cur+' Copy it into the board file, or open the issue with it filled in.');
+ const date=new Date().toISOString().slice(0,10),bn=(S.board||o.boardId).trim();
+ const toml='# '+bn+', '+date+': locked '+t.bestFreq+' MHz @ '+t.bestMv+' mV, '+(t.bestGhs/1000).toFixed(2)+' TH/s, up to '+t.peakW.toFixed(0)+' W while stable.\n# Wall: '+WALLS[t.wall]+' at '+t.wallFreq+' MHz @ '+t.wallMv+' mV; chips '+t.peakChipC.toFixed(0)+' C, VR '+t.peakVrC.toFixed(0)+' C.\n[envelope]\npower_pct = '+env.power_pct+'\nmv = '+env.mv+'\nfreq_mhz = '+env.freq_mhz;
+ if(toml===hrToml&&p.style.display=='')return;
+ hrToml=toml;setText(p,toml);p.style.display=b.style.display='';
+ const q=encodeURIComponent;$('hrissue').href=SRC+'/issues/new?template=envelope.yml&title='+q('envelope: '+bn)+'&board='+q(bn)+'&version='+q(S.version||'')+'&toml='+q(toml)}
+// navigator.clipboard exists only on https or localhost; the miner is plain http on the LAN
+function hrCopy(){const manual=()=>{const r=document.createRange(),sel=getSelection();r.selectNodeContents($('hrtoml'));sel.removeAllRanges();sel.addRange(r);
+  let ok=false;try{ok=document.execCommand('copy')}catch(e){}toast(ok?'Copied':'Selected: press Ctrl+C (⌘C on a Mac) to copy')};
+ if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(hrToml).then(()=>toast('Copied'),manual);else manual()}
 
 /* ---------------- power bill & odds, heatsink */
 function oddsTxt(p){return p>=0.995?'almost certain':p>=0.01?(100*p).toFixed(p<0.1?1:0)+'%':'1 in '+Math.round(1/p).toLocaleString()}

@@ -45,6 +45,45 @@ struct Result {
     float chip_w;  // average regulator output power: what the chips draw, without the fans
 };
 
+// The highest readings of this search and what ended its climb, for the headroom
+// readout on the Tuning page (a lock restored at boot has neither). Power counts only
+// from stable windows, so a failing step past the lock doesn't widen the proposed
+// envelope; temperatures count from every window, since a thermal wall is one that failed.
+static void peaks(const Result &r)
+{
+    TunerState &t = g_state.tuner;
+    if (r.verdict == Verdict::Stable && r.pmax > t.peak_w) t.peak_w = r.pmax;
+    if (r.tmax > t.peak_chip_c) t.peak_chip_c = r.tmax;
+    if (r.vrmax > t.peak_vr_c) t.peak_vr_c = r.vrmax;
+}
+
+// a climb that starts again (aborted, or retried lower) measures from scratch
+static void fresh_readout()
+{
+    TunerState &t = g_state.tuner;
+    t.wall = TunerWall::None;
+    t.wall_freq = t.wall_mv = 0;
+    t.wall_watch = false;
+    t.peak_w = t.peak_chip_c = t.peak_vr_c = 0;
+}
+
+static void wall(TunerWall w, uint16_t f, uint16_t mv, bool watch = false)
+{
+    g_state.tuner.wall = w;
+    g_state.tuner.wall_watch = watch;
+    g_state.tuner.wall_freq = f;
+    g_state.tuner.wall_mv = mv;
+}
+
+static TunerWall verdict_wall(Verdict v)
+{
+    switch (v) {
+    case Verdict::Thermal: return TunerWall::Thermal;
+    case Verdict::Power: return TunerWall::Power;
+    default: return TunerWall::Errors;
+    }
+}
+
 static volatile bool s_restart = false;
 static volatile uint16_t s_hold = 0;  // clock cap after a fault retry, 0 = none
 
@@ -230,6 +269,7 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
         Result r = measure(WARMUP_S, WINDOW_S, MAX_ERR_PCT, WORST_CHIP_PCT);
         g_state.tuner.steps_done++;
         if (r.verdict == Verdict::Aborted) return false;
+        peaks(r);
         ESP_LOGI(TAG, "%u MHz %u mV: %s, %.0f GH/s, err %.2f%% (worst chip %.2f%%), tmax %.1f, vr %.1f, %.0f W", f, mv,
                  verdict_text(r.verdict), r.ghs, r.err, r.worst_chip, r.tmax, r.vrmax, r.pmax);
 
@@ -251,6 +291,7 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
                 g_state.tuner.best_ghs = r.ghs;
             } else if (clearly_worse && ++worse >= EFF_WORSE_STEPS) {
                 note("Efficiency peaked at %.0f MHz (%.1f J/TH)", best_f, best_jth);
+                wall(TunerWall::Peak, f, mv);
                 return true;
             }
             bumps = 0;
@@ -262,6 +303,7 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
                 note(near_power ? "Power ceiling reached" : near_thermal ? "Thermal ceiling reached"
                                 : at_hold                ? "Held after a fault"
                                                          : "Max freq reached");
+                wall(near_power ? TunerWall::Power : near_thermal ? TunerWall::Thermal : at_hold ? TunerWall::Hold : TunerWall::Gate, f, mv);
                 return true;
             }
             f += FREQ_STEP;
@@ -281,6 +323,10 @@ static bool climb(uint16_t &best_f, uint16_t &best_mv, float &best_ghs)
         }
 
         snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Wall: %s at %u MHz", verdict_text(r.verdict), f);
+        // errors that more voltage might have fixed, had the voltage limit allowed it: the
+        // gate stopped this climb, not the chips
+        bool mv_gate = r.verdict == Verdict::Errors && !eff_goal && bumps < MAX_MV_BUMPS;
+        wall(mv_gate ? TunerWall::MvGate : verdict_wall(r.verdict), f, mv);
         return true;
     }
 }
@@ -297,6 +343,7 @@ static bool trim(uint16_t f, uint16_t &mv, float &ghs)
         Result r = measure(WARMUP_S / 2, WINDOW_S, MAX_ERR_PCT, WORST_CHIP_PCT);
         g_state.tuner.steps_done++;
         if (r.verdict == Verdict::Aborted) return false;
+        peaks(r);
         if (r.verdict != Verdict::Stable || r.ghs < ghs * 0.98f) break;
         mv = trial;
         ghs = r.ghs;
@@ -366,6 +413,7 @@ static bool tune_chips(uint16_t f, float &ghs)
         ESP_LOGI(TAG, "%s", g_state.tuner.note);
         set_offsets(off);
         Result r = measure(WARMUP_S / 2, WINDOW_S, MAX_ERR_PCT, 100.0f);  // chips are judged one by one below
+        peaks(r);
         g_state.tuner.steps_done++;
         bool stop = r.verdict == Verdict::Thermal || r.verdict == Verdict::Power || r.verdict == Verdict::Aborted;
         int failed = 0;
@@ -463,6 +511,7 @@ static void tuner_task(void *)
 
         uint16_t best_f = board::freq_mhz(), best_mv = board::core_mv();
         float best_ghs = 0;
+        bool climbed = false;  // this search measured its own lock; a restored one didn't
 
         if (!cfg.tuned_freq) {
             if (any_offset()) {  // a new search starts with every chip at the chain clock
@@ -471,7 +520,9 @@ static void tuner_task(void *)
             }
             g_state.tuner.phase = TunerPhase::WarmUp;
             note("Starting search from %.0f MHz", best_f);
+            fresh_readout();
             if (!climb(best_f, best_mv, best_ghs)) continue;
+            climbed = true;
             if (best_ghs <= 0) {
                 // Nothing was stable, not even the start point: start lower and climb
                 // again, rather than locking a point that was never measured.
@@ -504,6 +555,7 @@ static void tuner_task(void *)
             snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Locked %u MHz @ %u mV", best_f, best_mv);
             Result r = measure(0, WATCH_WINDOW_S, WATCH_MAX_ERR_PCT, WATCH_WORST_CHIP_PCT);
             if (r.verdict == Verdict::Aborted) break;
+            peaks(r);
             if (r.verdict == Verdict::Stable) {
                 if (r.ghs > 0) g_state.tuner.best_ghs = r.ghs;
                 int slow = slow_raised_chip(best_f);
@@ -517,6 +569,7 @@ static void tuner_task(void *)
                 continue;
             }
             g_state.tuner.phase = TunerPhase::Backoff;
+            if (climbed) wall(verdict_wall(r.verdict), best_f, best_mv, true);  // the lock itself failed: that is the wall now
             best_f = board::clamp_freq(best_f - FREQ_STEP);
             snprintf(g_state.tuner.note, sizeof(g_state.tuner.note), "Drift (%s): backing off to %u MHz",
                      verdict_text(r.verdict), best_f);

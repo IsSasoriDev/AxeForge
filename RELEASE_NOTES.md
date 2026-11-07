@@ -14,6 +14,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - **Every ASIC card shows its clock.** Chips at the chain clock print it too, not only the ones the per-chip tuner raised; the raised ones stay highlighted, and hovering the clock says by how much.
 ### Web UI
 - **Hover help on the settings fields.** Every numeric or choice field on the Pools, Tuning, Display, Clock and Network pages explains itself when the pointer rests on its label: what it does and what happens if you raise it. The notes under each card stay for phones, where there is no hover.
+### Tuning
+- **Measured headroom.** Once the tuner locks, a card on the Tuning page shows the lock point, what ended the climb (temperature, power, errors, or the clock or voltage limit), the most power its stable windows drew and the highest temperatures, and the `[envelope]` block that lock justifies in the board's file (exactly what it used, never rounded past it), with a copy button and a link that opens a GitHub issue with it filled in. A search the user's own settings ended (efficiency goal, a power limit, a fault hold) is shown as not a measurement. Most boards have no envelope because nobody has measured one; this is how the numbers come back. `boards/README.md` says how to run the measurement and what maintainers do with a report. The status API gains `tuner.wall`, `wallFreq`, `wallMv`, `wallWatch`, `peakW`, `peakChipC`, `peakVrC`, and the config's `overclock` object gains `boardId`, `envFreq`, `envMv`, `envPowerPct`, `maxPowerPct`.
 
 ## AxeForge v1.4.6
 

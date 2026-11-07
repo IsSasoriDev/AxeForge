@@ -1,6 +1,7 @@
 // Host-side unit tests for code that doesn't touch hardware: share and block
 // difficulty, coinbase and merkle building, template decoding and the SV2
-// message parsers and Noise payload chunking. Known answers come from the Bitcoin genesis block.
+// message parsers and Noise payload chunking, and the TPS546 regulator config
+// against a fake part. Known answers come from the Bitcoin genesis block.
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,6 +9,9 @@
 #include <string>
 
 #include "core/json_util.h"
+#include "esp_log.h"
+#include "fake_tps546.h"
+#include "hw/tps546.h"
 #include "mining/payout.h"
 #include "mining/work.h"
 #include "mbedtls/sha256.h"
@@ -383,6 +387,68 @@ static void test_sv2_noise_chunks()
     CHECK(sv2_noise_open_payload(key, &n, (const uint8_t *) ct.data(), len, (uint8_t *) &back[0]) != 0);
 }
 
+// ---------------------------------------------------------------- TPS546 config
+// PMBus number formats, decoded the way the regulator reads them
+static float slin11(int v)
+{
+    int e = (v >> 11) & 0x1f, m = v & 0x7ff;
+    if (e & 0x10) e -= 32;
+    if (m & 0x400) m -= 2048;
+    return m * powf(2.0f, (float) e);
+}
+static float ulin16(int v) { return v / 512.0f; }  // VOUT_MODE exponent -9
+
+// Issue #68: a Bitaxe Gamma's TPS546 refused VIN_UV_WARN_LIMIT = 0, so init
+// failed and the board reported "Voltage regulator not found". AxeOS doesn't
+// write the warning at all when the profile has none; neither should we.
+static void test_tps546_single_no_uv_warn()
+{
+    fake_tps546::reset();
+    fake_tps546::refuse = [](const fake_tps546::Write &w) {
+        return w.cmd == 0x58 && w.data.size() == 2 && w.data[0] == 0 && w.data[1] == 0;
+    };
+    CHECK(tps546::init(tps546::BITAXE_SINGLE));
+    CHECK(!fake_tps546::attempted(0x58));
+    CHECK(fake_tps546::last_byte(0x01) == 0x00);  // output left off
+}
+
+// The limits that protect the chip are still written for the single profile
+static void test_tps546_single_limits()
+{
+    fake_tps546::reset();
+    CHECK(tps546::init(tps546::BITAXE_SINGLE));
+    CHECK_NEAR(ulin16(fake_tps546::last_word(0x24)), 2.0, 0.002);   // VOUT_MAX
+    CHECK_NEAR(ulin16(fake_tps546::last_word(0x2B)), 1.0, 0.002);   // VOUT_MIN
+    CHECK_NEAR(slin11(fake_tps546::last_word(0x46)), 30.0, 0.1);    // IOUT_OC_FAULT_LIMIT
+    CHECK(fake_tps546::last_byte(0x47) == 0xC0);                   // shut down on OC
+    CHECK_NEAR(ulin16(fake_tps546::last_word(0x40)), 1.25, 0.002);  // VOUT_OV_FAULT_LIMIT (relative)
+    CHECK_NEAR(ulin16(fake_tps546::last_word(0x44)), 0.75, 0.002);  // VOUT_UV_FAULT_LIMIT (relative)
+    CHECK_NEAR(slin11(fake_tps546::last_word(0x4F)), 145.0, 1.0);   // OT_FAULT_LIMIT
+    CHECK(fake_tps546::last_byte(0x50) == 0xFF);                   // OT_FAULT_RESPONSE
+    CHECK(fake_tps546::last_byte(0x56) == 0xB7);                   // VIN_OV_FAULT_RESPONSE
+    CHECK_NEAR(slin11(fake_tps546::last_word(0x55)), 6.5, 0.05);    // VIN_OV_FAULT_LIMIT
+    CHECK_NEAR(slin11(fake_tps546::last_word(0x35)), 4.8, 0.05);    // VIN_ON
+    CHECK_NEAR(slin11(fake_tps546::last_word(0x36)), 4.5, 0.05);    // VIN_OFF
+}
+
+// Profiles that do have an input warning still write it
+static void test_tps546_uv_warn_written()
+{
+    fake_tps546::reset();
+    CHECK(tps546::init(tps546::NERDQAXE_REV7));
+    CHECK_NEAR(slin11(fake_tps546::last_word(0x58)), 11.0, 0.05);
+}
+
+// A refused safety limit still stops power-up, and the log names the command
+static void test_tps546_refused_limit()
+{
+    fake_tps546::reset();
+    fake_tps546::refuse = [](const fake_tps546::Write &w) { return w.cmd == 0x46; };
+    CHECK(!tps546::init(tps546::BITAXE_SINGLE));
+    CHECK(fake_tps546::last_byte(0x01) == 0x00);
+    CHECK(g_esp_log.find("IOUT_OC_FAULT_LIMIT") != std::string::npos);
+}
+
 int main()
 {
     test_hex();
@@ -398,6 +464,10 @@ int main()
     test_sv2_targets();
     test_sv2_frames();
     test_sv2_noise_chunks();
+    test_tps546_single_no_uv_warn();
+    test_tps546_single_limits();
+    test_tps546_uv_warn_written();
+    test_tps546_refused_limit();
     printf("%d checks, %d failed\n", s_checks, s_failed);
     return s_failed ? 1 : 0;
 }

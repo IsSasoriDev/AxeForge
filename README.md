@@ -288,7 +288,7 @@ Every other board builds in its own directory from `sdkconfig.defaults.<board>` 
 idf.py -B build_nerdqx -D SDKCONFIG=build_nerdqx/sdkconfig -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.nerdqx" build
 ```
 
-Unit tests for the code that doesn't touch hardware (difficulty, coinbase and merkle building, template decoding, the payout check, SV2 parsers) run on a PC with the normal compiler, no ESP-IDF needed. They need `g++`, `make` and `libmbedtls-dev`:
+Unit tests for the code that doesn't touch hardware (difficulty, coinbase and merkle building, template decoding, the payout check, SV2 parsers) and for the TPS546 regulator setup against a fake part run on a PC with the normal compiler, no ESP-IDF needed. They need `g++`, `make` and `libmbedtls-dev`:
 
 ```bash
 make -C test

@@ -1,0 +1,44 @@
+name: Overclock envelope
+description: Report how far past its stock limits your board went, so its board file can carry an [envelope]
+title: "envelope: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tuning > Measured headroom fills this in once the tuner has locked. See boards/README.md, "Measuring an envelope".
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      placeholder: NerdQaxe++ rev6, Bitaxe Supra 402, ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version
+      placeholder: v1.4.5
+    validations:
+      required: true
+  - type: input
+    id: cooling
+    attributes:
+      label: Cooling and room
+      description: Fans, heatsink, anything added or changed, and the room temperature. The envelope has to hold for a stock board in a warm room.
+      placeholder: stock fans and heatsink, 24 C room
+    validations:
+      required: true
+  - type: textarea
+    id: toml
+    attributes:
+      label: Measured headroom
+      description: The block from Tuning > Measured headroom, as it is.
+      render: toml
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: How long it has run at the lock, any back-off in the log (tuner lines), anything odd.

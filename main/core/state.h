@@ -29,6 +29,10 @@ enum class SysStatus : uint8_t {
     Paused,     // chips off on purpose (electricity price)
 };
 
+// What ended the tuner's climb: the headroom readout on the Tuning page turns it
+// into the envelope a board file could carry.
+enum class TunerWall : uint8_t { None, Gate, MvGate, Thermal, Power, Errors, Hold, Peak };
+
 struct TunerState {
     TunerPhase phase = TunerPhase::Off;
     uint16_t best_freq = 0;
@@ -39,6 +43,10 @@ struct TunerState {
     uint8_t progress = 0;        // 0..100 of current window
     uint16_t steps_done = 0;
     char note[64] = "";
+    TunerWall wall = TunerWall::None;
+    uint16_t wall_freq = 0, wall_mv = 0;  // the point that failed, or the last stable one at a gate
+    bool wall_watch = false;              // the lock itself failed later, not the climb
+    float peak_w = 0, peak_chip_c = 0, peak_vr_c = 0;  // the highest readings over this search's windows
 };
 
 struct WeatherDay {

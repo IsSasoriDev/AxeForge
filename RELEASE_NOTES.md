@@ -10,6 +10,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ### Fixes
 - Bitaxe Gamma: a board stopped at "Voltage regulator not found" right after flashing (#68). The most likely cause is an input-voltage warning the Gamma doesn't use, which its regulator refused; AxeForge no longer writes it, as AxeOS doesn't. If a regulator refuses any setting, the log now names it, so a board that still stops will say why.
 - The Heatsink card on the dashboard prints chip temperatures with one decimal, not "60.20000076293945 °C so far".
+### Dashboard
+- **Every ASIC card shows its clock.** Chips at the chain clock print it too, not only the ones the per-chip tuner raised; the raised ones stay highlighted, and hovering the clock says by how much.
 
 ## AxeForge v1.4.6
 

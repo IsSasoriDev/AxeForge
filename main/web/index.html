@@ -539,7 +539,7 @@ function hashHtml(h){if(!h)return'';const z=(h.match(/^0*/)||[''])[0].length;ret
 function chips(c){$('chips').innerHTML=c.map((x,i)=>{const tot=x.ghs+x.errGhs,e=tot?100*x.errGhs/tot:0,per=S.expected/(c.length||4)||1;
  const ceil=cfg.limits?.chipCeil||68,tc=ember()?tempCol(x.temp,ceil):x.temp>=ceil?'var(--red)':x.temp>=ceil-6?'var(--orange)':'var(--green)';
  return `<div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>ASIC ${i+1}${x.ownSensor?'':'<span class="tag" title="One board sensor shared by several chips">shared<span class="long"> sensor</span></span>'}</h3>
- <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%${x.mhz&&x.mhz!=S.freq?` · <b style="color:var(--cyan)">${x.mhz} MHz</b>`:''}</div>
+ <div class="big">${x.ghs.toFixed(0)}<small>GH/s</small></div><div class="sub"><span style="color:${tc}">${x.ownSensor?'':'~'}${x.temp.toFixed(0)}°C</span> · err ${e.toFixed(2)}%${x.mhz?` · <b style="color:${x.mhz>S.freq?'var(--cyan)':'inherit'}" title="${x.mhz>S.freq?'Raised '+(x.mhz-S.freq)+' MHz above the chain clock by the per-chip tuner':'At the chain clock'}">${x.mhz} MHz</b>`:''}</div>
  <div class="bar"><i style="width:${pct(x.ghs,per)};background:var(--cyan)"></i></div></div>`}).join('')}
 function blocks(m){
  if(!m.valid){$('cubes').innerHTML=`<span class="meta">${esc(m.error||'Loading mempool…')}</span>`;return}

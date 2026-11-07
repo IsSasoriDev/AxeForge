@@ -23,16 +23,16 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 | **NerdOctaxe-γ** | 8× BM1370 | TPS53647 4-phase, or TPS53667 6-phase from rev3.0 | 250 W / 300 W | `axeforge-nerdoctaxegamma.bin` | ✅ Tested |
 | **NerdQX** | 4× BM1370 | TPS53647, 3-phase | 240 W | `axeforge-nerdqx.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Supra Hex** 701 / 702 | 6× BM1368 | TPS546, 3 stacked domains | 120 W | `axeforge-suprahex.bin` | ✅ Tested (702) |
-| **Bitaxe Ultra Hex** 302 / 303 | 6× BM1366 | TPS546, 3 stacked domains | 90 W | `axeforge-ultrahex.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe Ultra Hex** 302 / 303 | 6× BM1366 | TPS546, 3 stacked domains | 90 W | `axeforge-ultrahex.bin` | ✅ Tested |
 | **Bitaxe Supra** 400–403 | 1× BM1368 | TPS546 (402/403) or DS4432U (400/401), detected at boot | 40 W | `axeforge-supra.bin` | ✅ Tested |
+| **Bitaxe Gamma** 600–603 | 1× BM1370 | TPS546 | 40 W | `axeforge-gamma.bin` | ✅ Tested |
 | **StarMiner** (Bitaxe Gamma 601, 12 V) | 1× BM1370 | TPS546, 12 V input found at boot | 40 W | `axeforge-gamma.bin` | ⚠️ Not tested on hardware yet |
 | **Heatbit Bitair** V1.22 | 1× BM1370 | TPS546 on its 5 V rail | 25 W | `axeforge-bitair.bin` | ⚠️ Not tested on hardware yet |
-| **Bitaxe Gamma** 600–603 | 1× BM1370 | TPS546 | 40 W | `axeforge-gamma.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Naja Duo** 1201 | 2× BM1373 | TPS546 stack, 2 stacked domains | 60 W | `axeforge-naja.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Max** 102 | 1× BM1397 | DS4432U + TPS40305 | 25 W | `axeforge-max.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Ultra** 201–207 | 1× BM1366 | DS4432U (201–205) or TPS546 (207), detected at boot | 25 W | `axeforge-ultra.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Gamma Duo** 650 | 2× BM1370 | TPS546 | 40 W | `axeforge-gammaduo.bin` | ⚠️ Not tested on hardware yet |
-| **Bitaxe GT** 801 | 2× BM1370 | TPS546 stack, 2-phase | 60 W | `axeforge-gt.bin` | ⚠️ Not tested on hardware yet |
+| **Bitaxe GT** 801 | 2× BM1370 | TPS546 stack, 2-phase | 60 W | `axeforge-gt.bin` | ✅ Tested |
 | **Bitaxe Gamma Hex** 1300 | 6× BM1370 | TPS546 stack, 4-phase, 2 stacked domains | 180 W | `axeforge-gammahex.bin` | ⚠️ Not tested on hardware yet |
 | **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | `axeforge-nexus.bin` | ✅ Tested (one board) |
 | **HX-6** rev B ([open hardware](https://github.com/IsSasoriDev/HX6-Miner)) | 6× BM1370 | TPS53647, 4-phase | 130 W | `axeforge-hx6.bin` | ⚠️ No board built yet |

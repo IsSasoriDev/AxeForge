@@ -326,7 +326,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <form data-f><div class="card" style="margin-top:16px"><h3>Solo payout check</h3>
 <label style="margin-top:0">When a pool's coinbase doesn't pay the address in its username</label>
 <select name="paymode"><option value="0">Warn only (keep mining)</option><option value="1">Don't send that pool any work</option></select>
-<label>Highest pool fee you accept (%)</label><input name="payfee" type="number" min="0" max="100" step="1">
+<label title="A pool whose block template keeps more than this share of the reward for itself counts as not paying you. 100 turns the check off.">Highest pool fee you accept (%)</label><input name="payfee" type="number" min="0" max="100" step="1">
 <p class="note">Only for usernames that are a Bitcoin address (solo mining). With "don't send work", a pool whose block template would pay you less than 100% minus this fee gets no jobs until its next template does; the other pools carry on. 100 means any fee is fine and only a template that doesn't pay you at all is skipped.</p></div>
 <div class="btns"><button class="btn">Save payout check</button></div></form>
 </section>
@@ -334,37 +334,37 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <!-- ============================== TUNING -->
 <section id="tuning"><form data-f><div class="card"><h3>Mode</h3>
 <div class="switch"><div><b>Auto-tune</b><span>Climbs the clock, adds voltage on errors, stops at thermal/power/error walls, then trims voltage back down.</span></div><input class="tg" type="checkbox" name="atune"></div>
-<div class="row" style="margin-top:12px"><div><label>Tuning goal</label><select name="tgoal" id="tgoal" onchange="goalUi()"><option value="0">Most hashrate</option><option value="1">Most hashrate under a power limit</option><option value="2">Best efficiency (J/TH)</option></select></div>
-<div id="pcaprow"><label>Power limit (W, input)</label><input name="pcap" type="number" min="0" max="2000" step="1" placeholder="board limit"></div></div>
+<div class="row" style="margin-top:12px"><div><label title="Most hashrate climbs until a thermal, power or error wall. Under a power limit it stops at your watts. Best efficiency holds the voltage and climbs only while joules per terahash keep falling.">Tuning goal</label><select name="tgoal" id="tgoal" onchange="goalUi()"><option value="0">Most hashrate</option><option value="1">Most hashrate under a power limit</option><option value="2">Best efficiency (J/TH)</option></select></div>
+<div id="pcaprow"><label title="Measured at the 12 V input. The tuner stops climbing before the miner draws more than this. Always below the board&#x27;s compiled-in limit.">Power limit (W, input)</label><input name="pcap" type="number" min="0" max="2000" step="1" placeholder="board limit"></div></div>
 <p class="note" id="goalnote"></p>
 <div class="switch" id="chiprow"><div><b>Per-chip clocks</b><span>After the tuner locks, every chip that can go faster gets its own higher clock, in 12 MHz steps up to +48 MHz. Each chip is judged by its own error count; a chip that slips later is taken down a step on its own. Not used with the efficiency goal.</span></div><input class="tg" type="checkbox" name="chiptune"></div>
 <p class="note">Changing the goal, the limit or per-chip clocks starts a new search.</p></div>
 <div class="card"><h3>Electricity price <span class="tag" id="pricest">off</span></h3>
 <div class="switch" style="padding-top:0"><div><b>Stop mining when power is expensive</b><span>The chips are switched off while the price is above your limit and start again once it drops (at most one change every 10 minutes). If the price can't be read, the miner keeps mining.</span></div><input class="tg" type="checkbox" name="priceon"></div>
-<div class="row" style="margin-top:12px"><div><label>Price source</label><select name="pricesrc" id="pricesrc" onchange="priceUi()"><option value="0">Energy-Charts day-ahead (Europe)</option><option value="1">My own URL (JSON)</option></select></div>
-<div id="pzrow"><label>Bidding zone</label><input name="pricezone" list="zones" placeholder="DE-LU"><datalist id="zones"><option>AT</option><option>BE</option><option>BG</option><option>CH</option><option>CZ</option><option>DE-LU</option><option>DK1</option><option>DK2</option><option>EE</option><option>ES</option><option>FI</option><option>FR</option><option>GR</option><option>HR</option><option>HU</option><option>IT-North</option><option>LT</option><option>LV</option><option>NL</option><option>NO1</option><option>NO2</option><option>PL</option><option>PT</option><option>RO</option><option>RS</option><option>SE3</option><option>SE4</option><option>SI</option><option>SK</option></datalist></div>
-<div><label>Stop above <span id="punit">ct/kWh</span></label><input name="pricemax" type="number" step="0.01"></div></div>
-<div class="row" id="purlrow"><div><label>URL</label><input name="priceurl" placeholder="https://example.com/price.json"></div><div><label>Path to the number</label><input name="pricepath" placeholder="e.g. data.price or 0.value"></div></div>
+<div class="row" style="margin-top:12px"><div><label title="Energy-Charts gives the day-ahead price for a European bidding zone. Your own URL can be any JSON with a number in it.">Price source</label><select name="pricesrc" id="pricesrc" onchange="priceUi()"><option value="0">Energy-Charts day-ahead (Europe)</option><option value="1">My own URL (JSON)</option></select></div>
+<div id="pzrow"><label title="The Energy-Charts zone code for your market, such as DE-LU or NL.">Bidding zone</label><input name="pricezone" list="zones" placeholder="DE-LU"><datalist id="zones"><option>AT</option><option>BE</option><option>BG</option><option>CH</option><option>CZ</option><option>DE-LU</option><option>DK1</option><option>DK2</option><option>EE</option><option>ES</option><option>FI</option><option>FR</option><option>GR</option><option>HR</option><option>HU</option><option>IT-North</option><option>LT</option><option>LV</option><option>NL</option><option>NO1</option><option>NO2</option><option>PL</option><option>PT</option><option>RO</option><option>RS</option><option>SE3</option><option>SE4</option><option>SI</option><option>SK</option></datalist></div>
+<div><label title="Mining pauses while the electricity price is above this and resumes below it, at most one change every 10 minutes. If the price can&#x27;t be read, mining continues.">Stop above <span id="punit">ct/kWh</span></label><input name="pricemax" type="number" step="0.01"></div></div>
+<div class="row" id="purlrow"><div><label>URL</label><input name="priceurl" placeholder="https://example.com/price.json"></div><div><label title="Where the price sits in the JSON, as dotted keys and indexes, for example data.0.price.">Path to the number</label><input name="pricepath" placeholder="e.g. data.price or 0.value"></div></div>
 <p class="note" id="pnote"></p><div class="pbars" id="pbars"></div><p class="note" id="pinfo"></p>
-<div class="row" style="margin-top:12px"><div><label>Your electricity price (per kWh)</label><input name="eprice" type="number" min="0" step="0.001" placeholder="0 = market price above"></div>
-<div><label>Currency</label><input name="currency" maxlength="4" placeholder="€"></div></div>
+<div class="row" style="margin-top:12px"><div><label title="What you pay per kWh, for the power bill card. Leave 0 to use the market price from the price source above.">Your electricity price (per kWh)</label><input name="eprice" type="number" min="0" step="0.001" placeholder="0 = market price above"></div>
+<div><label title="The symbol shown next to costs on the dashboard.">Currency</label><input name="currency" maxlength="4" placeholder="€"></div></div>
 <p class="note">For the power bill card on the dashboard. With no price of your own, the Energy-Charts market price above is used while the price mode is on (wholesale, without taxes and fees).</p></div>
 <div class="card"><h3>Manual point / tuner start</h3><div class="row">
-<div><label>Frequency (MHz)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="freq" min="400" max="750" step="1" style="flex:1" oninput="fnum.value=this.value"><input type="number" id="fnum" min="400" max="750" step="1" style="width:84px" oninput="this.form.freq.value=this.value"></div></div>
-<div><label>Core voltage (mV)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="mv" min="1100" max="1300" step="5" style="flex:1" oninput="mvnum.value=this.value"><input type="number" id="mvnum" min="1100" max="1300" step="5" style="width:84px" oninput="this.form.mv.value=this.value"></div></div></div>
+<div><label title="The chip clock the tuner starts from, or runs at with auto-tune off. Higher needs more voltage and makes more heat; the hard limit is the board&#x27;s stock point, or its envelope with Overclock on. 1 MHz steps.">Frequency (MHz)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="freq" min="400" max="750" step="1" style="flex:1" oninput="fnum.value=this.value"><input type="number" id="fnum" min="400" max="750" step="1" style="width:84px" oninput="this.form.freq.value=this.value"></div></div>
+<div><label title="The chip core voltage. Each clock needs enough of it or the chips make errors; more than needed is heat. 5 mV steps.">Core voltage (mV)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="mv" min="1100" max="1300" step="5" style="flex:1" oninput="mvnum.value=this.value"><input type="number" id="mvnum" min="1100" max="1300" step="5" style="width:84px" oninput="this.form.mv.value=this.value"></div></div></div>
 <p class="note">Used directly when auto-tune is off, and as the starting point when a new search begins.</p></div>
 <div class="card"><h3>Cooling</h3><div class="row">
-<div><label>Target chip temp (°C) <span class="rv" id="ftv"></span></label><input type="range" name="fantgt" min="40" max="70" oninput="ftv.textContent=this.value"></div>
-<div><label>Minimum fan speed (%) <span class="rv" id="fmv"></span></label><input type="range" name="fanmin" min="10" max="100" oninput="fmv.textContent=this.value"></div></div>
+<div><label title="The fans aim to hold the hottest chip here. Lower is cooler and louder. The tuner&#x27;s ceiling is separate and compiled in.">Target chip temp (°C) <span class="rv" id="ftv"></span></label><input type="range" name="fantgt" min="40" max="70" oninput="ftv.textContent=this.value"></div>
+<div><label title="The fans never go below this. Slim fans may need 40% or more to start; a fan that stops at the floor is given a kick and the floor is raised for the session.">Minimum fan speed (%) <span class="rv" id="fmv"></span></label><input type="range" name="fanmin" min="10" max="100" oninput="fmv.textContent=this.value"></div></div>
 <div class="row" style="margin-top:6px">
-<div><label>Fan 1 · ASIC header</label><div class="fanst" id="fan1st">--</div><select name="fmode0"><option value="0">Auto (follows chip temp)</option><option value="1">Manual</option></select>
-<label>Manual speed <span class="rv" id="fm0v"></span></label><input type="range" name="fman0" min="20" max="100" oninput="fm0v.textContent=this.value+'%'"></div>
-<div><label>Fan 2 · VR header</label><div class="fanst" id="fan2st">--</div><select name="fmode1"><option value="0">Auto (follows chip and VR temp)</option><option value="1">Manual</option></select>
-<label>Manual speed <span class="rv" id="fm1v"></span></label><input type="range" name="fman1" min="20" max="100" oninput="fm1v.textContent=this.value+'%'"></div></div>
+<div><label title="Auto follows the chip temperature target; Manual holds the duty below. Lost sensors and the last degrees before a ceiling still force 100%.">Fan 1 · ASIC header</label><div class="fanst" id="fan1st">--</div><select name="fmode0"><option value="0">Auto (follows chip temp)</option><option value="1">Manual</option></select>
+<label title="Fixed duty for this header while its mode is Manual.">Manual speed <span class="rv" id="fm0v"></span></label><input type="range" name="fman0" min="20" max="100" oninput="fm0v.textContent=this.value+'%'"></div>
+<div><label title="Auto follows the regulator temperature; Manual holds the duty below. Lost sensors and the last degrees before a ceiling still force 100%.">Fan 2 · VR header</label><div class="fanst" id="fan2st">--</div><select name="fmode1"><option value="0">Auto (follows chip and VR temp)</option><option value="1">Manual</option></select>
+<label title="Fixed duty for this header while its mode is Manual.">Manual speed <span class="rv" id="fm1v"></span></label><input type="range" name="fman1" min="20" max="100" oninput="fm1v.textContent=this.value+'%'"></div></div>
 <p class="note">A header counts as connected once its fan has been seen spinning. Manual fans still go to 100% if a sensor is lost or the chips get within 3 °C of the ceiling.</p></div>
 <div class="card"><h3>Advanced chip timing</h3><div class="row">
-<div><label>Job interval (ms)</label><input name="jobms" type="number" min="0" max="5000" step="10" id="jobms"></div>
-<div id="vrrow"><label>Version-rolling speed (Hz)</label><input name="vrhz" type="number" min="0" max="100000" step="500" placeholder="board default"></div></div>
+<div><label title="How often the chips get fresh work. 0 is the board&#x27;s default. A new block always sends work at once, so this only matters between blocks; longer means fewer serial bursts, shorter gains nothing.">Job interval (ms)</label><input name="jobms" type="number" min="0" max="5000" step="10" id="jobms"></div>
+<div id="vrrow"><label title="BM1370 only: how fast a chip steps through the block version bits, its second nonce space. 0 is stock, about 25 kHz; the NerdQX uses 35 kHz for its high clocks. Written to the chips at once.">Version-rolling speed (Hz)</label><input name="vrhz" type="number" min="0" max="100000" step="500" placeholder="board default"></div></div>
 <p class="note">0 keeps the board's default. A longer job interval means fewer jobs and slightly more stale work; shorter means more UART traffic. Version-rolling speed exists on BM1370 boards only and is written to the chips right away.</p></div>
 <div class="card"><h3>Hard limits (compiled in)</h3><div class="lim" id="lims"></div></div>
 <div class="card"><h3>Overclock <span class="tag" id="ocst">--</span></h3>
@@ -391,13 +391,13 @@ hashrate as one chip per pool — or uses them as failover.</div>
    <div id="props" style="margin-top:12px"></div></div></div>
  <div class="btns"><button class="btn" onclick="saveLayout()">Save &amp; show on screen</button><button class="btn alt" onclick="clearLayout()">Clear page</button></div></div>
 <form data-f><div class="card"><h3>Screen settings</h3>
-<label style="margin-top:0">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
+<label style="margin-top:0" title="Which panel the miner has. The miner reboots to switch. If the screen goes blank afterwards, hold the bottom button at power-on to flip back.">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p>
-<label>Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">Spatial: deep space, stars and planets</option></select>
-<label>Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
-<label>Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
-<div class="row"><div><label>Start page</label><select name="defpage" id="defpage"></select></div>
-<div><label>Auto-rotate pages</label><select name="rotate"><option value="0">Off</option><option value="10">Every 10 s</option><option value="20">Every 20 s</option><option value="30">Every 30 s</option><option value="60">Every minute</option></select></div></div>
+<label title="Forge is dark, Paper is for daylight and e-ink-like screens, Ember is dark with Bitcoin orange, Spatial is deep space. Applies to the miner&#x27;s screen and this page.">Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">Spatial: deep space, stars and planets</option></select>
+<label title="Backlight level. Applies at once.">Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
+<label title="Backlight off after this many idle minutes. A button wakes it; faults, overheating and a found block wake it too.">Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select>
+<div class="row"><div><label title="The screen page shown after boot.">Start page</label><select name="defpage" id="defpage"></select></div>
+<div><label title="Cycle the screen pages every this many seconds. 0 stays on one page.">Auto-rotate pages</label><select name="rotate"><option value="0">Off</option><option value="10">Every 10 s</option><option value="20">Every 20 s</option><option value="30">Every 30 s</option><option value="60">Every minute</option></select></div></div>
 <div class="switch" style="margin-top:8px"><div><b>Rotate 180°</b><span>Flip the screen if the miner is mounted upside down.</span></div><input class="tg" type="checkbox" name="rot180"></div>
 <p class="note">Buttons on the miner: short press = next/previous page, hold top = backlight, hold bottom = restart auto-tune.</p></div>
 <div class="btns"><button class="btn">Save screen settings</button></div></form>
@@ -405,23 +405,23 @@ hashrate as one chip per pool — or uses them as failover.</div>
 
 <!-- ============================== CLOCK & DATA -->
 <section id="clock"><form data-f><div class="card"><h3>Clock &amp; weather</h3>
-<label>City</label><input name="city" placeholder="e.g. Bucharest">
+<label title="Used for the weather and the time zone. Any city name Open-Meteo knows.">City</label><input name="city" placeholder="e.g. Bucharest">
 <div class="switch" style="margin-top:8px"><div><b>24-hour clock</b><span>Time from NTP; time zone detected from the city.</span></div><input class="tg" type="checkbox" name="h24"></div>
 <div class="switch"><div><b>Fahrenheit</b><span>Use °F and mph instead of °C and km/h.</span></div><input class="tg" type="checkbox" name="fahr"></div>
 <p class="note">Weather by Open-Meteo, refreshed every 15 minutes. Only the city name and its coordinates are sent.</p></div>
 <div class="card"><h3>Mempool feed</h3>
 <div class="switch"><div><b>Show mined &amp; upcoming blocks</b><span>Recent blocks, projected next blocks and fees, every 60 s.</span></div><input class="tg" type="checkbox" name="mempool"></div>
-<label>API base URL</label><input name="mpurl" placeholder="https://mempool.space">
+<label title="A mempool.space-compatible API, for a self-hosted instance. Leave empty for mempool.space.">API base URL</label><input name="mpurl" placeholder="https://mempool.space">
 <p class="note">Use your own node's mempool instance here (e.g. http://umbrel.local:3006) to keep this private.</p></div>
 <div class="btns"><button class="btn">Save</button></div></form></section>
 
 <!-- ============================== NETWORK -->
 <section id="network"><form data-f><div class="card"><h3>Wi-Fi</h3>
-<label>Network name (SSID)</label><input name="ssid" id="ssidin">
+<label title="The Wi-Fi network to join. 2.4 GHz only; the miner joins the strongest radio carrying this name.">Network name (SSID)</label><input name="ssid" id="ssidin">
 <div class="btns" style="margin-top:8px"><button type="button" class="btn alt sm" onclick="scanWifi()">Scan for networks</button><span class="meta" id="wscan"></span></div>
 <div class="wl" id="wlist"></div>
-<label>Password</label><input name="wpass" type="password" placeholder="leave empty to keep current">
-<label>Hostname</label><input name="hostname" id="hostin" maxlength="32" pattern="[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?" placeholder="automatic">
+<label title="Left empty, the saved password is kept.">Password</label><input name="wpass" type="password" placeholder="leave empty to keep current">
+<label title="The name this miner gives your router and shows on other miners&#x27; Swarm pages. Letters, digits and hyphens.">Hostname</label><input name="hostname" id="hostin" maxlength="32" pattern="[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?" placeholder="automatic">
 <div class="kv" style="margin-top:16px"><div>IP address</div><div id="nip">--</div><div>Signal</div><div id="nrssi">--</div></div>
 <p class="note">The name this miner gives your router, and the one other miners' Swarm pages show. Leave it empty to keep the name the stock firmware used, or axeforge-XXXX.</p>
 <p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect for 5 minutes, it opens the AxeForge-XXXX setup network, with the password shown on the miner's screen.</p></div>
@@ -709,7 +709,7 @@ function renderPools(){$('pooleds').innerHTML=P.pools.map((p,i)=>`<div class="po
   <div><label>Port</label><input type="number" value="${p.port}" oninput="P.pools[${i}].port=+this.value"></div>
   <div><label>Protocol</label><select onchange="P.pools[${i}].proto=+this.value;$('k${i}').style.display=this.value==2?'':'none'">${PROTO.map((n,j)=>`<option value="${j}" ${p.proto==j?'selected':''}>${n}</option>`).join('')}</select></div></div>
  <div class="row"><div style="grid-column:span 2"><label>Worker (BTC address.name)</label><input value="${esc(p.user)}" oninput="P.pools[${i}].user=this.value" autocomplete="off"></div>
-  <div><label>Password</label><input value="${esc(p.pass)}" oninput="P.pools[${i}].pass=this.value"></div></div>
+  <div><label title="Left empty, the saved password is kept.">Password</label><input value="${esc(p.pass)}" oninput="P.pools[${i}].pass=this.value"></div></div>
  <div class="wrow"><label>Share of work <span class="rv" id="wv${i}">${p.weight}%</span></label><input type="range" min="0" max="100" step="5" value="${p.weight}" oninput="P.pools[${i}].weight=+this.value;$('wv${i}').textContent=this.value+'%'"></div>
  <div id="k${i}" style="display:${p.proto==2?'':'none'}"><label>SV2 authority public key (optional, base58)</label><input value="${esc(p.sv2key)}" oninput="P.pools[${i}].sv2key=this.value" placeholder="9bQHWXsQ2J9TRFTaxRh3KjoxdyLRfWVEy25YHtKF8y8gotLoCZZ">
   <p class="note">With a key the pool's identity is verified (Noise NX + Schnorr). Without it the link is still encrypted but unauthenticated.</p></div>

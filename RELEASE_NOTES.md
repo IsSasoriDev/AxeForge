@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Web UI
+- **Hover help on the settings fields.** Every numeric or choice field on the Pools, Tuning, Display, Clock and Network pages explains itself when the pointer rests on its label: what it does and what happens if you raise it. The notes under each card stay for phones, where there is no hover.
 
 ## AxeForge v1.4.6
 

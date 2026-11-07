@@ -9,6 +9,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - Heatbit Bitair V1.22, the heater/purifier with a Bitaxe Gamma 601 inside. It mines only while the purifier is on: switching it off on the top panel turns the chip off, and switching it back on starts it again. Silent, auto and turbo each set the least the fan runs at, and the front LED works as on the stock firmware (breathing until Wi-Fi is up, brightness for the mode, three flashes on a fault). The accessory port is off because the purifier uses its pins, and there's no display or fan speed reading on this board. Ported from skot's Bitair work in ESP-Miner. Not tested on hardware yet.
 ### Fixes
 - Bitaxe Gamma: a board stopped at "Voltage regulator not found" right after flashing (#68). The most likely cause is an input-voltage warning the Gamma doesn't use, which its regulator refused; AxeForge no longer writes it, as AxeOS doesn't. If a regulator refuses any setting, the log now names it, so a board that still stops will say why.
+- The Heatsink card on the dashboard prints chip temperatures with one decimal, not "60.20000076293945 °C so far".
 
 ## AxeForge v1.4.6
 

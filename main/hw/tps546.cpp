@@ -273,6 +273,9 @@ bool init(const Profile &profile)
 
     const float vout = 1.2f * domains;
     bool ok = w8(OPERATION, OP_OFF);
+    // STATUS_CML latches: start clean so a refusal below logs its own bits,
+    // not one left from an earlier boot (output is off here)
+    clear_faults();
     ok &= w8(ON_OFF_CONFIG, profile.on_off_config);
     if (profile.stack_config) {
         ok &= w16(STACK_CONFIG, profile.stack_config);

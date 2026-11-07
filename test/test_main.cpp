@@ -1,6 +1,7 @@
 // Host-side unit tests for code that doesn't touch hardware: share and block
 // difficulty, coinbase and merkle building, template decoding and the SV2
-// message parsers and Noise payload chunking. Known answers come from the Bitcoin genesis block.
+// message parsers and Noise payload chunking, and the TPS546 regulator config
+// against a fake part. Known answers come from the Bitcoin genesis block.
 #include <math.h>
 #include <stdio.h>
 #include <string.h>

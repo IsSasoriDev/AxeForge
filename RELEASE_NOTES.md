@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- Bitaxe Gamma: some boards stopped at "Voltage regulator not found" right after flashing, because their regulator refused an input-voltage warning the Gamma doesn't use (#68). AxeForge no longer writes it, as AxeOS doesn't. If a regulator refuses any other setting, the log now names it.
 
 ## AxeForge v1.4.6
 

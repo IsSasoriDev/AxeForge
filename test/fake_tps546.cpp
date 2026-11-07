@@ -11,6 +11,7 @@ std::string g_esp_log;
 namespace fake_tps546 {
 std::function<bool(const Write &)> refuse;
 std::vector<Write> writes;
+std::vector<Write> attempts;
 uint8_t vout_mode = 0x97;  // relative limits, exponent -9, as the TPS546D24A reports
 
 static const uint8_t DEVICE_ID[6] = {0x54, 0x49, 0x54, 0x6D, 0x24, 0x41};  // TPS546D24A
@@ -20,6 +21,7 @@ void reset()
 {
     refuse = nullptr;
     writes.clear();
+    attempts.clear();
     s_regs.clear();
     vout_mode = 0x97;
     g_esp_log.clear();
@@ -47,6 +49,13 @@ int last_byte(uint8_t cmd)
 }
 
 bool written(uint8_t cmd) { return last(cmd) != nullptr; }
+
+bool attempted(uint8_t cmd)
+{
+    for (const Write &w : attempts)
+        if (w.cmd == cmd) return true;
+    return false;
+}
 }
 
 namespace i2c_bus {
@@ -75,6 +84,7 @@ esp_err_t write(uint8_t addr, const uint8_t *data, size_t len)
 {
     if (addr != 0x24 || len == 0) return ESP_FAIL;
     Write w{data[0], std::vector<uint8_t>(data + 1, data + len)};
+    attempts.push_back(w);
     if (refuse && refuse(w)) return ESP_FAIL;
     writes.push_back(w);
     s_regs[w.cmd] = w.data;

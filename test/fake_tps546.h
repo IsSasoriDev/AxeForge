@@ -16,7 +16,8 @@ struct Write {
 
 // Return true to NACK this write.
 extern std::function<bool(const Write &)> refuse;
-extern std::vector<Write> writes;
+extern std::vector<Write> writes;    // accepted
+extern std::vector<Write> attempts;  // accepted or refused
 extern uint8_t vout_mode;
 
 void reset();
@@ -24,4 +25,5 @@ void reset();
 int last_word(uint8_t cmd);
 int last_byte(uint8_t cmd);
 bool written(uint8_t cmd);
+bool attempted(uint8_t cmd);
 }

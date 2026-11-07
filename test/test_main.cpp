@@ -408,7 +408,7 @@ static void test_tps546_single_no_uv_warn()
         return w.cmd == 0x58 && w.data.size() == 2 && w.data[0] == 0 && w.data[1] == 0;
     };
     CHECK(tps546::init(tps546::BITAXE_SINGLE));
-    CHECK(!fake_tps546::written(0x58));
+    CHECK(!fake_tps546::attempted(0x58));
     CHECK(fake_tps546::last_byte(0x01) == 0x00);  // output left off
 }
 
@@ -421,7 +421,11 @@ static void test_tps546_single_limits()
     CHECK_NEAR(ulin16(fake_tps546::last_word(0x2B)), 1.0, 0.002);   // VOUT_MIN
     CHECK_NEAR(slin11(fake_tps546::last_word(0x46)), 30.0, 0.1);    // IOUT_OC_FAULT_LIMIT
     CHECK(fake_tps546::last_byte(0x47) == 0xC0);                   // shut down on OC
+    CHECK_NEAR(ulin16(fake_tps546::last_word(0x40)), 1.25, 0.002);  // VOUT_OV_FAULT_LIMIT (relative)
+    CHECK_NEAR(ulin16(fake_tps546::last_word(0x44)), 0.75, 0.002);  // VOUT_UV_FAULT_LIMIT (relative)
     CHECK_NEAR(slin11(fake_tps546::last_word(0x4F)), 145.0, 1.0);   // OT_FAULT_LIMIT
+    CHECK(fake_tps546::last_byte(0x50) == 0xFF);                   // OT_FAULT_RESPONSE
+    CHECK(fake_tps546::last_byte(0x56) == 0xB7);                   // VIN_OV_FAULT_RESPONSE
     CHECK_NEAR(slin11(fake_tps546::last_word(0x55)), 6.5, 0.05);    // VIN_OV_FAULT_LIMIT
     CHECK_NEAR(slin11(fake_tps546::last_word(0x35)), 4.8, 0.05);    // VIN_ON
     CHECK_NEAR(slin11(fake_tps546::last_word(0x36)), 4.5, 0.05);    // VIN_OFF

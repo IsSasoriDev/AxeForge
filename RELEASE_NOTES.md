@@ -4,6 +4,10 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
+_Nothing yet._
+
+## AxeForge v1.4.7
+
 ### Boards
 - StarMiner, the Bitaxe Gamma 601 some sellers ship with a 12 V supply. It runs the Gamma image: at boot the regulator's input voltage decides between the 5 V and the 12 V input limits (a 5 V setup makes the TPS546 refuse 12 V). It has its own entry in the web flasher. Not tested on hardware yet.
 - Heatbit Bitair V1.22, the heater/purifier with a Bitaxe Gamma 601 inside. It mines only while the purifier is on: switching it off on the top panel turns the chip off, and switching it back on starts it again. Silent, auto and turbo each set the least the fan runs at, and the front LED works as on the stock firmware (breathing until Wi-Fi is up, brightness for the mode, three flashes on a fault). The accessory port is off because the purifier uses its pins, and there's no display or fan speed reading on this board. Ported from skot's Bitair work in ESP-Miner. Not tested on hardware yet.

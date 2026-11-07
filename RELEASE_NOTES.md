@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- Display tab on boards with the small OLED (Bitaxe Gamma, Supra, Supra Hex, Ultra Hex): the live screen stayed empty and the miner logged "display busy" every 3 s, because the OLED can't be captured. The tab now says so, stops asking for the picture, and hides the LCD-only settings (pages and order, layout editor, screen type, screen-off timer, start page). Prev and Next still change the OLED's page.
 
 ## AxeForge v1.4.6
 

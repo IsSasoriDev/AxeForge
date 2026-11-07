@@ -10,6 +10,8 @@
 
 #include "core/settings.h"
 #include "core/state.h"
+#include "net/eth.h"
+#include "net/wifi.h"
 
 static const char *TAG = "netping";
 
@@ -68,6 +70,10 @@ static bool start_session(const char *host)
     cfg.count = ESP_PING_COUNT_INFINITE;
     cfg.interval_ms = PING_INTERVAL_MS;
     cfg.timeout_ms = PING_TIMEOUT_MS;
+    // the default 2 KB overflows when a failed send logs through logbuf's hook (the
+    // line is formatted twice, for /api/logs and for the UART): offline, the miner
+    // panicked about a minute after boot and never reached its setup network
+    cfg.task_stack_size = 4096;
     esp_ping_callbacks_t cbs = {};
     cbs.on_ping_success = on_success;
     cbs.on_ping_timeout = on_timeout;
@@ -99,6 +105,11 @@ static void ping_task(void *)
     char current[sizeof(g_state.net_target)] = "";
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(10000));
+        if (!wifi::connected() && !eth::up()) {  // nothing to ping over: every send would fail
+            stop();
+            current[0] = 0;
+            continue;
+        }
         const char *host = pool_host();
         if (!strcmp(host, current) && s_ping) continue;
         stop();

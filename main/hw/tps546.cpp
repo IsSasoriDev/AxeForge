@@ -89,6 +89,9 @@ const Profile BITAXE_HEX = {"hex", 3, 11.5f, 11.0f, 11.0f, 14.0f, 0.125f, 2.5f /
 // reference TPS546_CONFIG_DEFAULT: VIN 4.8/4.5 V (no UV warning), 1..2 V out, 25/30 A
 const Profile BITAXE_SINGLE = {"single", 1, 4.8f, 4.5f, 0.0f, 6.5f, 0.25f, 1.0f, 2.0f,
                                25.0f, 30.0f, 1.16f, ON_OFF_CMD_ONLY, 0, 0xFFFF, {0}};
+// BITAXE_SINGLE with the input limits of AxeOS's 12 V boards (VIN 11/10.5 V, OV 14.8 V)
+const Profile BITAXE_SINGLE_12V = {"single 12V", 1, 11.0f, 10.5f, 11.0f, 14.8f, 0.25f, 1.0f, 2.0f,
+                                   25.0f, 30.0f, 1.16f, ON_OFF_CMD_ONLY, 0, 0xFFFF, {0}};
 // reference TPS546_CONFIG_NAJA_DUO: VIN 11/10.5 V, 1.8..3.0 V out, 61/68 A, two-phase stack
 const Profile NAJA_DUO = {"naja duo", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.8f / 2, 3.0f / 2,
                           61.0f, 68.0f, 1.10f, ON_OFF_CMD_ONLY, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x25, 0x04}};
@@ -203,6 +206,8 @@ bool detect()
     ESP_LOGW(TAG, "unknown device id %02x %02x %02x %02x %02x %02x", id[0], id[1], id[2], id[3], id[4], id[5]);
     return false;
 }
+
+float read_vin() { return read_lin(READ_VIN); }
 
 bool init(const Profile &profile)
 {

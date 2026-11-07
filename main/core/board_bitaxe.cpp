@@ -68,7 +68,8 @@ static const char *TAG = "board";
 #endif
 
 static bool s_powered = false;
-static bool s_tps = false;  // TPS546 board; otherwise the DS4432U path (Supra 400/401)
+static bool s_tps = false;
+static const tps546::Profile *s_tps_prof = &TPS_PROFILE;  // TPS546 board; otherwise the DS4432U path (Supra 400/401)
 static int64_t s_powered_at = 0;
 static const board::Limits s_limits = {CONFIG_AF_MAX_FREQ_MHZ, CONFIG_AF_MAX_POWER_W, CONFIG_AF_MAX_VR_TEMP,
                                        CONFIG_AF_CRIT_VR_TEMP};
@@ -124,6 +125,17 @@ Error init_hardware()
 
     if (i2c_bus::init() != ESP_OK) return Error::NoRegulator;
     s_tps = tps546::detect();
+#if !(CONFIG_AF_BOARD_NAJA || CONFIG_AF_BOARD_BITAXE_GT || CONFIG_AF_BOARD_GAMMA_HEX)
+    // A 5 V board's regulator refuses 12 V (its over-voltage limit is 6.5 V), and
+    // some Gamma 601 boards (StarMiner) are fed 12 V: take the limits that fit.
+    if (s_tps) {
+        float vin = tps546::read_vin();
+        if (!isnan(vin) && vin > 9.0f) {
+            s_tps_prof = &tps546::BITAXE_SINGLE_12V;
+            ESP_LOGI(TAG, "%.1f V input: 12 V regulator limits", vin);
+        }
+    }
+#endif
 #if AF_ASIC_EN_ACTIVE_HIGH
     gpio_reset_pin(PIN_ASIC_EN);
     gpio_set_direction(PIN_ASIC_EN, GPIO_MODE_OUTPUT);
@@ -176,7 +188,7 @@ Error power_up(uint16_t freq, uint16_t mv)
     if (s_tps) {
         enable(true);  // the Naja's regulators need their enable before PMBus config
         vTaskDelay(pdMS_TO_TICKS(20));
-        if (!tps546::init(TPS_PROFILE) || !tps546::set_core(mv / 1000.0f)) {
+        if (!tps546::init(*s_tps_prof) || !tps546::set_core(mv / 1000.0f)) {
             tps546::off();
             enable(false);
             return Error::NoRegulator;

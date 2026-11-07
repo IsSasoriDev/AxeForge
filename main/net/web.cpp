@@ -28,6 +28,7 @@
 #include "core/settings.h"
 #include "core/state.h"
 #include "core/tuner.h"
+#include "hw/purifier.h"
 #include "mining/miner.h"
 #include "mining/work.h"
 #include "net/mempool.h"
@@ -159,6 +160,9 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON *r = cJSON_CreateObject();
     cJSON_AddStringToObject(r, "status", status_name(s.status));
     cJSON_AddStringToObject(r, "fault", s.fault);
+#if CONFIG_AF_BOARD_BITAIR
+    cJSON_AddStringToObject(r, "purifier", purifier::mode_name());  // the panel's fan mode
+#endif
     cJSON_AddNumberToObject(r, "hashrate", s.hashrate_ghs);
     cJSON_AddNumberToObject(r, "expected", s.expected_ghs);
     cJSON_AddNumberToObject(r, "errorPct", s.error_pct);

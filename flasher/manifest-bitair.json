@@ -1,0 +1,16 @@
+{
+  "name": "AxeForge for Heatbit Bitair",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "bitair/bootloader.bin", "offset": 0 },
+        { "path": "bitair/partition-table.bin", "offset": 32768 },
+        { "path": "bitair/axeforge.bin", "offset": 65536 },
+        { "path": "bitair/ota_data_initial.bin", "offset": 12648448 }
+      ]
+    }
+  ]
+}

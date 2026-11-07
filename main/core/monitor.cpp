@@ -17,6 +17,7 @@
 #include "core/settings.h"
 #include "core/tuner.h"
 #include "core/state.h"
+#include "hw/purifier.h"
 #include "hw/sensors.h"
 #include "mining/miner.h"
 #include "net/notify.h"
@@ -107,6 +108,8 @@ static void emergency(SysStatus status, const char *why)
                  g_state.vr_temp, g_state.pin);
 }
 
+static bool s_start_paused = false;
+
 static void monitor_task(void *)
 {
     FanPI asic_pi, vr_pi;
@@ -121,7 +124,7 @@ static void monitor_task(void *)
     bool kicked[2] = {false, false}; // this stop already had its kick
     float fan_floor[2] = {0, 0};     // raised after a kick brought the fan back
     bool was_powered = false;
-    bool price_paused = false;
+    bool price_paused = s_start_paused;  // chips off on purpose: price limit, or the Bitair's panel
     int resume_fails = 0, resume_wait = 0;
     char why[64];
 
@@ -171,8 +174,11 @@ static void monitor_task(void *)
                 if (cfg.fan_mode[i] == 1) duty[i] = sensors_ok ? cfg.fan_manual[i] : 100;
             if (g_state.chip_temp_max >= CONFIG_AF_MAX_CHIP_TEMP - FAN_BOOST_MARGIN_C) duty[0] = duty[1] = 100;
             if (g_state.vr_temp >= lim.vr_ceil_c - FAN_BOOST_MARGIN_C) duty[1] = 100;
+            // Bitair: the fan the purifier panel asked for is the least it gets
+            float panel = purifier::fan_floor_pct();
             for (int i = 0; i < 2; i++) {
                 if (kick[i] > 0) duty[i] = 100;
+                if (duty[i] < panel) duty[i] = panel;
                 fan::set_pct(i, duty[i]);
                 g_state.fan_duty[i] = (uint8_t) duty[i];
             }
@@ -274,8 +280,10 @@ static void monitor_task(void *)
                     continue;
                 }
             }
-            if (price::want_pause() && g_state.status != SysStatus::Overheat && g_state.status != SysStatus::Fault) {
-                ESP_LOGW(TAG, "electricity price above the limit: chips off until it drops");
+            if ((price::want_pause() || purifier::want_off()) && g_state.status != SysStatus::Overheat &&
+                g_state.status != SysStatus::Fault) {
+                if (purifier::want_off()) ESP_LOGW(TAG, "purifier %s: chips off until it's switched on", purifier::mode_name());
+                else ESP_LOGW(TAG, "electricity price above the limit: chips off until it drops");
                 price_paused = true;
                 miner::pause(true);
                 board::shutdown();
@@ -288,8 +296,10 @@ static void monitor_task(void *)
                 else g_state.status = g_state.pool_connected ? SysStatus::Mining : SysStatus::Connecting;
             }
         } else if (price_paused) {
-            // chips off: only the cooling down needs air (shutdown left the fans at 100 %)
+            // chips off: only the cooling down needs air (shutdown left the fans at 100 %),
+            // except on a Bitair whose panel can't be read, which gets full air
             float d = g_state.chip_temp_max > 45 || g_state.vr_temp > 50 ? 40 : 0;
+            if (purifier::mode() == purifier::Mode::Unknown && purifier::want_off()) d = purifier::fan_floor_pct();
             for (int i = 0; i < 2; i++) {
                 fan::set_pct(i, d);
                 g_state.fan_duty[i] = (uint8_t) d;
@@ -298,10 +308,10 @@ static void monitor_task(void *)
             g_state.status = wifi::in_setup_mode() ? SysStatus::SetupAP : SysStatus::Paused;
             if (resume_wait > 0) {
                 resume_wait--;
-            } else if (!price::want_pause()) {
+            } else if (!price::want_pause() && !purifier::want_off()) {
                 uint16_t f = cfg.autotune && cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz;
                 uint16_t mv = cfg.autotune && cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
-                ESP_LOGI(TAG, "electricity price back under the limit: powering up at %u MHz", f);
+                ESP_LOGI(TAG, "%s: powering up at %u MHz", purifier::mode_name()[0] ? "purifier on" : "electricity price back under the limit", f);
                 board::Error e = board::power_up(f, mv);
                 snprintf(g_state.fault, sizeof(g_state.fault), "%s", e == board::Error::None ? "" : board::error_text(e));
                 if (e == board::Error::None) {
@@ -374,5 +384,6 @@ __attribute__((weak)) void log_regulator(const char *) {}
 namespace monitor {
 const char *last_emergency() { return s_note.magic == EMERGENCY_NOTE_MAGIC ? s_note.text : ""; }
 uint32_t emergency_count() { return s_note.magic == EMERGENCY_NOTE_MAGIC ? s_note.count : 0; }
+void start_paused() { s_start_paused = true; }
 void start() { xTaskCreate(monitor_task, "monitor", 4096, NULL, 15, NULL); }
 }

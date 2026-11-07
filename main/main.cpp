@@ -25,6 +25,7 @@
 #include "core/state.h"
 #include "core/tuner.h"
 #include "hw/bap.h"
+#include "hw/purifier.h"
 #include "asic/bm13xx.h"
 #include "mining/stats.h"
 #include "net/eth.h"
@@ -155,6 +156,9 @@ extern "C" void app_main(void)
 #if !AF_HAS_LCD
     display::start();  // the OLED shares the I2C bus that init_hardware() brings up
 #endif
+    purifier::start();  // Bitair: the panel's mode decides whether the chips may start
+    bool held_off = e == board::Error::None && purifier::want_off();
+    if (held_off) monitor::start_paused();
     monitor::start();  // telemetry + fans + emergency cut-off, before any power-up
     wifi::start();
     eth::start();
@@ -179,8 +183,13 @@ extern "C" void app_main(void)
         freq = cfg.tuned_freq;
         mv = cfg.tuned_mv;
     }
-    ESP_LOGI(TAG, "powering ASICs at %u MHz / %u mV", freq, mv);
-    e = board::power_up(freq, mv);
+    if (held_off) {
+        ESP_LOGW(TAG, "purifier %s: chips stay off until it's switched on", purifier::mode_name());
+        g_state.status = SysStatus::Paused;
+    } else {
+        ESP_LOGI(TAG, "powering ASICs at %u MHz / %u mV", freq, mv);
+        e = board::power_up(freq, mv);
+    }
     if (e != board::Error::None) {
         // the monitor retries a few times; mining tasks idle until power is up
         g_state.status = SysStatus::Fault;

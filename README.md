@@ -25,6 +25,8 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 | **Bitaxe Supra Hex** 701 / 702 | 6× BM1368 | TPS546, 3 stacked domains | 120 W | `axeforge-suprahex.bin` | ✅ Tested (702) |
 | **Bitaxe Ultra Hex** 302 / 303 | 6× BM1366 | TPS546, 3 stacked domains | 90 W | `axeforge-ultrahex.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Supra** 400–403 | 1× BM1368 | TPS546 (402/403) or DS4432U (400/401), detected at boot | 40 W | `axeforge-supra.bin` | ✅ Tested |
+| **StarMiner** (Bitaxe Gamma 601, 12 V) | 1× BM1370 | TPS546, 12 V input found at boot | 40 W | `axeforge-gamma.bin` | ⚠️ Not tested on hardware yet |
+| **Heatbit Bitair** V1.22 | 1× BM1370 | TPS546 on its 5 V rail | 25 W | `axeforge-bitair.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Gamma** 600–603 | 1× BM1370 | TPS546 | 40 W | `axeforge-gamma.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Naja Duo** 1201 | 2× BM1373 | TPS546 stack, 2 stacked domains | 60 W | `axeforge-naja.bin` | ⚠️ Not tested on hardware yet |
 | **Bitaxe Max** 102 | 1× BM1397 | DS4432U + TPS40305 | 25 W | `axeforge-max.bin` | ⚠️ Not tested on hardware yet |

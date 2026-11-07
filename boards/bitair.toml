@@ -1,0 +1,25 @@
+name = "Heatbit Bitair"
+id = "bitair"
+kconfig = "AF_BOARD_BITAIR"
+family = "bitaxe"
+# Heatbit's Bitair V1.22 mainboard (github.com/heatbitinc/bitair-mainboard), a
+# Bitaxe Gamma 601 in a heater/purifier: one BM1370, a TPS546 on the internal 5 V
+# rail (the enclosure's ~15 V is stepped down before it), an EMC2101 driving the
+# purifier's fan (no tach line, so it reads 0 rpm) and no display. GPIO39/40 are
+# the purifier connector, not an accessory port: BAP is off. The panel's fan mode
+# (GPIO40) and the front LED (GPIO41) are in hw/purifier.cpp.
+
+[asic]
+chip = "bm1370"
+count = 1
+diff_min = 256
+diff_max = 1024
+
+[sensors]
+emc2101 = true
+emc_ideality = 0x24       # BM1370 diode model (reference firmware)
+emc_beta = 0x00
+
+[stock]
+freq_mhz = 525            # skot's Bitair profile; the stock firmware ships 600
+mv = 1150

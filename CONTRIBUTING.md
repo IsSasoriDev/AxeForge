@@ -24,7 +24,7 @@ The host tests need `g++`, `make`, `libmbedtls-dev` and `libcjson-dev`:
 make -C test
 ```
 
-They cover the code that does not touch hardware: difficulty, coinbase and merkle building, template decoding, the payout check, SV2 framing and Noise. Add a test when you change any of that. CI runs them on every pull request, then builds the firmware for every board.
+They cover the code that does not touch hardware (difficulty, coinbase and merkle building, template decoding, the payout check, SV2 framing and Noise) and the TPS546 regulator setup, run against a fake part. Add a test when you change any of that. CI runs them on every pull request, then builds the firmware for every board.
 
 ## Pull requests
 

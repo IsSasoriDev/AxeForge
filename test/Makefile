@@ -7,7 +7,8 @@ FLAGS = -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initialize
         -Wno-deprecated-declarations \
         -fsanitize=address,undefined -fno-sanitize-recover=all
 INC = -Istubs -Igen -I../main -I../components/stratum_v2/include -I/usr/include/cjson
-SRC_CPP = test_main.cpp ../main/mining/work.cpp ../main/mining/payout.cpp
+SRC_CPP = test_main.cpp ../main/mining/work.cpp ../main/mining/payout.cpp \
+          ../main/hw/tps546.cpp fake_tps546.cpp
 SRC_C = ../components/stratum_v2/sv2_protocol.c ../components/stratum_v2/sv2_aead.c
 
 run: unit_tests

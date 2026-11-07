@@ -687,7 +687,7 @@ function energyLive(e){if(!e)return;const c=e.currency;
  $('ennote').textContent=e.costPerBlock!==undefined?'On average a block costs about '+money(e.costPerBlock,c)+' of power at this rate. Each try is independent: time already spent doesn\'t bring the next block closer.':e.priceFrom=='none'?'Set your electricity price under Tuning → Electricity price to see the cost.':''}
 function dustLive(d){if(!d)return;const st=$('dustst');
  st.textContent=d.state=='dirty'?'clean it':d.state=='ok'?'clean':'learning';st.style.color=d.state=='dirty'?'var(--orange)':d.state=='ok'?'var(--green)':'';
- $('dustt').textContent=d.temp!==undefined?d.temp+' °C (clean: '+d.baseTemp+' °C)':d.baseTemp!==undefined?d.baseTemp+' °C so far':'--';
+ const c1=v=>(+v).toFixed(1);$('dustt').textContent=d.temp!==undefined?c1(d.temp)+' °C (clean: '+c1(d.baseTemp)+' °C)':d.baseTemp!==undefined?c1(d.baseTemp)+' °C so far':'--';
  $('dustf').textContent=d.fan!==undefined?d.fan+'% (clean: '+d.baseFan+'%)':d.baseFan!==undefined?d.baseFan+'% so far':'--';
  $('dustbtn').style.display=d.state=='dirty'?'':'none';
  $('dustnote').textContent=d.state=='dirty'?'Running '+Math.max(0,d.dTemp)+' °C warmer, fan '+Math.max(0,d.dFan)+' points harder than when it was clean, at the same power. Probably dust: switch it off and clean the heatsink and fan.'

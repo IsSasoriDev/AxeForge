@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- The Heatsink card on the dashboard prints chip temperatures with one decimal, not "60.20000076293945 °C so far".
 
 ## AxeForge v1.4.6
 

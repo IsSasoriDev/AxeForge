@@ -4,7 +4,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Web UI
+- The dashboard's live hash card shows the block height, the network difficulty and the coinbase ScriptSig, as text with dots for unprintable bytes (hover for the hex). The ScriptSig carries the pool's tag, so the separate tag line under Now mining is gone. `/api/status` adds `template.scriptSig`.
 
 ## AxeForge v1.4.7
 

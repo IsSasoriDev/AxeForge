@@ -5,7 +5,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ## Unreleased
 
 ### Web UI
-- Network shows whether the Wi-Fi link uses protected management frames (802.11w), and the log says so at each connect. The miner has always used them when the router offers them; this tells you whether yours does. With them, nobody in radio range can knock the miner off Wi-Fi with forged disconnect frames. Turn it on in the router (PMF, MFP or 802.11w, set to capable or optional).
+- Network shows whether the Wi-Fi link uses protected management frames (802.11w), and the log says so at each connect. The miner has always used them when the router offers them; this tells you whether yours does. With them, nobody in radio range can knock the miner off Wi-Fi with forged disconnect frames. Turn it on in the router (PMF, MFP or 802.11w, set to capable or optional, not required, which shuts out older devices that can't do it).
 
 ## AxeForge v1.4.7
 

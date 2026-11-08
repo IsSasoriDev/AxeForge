@@ -233,6 +233,8 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddStringToObject(r, "screen", "oled");
 #endif
     cJSON_AddNumberToObject(r, "rssi", rssi);
+    int pmf = wifi::pmf();
+    if (pmf >= 0) cJSON_AddBoolToObject(r, "pmf", pmf);  // left out off Wi-Fi or when unknown
     cJSON_AddStringToObject(r, "ip", s.ip);
     cJSON_AddStringToObject(r, "ssid", s.ssid);
     cJSON_AddStringToObject(r, "hostname", s.hostname);

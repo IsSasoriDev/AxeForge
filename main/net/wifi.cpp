@@ -21,6 +21,11 @@
 #include "net/ble_setup.h"
 #include "net/eth.h"
 
+// Not in a public header: ESP-IDF's own supplicant calls it to decide whether the
+// link has a management-frame key. Weak, so a later ESP-IDF without it still links
+// and the page shows nothing rather than a wrong answer.
+extern "C" uint16_t esp_wifi_sta_pmf_enabled(void) __attribute__((weak));
+
 static const char *TAG = "wifi";
 
 static volatile bool s_connected = false;
@@ -164,8 +169,12 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data)
         if (settings::get().wifi_ssid[0]) esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_CONNECTED) {
         esp_wifi_set_rssi_threshold(ROAM_RSSI);
-        ESP_LOGI(TAG, "802.11k %s, 802.11v %s on this access point",
-                 esp_rrm_is_rrm_supported_connection() ? "yes" : "no", esp_wnm_is_btm_supported_connection() ? "yes" : "no");
+        // the station always offers 802.11w (ESP-IDF negotiates it whenever the
+        // access point does), so this says whether the router has it switched on
+        int p = wifi::pmf();
+        ESP_LOGI(TAG, "802.11k %s, 802.11v %s, 802.11w %s on this access point",
+                 esp_rrm_is_rrm_supported_connection() ? "yes" : "no", esp_wnm_is_btm_supported_connection() ? "yes" : "no",
+                 p > 0 ? "yes" : p == 0 ? "no" : "unknown");
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_BSS_RSSI_LOW) {
         if (!esp_timer_is_active(s_roam_timer)) esp_timer_start_once(s_roam_timer, 1000);
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
@@ -300,5 +309,12 @@ cJSON *scan()
     return a;
 }
 bool in_setup_mode() { return s_setup; }
+
+int pmf()
+{
+    wifi_ap_record_t ap;
+    if (!esp_wifi_sta_pmf_enabled || esp_wifi_sta_get_ap_info(&ap) != ESP_OK) return -1;  // not associated
+    return esp_wifi_sta_pmf_enabled() ? 1 : 0;
+}
 
 } // namespace wifi

@@ -12,6 +12,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - Network shows whether the Wi-Fi link uses protected management frames (802.11w), and the log says so at each connect. The miner has always used them when the router offers them; this tells you whether yours does. With them, nobody in radio range can knock the miner off Wi-Fi with forged disconnect frames. Turn it on in the router (PMF, MFP or 802.11w, set to capable or optional, not required, which shuts out older devices that can't do it).
 - The dashboard's live hash card shows the block height, the network difficulty and the coinbase ScriptSig, as text with dots for unprintable bytes (hover for the hex). The ScriptSig carries the pool's tag, so the separate tag line under Now mining is gone. `/api/status` adds `template.scriptSig`.
 - **Overclock shows as a pill, not a banner.** The orange bar across the top of every page is now an orange *Overclocked* pill beside the mining state in the header; hover for what it means, click to open Tuning → Overclock.
+- **The menu collapses to icons.** A menu button at the top of the left menu folds it to an icon rail, hover names the page, and the choice is remembered. The AxeForge logo moves into the page header, so phones, where the menu is a bar along the bottom, see it too.
 
 ## AxeForge v1.4.7
 

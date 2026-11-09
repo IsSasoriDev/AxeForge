@@ -94,6 +94,8 @@ pre.toml{background:var(--panel2);border-radius:10px;padding:10px 12px;margin:0 
 @keyframes axmin{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media(max-width:720px){#axm{right:12px;bottom:84px;max-width:240px;padding:10px 34px 10px 10px}#axm .ic{width:34px;height:34px}}
 @media(prefers-reduced-motion:reduce){#axm{animation:none;transition:none}}
+#findbtn{color:var(--dim);cursor:pointer;font-family:inherit}#findbtn:hover,#findbtn.on{color:var(--g1)}#findbtn.on{animation:findpulse .8s steps(2) infinite}
+@keyframes findpulse{50%{opacity:.45}}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;transition:.3s;z-index:20;box-shadow:0 10px 30px #0008}
 #toast.show{transform:translateX(-50%) translateY(0)}
 .banner{display:none;background:rgba(255,59,92,.14);border:1px solid var(--red);color:#ffd5dc;padding:10px 14px;border-radius:12px;margin-bottom:14px}
@@ -527,6 +529,12 @@ function askLogin(){if(loginWait)return loginWait;const m=$('login'),c=$('loginc
 const $=id=>document.getElementById(id);
 const titles={dash:'Dashboard',swarm:'Swarm',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
 let S={},cfg={},cur='dash',navv;
+// Find this miner: the screen (or the Bitair's LED) blinks for 30 s; a second click stops it
+let findLeft=0,findTimer=0;
+function findShow(n){findLeft=n;const b=$('findbtn');if(!b)return;b.textContent=n>0?'Blinking · '+n+' s':'Find';b.classList.toggle('on',n>0);
+ clearInterval(findTimer);if(n>0)findTimer=setInterval(()=>{if(--findLeft<=0){clearInterval(findTimer);findLeft=0}b.textContent=findLeft>0?'Blinking · '+findLeft+' s':'Find';b.classList.toggle('on',findLeft>0)},1000)}
+async function findMe(){const stop=findLeft>0;try{const r=await fetch('/api/identify',{method:'POST',body:stop?'0':''});if(!r.ok)throw 0;
+ findShow(stop?0:30);toast(stop?'Stopped blinking':'The screen is blinking for 30 s')}catch(e){toast('Could not reach the miner')}}
 // AxeMobile corner card on the dashboard; the x hides it for this browser
 (()=>{const a=document.getElementById('axm');if(!a)return;try{if(localStorage.getItem('af-axm')==='0')a.classList.add('off')}catch(e){}
 a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();a.classList.add('off');try{localStorage.setItem('af-axm','0')}catch(e){}})})();
@@ -619,7 +627,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*(S.smallCores||2040)*(S.asicCount||4)/1000));
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status+(S.purifier?' · purifier '+S.purifier:'');st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
- $('fault').style.display=S.fault?'block':'none';$('ocpill').style.display=S.overclocked?'inline-flex':'none';$('fault').textContent='⚠ '+S.fault;
+ $('fault').style.display=S.fault?'block':'none';$('ocpill').style.display=S.overclocked?'inline-flex':'none';findShow(S.identify||0);$('fault').textContent='⚠ '+S.fault;
  const bars=cfg.tiles!=1;$('tele').classList.toggle('bars',bars);if(bars)barTiles(S,L);else meters(S,L);$('cts').textContent='hottest of '+(S.chipsDetected||S.asicCount||4)+' chips';
  $('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';
  $('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';

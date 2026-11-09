@@ -14,6 +14,7 @@
 #include "lvgl.h"
 
 #include "core/board.h"
+#include "core/identify.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "hw/i2c_bus.h"
@@ -88,6 +89,26 @@ static void panel_power(bool on)
 {
     uint8_t c = on ? 0xAF : 0xAE;
     cmd(&c, 1);
+}
+
+// Find this miner: the panel inverts on and off, lit even if it was switched off
+static void identify_tick()
+{
+    static int8_t shown = -1;  // -1 = not identifying
+    if (identify::active()) {
+        int8_t inv = identify::lit() ? 1 : 0;
+        if (shown < 0) panel_power(true);
+        if (inv != shown) {
+            uint8_t c = inv ? 0xA7 : 0xA6;
+            cmd(&c, 1);
+            shown = inv;
+        }
+    } else if (shown >= 0) {
+        uint8_t c = 0xA6;
+        cmd(&c, 1);
+        panel_power(s_on);
+        shown = -1;
+    }
 }
 
 static void flush()
@@ -269,6 +290,7 @@ static void oled_task(void *)
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(50));
         since_draw += 50;
+        identify_tick();
         bool pressed = gpio_get_level(PIN_BOOT) == 0;
         if (pressed) {
             held_ms += 50;

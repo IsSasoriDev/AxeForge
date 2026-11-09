@@ -17,6 +17,7 @@
 #include "sdkconfig.h"
 
 #include "asic/bm13xx.h"
+#include "core/identify.h"
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
@@ -175,6 +176,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON *r = cJSON_CreateObject();
     cJSON_AddStringToObject(r, "status", status_name(s.status));
     cJSON_AddStringToObject(r, "fault", s.fault);
+    cJSON_AddNumberToObject(r, "identify", identify::remaining_s());  // seconds Find has left
 #if CONFIG_AF_BOARD_BITAIR
     cJSON_AddStringToObject(r, "purifier", purifier::mode_name());  // the panel's fan mode
 #endif
@@ -849,6 +851,22 @@ static esp_err_t ota_keep_post(httpd_req_t *req)
     return httpd_resp_sendstr(req, "Keeping this firmware.");
 }
 
+// Find this miner: POST with an empty body blinks the screen for 30 s, "0" stops it
+// early, any other number of seconds (up to 300) blinks that long.
+static esp_err_t identify_post(httpd_req_t *req)
+{
+    char buf[8] = {0};
+    int n = req->content_len > 0 ? httpd_req_recv(req, buf, sizeof(buf) - 1) : 0;
+    int sec = n > 0 ? atoi(buf) : 30;
+    if (sec <= 0) {
+        identify::stop();
+        return httpd_resp_sendstr(req, "Stopped.");
+    }
+    if (sec > 300) sec = 300;
+    identify::start(sec);
+    return httpd_resp_sendstr(req, "Blinking.");
+}
+
 static esp_err_t restart_post(httpd_req_t *req)
 {
     httpd_resp_sendstr(req, "Rebooting...");
@@ -1427,6 +1445,7 @@ void start()
         {"/api/settings", HTTP_POST, settings_post, NULL},
         {"/api/retune", HTTP_POST, retune_post, NULL},
         {"/api/restart", HTTP_POST, restart_post, NULL},
+        {"/api/identify", HTTP_POST, identify_post, NULL},
         {"/api/ota", HTTP_POST, ota_post, NULL},
         {"/api/ota/keep", HTTP_POST, ota_keep_post, NULL},
         {"/api/dust", HTTP_POST, dust_post, NULL},

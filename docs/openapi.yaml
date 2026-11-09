@@ -71,6 +71,7 @@ paths:
                 type: object
                 properties:
                   status: {type: string, enum: [booting, no wifi, setup, connecting, mining, fault, overheat]}
+                  identify: {type: integer, description: 'seconds left on Find this miner, 0 when off'}
                   hashrate: {type: number, description: GH/s}
                   expected: {type: number, description: theoretical GH/s at the current clock}
                   errorPct: {type: number}
@@ -388,6 +389,15 @@ paths:
   /api/restart:
     post:
       summary: Reboot the miner
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/identify:
+    post:
+      summary: Find this miner (blink its screen, or the Bitair's LED)
+      description: Empty body blinks for 30 s; a number blinks that many seconds (at most 300); 0 stops.
+      requestBody:
+        required: false
+        content: {text/plain: {schema: {type: string, example: '60'}}}
       responses:
         '200': {$ref: '#/components/responses/Text'}
   /api/ota:

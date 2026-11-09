@@ -372,13 +372,14 @@ static void test_sv2_frames()
     CHECK(sv2_parse_setup_connection_success(ss, 5, &ver, &fl) != 0);
 
     // SetupConnection.Error: flags U32 + error_code STR0_255
-    uint8_t se[4 + 1 + 21] = {};
+    static const char ecode[] = "unsupported-feature-flags";
+    uint8_t se[4 + 1 + sizeof(ecode) - 1] = {};
     le32(se, SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING);
-    se[4] = 21;
-    memcpy(se + 5, "unsupported-feature-flags", 21);
+    se[4] = sizeof(ecode) - 1;
+    memcpy(se + 5, ecode, sizeof(ecode) - 1);
     char code[64];
     CHECK(sv2_parse_setup_connection_error(se, sizeof(se), &fl, code, sizeof(code)) == 0);
-    CHECK(fl == SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING && strcmp(code, "unsupported-feature-f") == 0);
+    CHECK(fl == SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING && strcmp(code, ecode) == 0);
     char small[8];
     CHECK(sv2_parse_setup_connection_error(se, sizeof(se), &fl, small, sizeof(small)) == 0);
     CHECK(strcmp(small, "unsuppo") == 0);                                       // truncated, terminated

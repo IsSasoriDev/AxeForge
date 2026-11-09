@@ -665,13 +665,19 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
         // picks another version or forbids rolling cannot be mined correctly.
         uint16_t ver = 0;
         uint32_t sflags = 0;
-        if (sv2_parse_setup_connection_success(buf, len, &ver, &sflags) != 0) goto out;
+        if (sv2_parse_setup_connection_success(buf, len, &ver, &sflags) != 0) {
+            ESP_LOGE(TAG, "[%d] SV2 setup reply too short (%d bytes)", p.idx, len);
+            set_status(p, "SV2 setup reply unreadable");
+            goto out;
+        }
         if (ver != 2) {
             ESP_LOGE(TAG, "[%d] pool chose SV2 version %u, we offered 2", p.idx, ver);
             set_status(p, "Pool chose an unsupported SV2 version");
             goto out;
         }
         if (sflags & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION) {
+            ESP_LOGE(TAG, "[%d] pool requires a fixed version (flags 0x%lx), we roll version bits", p.idx,
+                     (unsigned long) sflags);
             set_status(p, "Pool forbids version rolling");
             goto out;
         }

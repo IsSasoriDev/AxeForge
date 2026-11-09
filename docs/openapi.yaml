@@ -391,6 +391,16 @@ paths:
       summary: Reboot the miner
       responses:
         '200': {$ref: '#/components/responses/Text'}
+  /api/update:
+    post:
+      summary: Install the newest AxeForge release from GitHub, or check for one
+      description: Body `check` asks GitHub now; anything else downloads and installs the newer release for this board, then restarts. Progress is in the status's `update` object.
+      requestBody:
+        required: false
+        content: {text/plain: {schema: {type: string, example: check}}}
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+        '400': {description: No newer release, or an update is already running}
   /api/identify:
     post:
       summary: Find this miner (blink its screen, or the Bitair's LED)

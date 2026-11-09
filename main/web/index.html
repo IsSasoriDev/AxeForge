@@ -247,7 +247,7 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
 <main>
 <header><div class="logo"><b>AXE</b><i>FORGE</i></div><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="pill" id="ocpill" style="display:none;color:var(--orange);cursor:pointer" title="Overclocked: the tuner and manual settings may go past this board&#x27;s stock limits. Click for Tuning → Overclock." onclick="tab('tuning')">Overclocked</span><button class="pill" id="findbtn" type="button" title="Blink this miner's screen (or LED) for 30 s, to tell which box on the shelf it is" onclick="findMe()">Find</button><span class="meta" id="up"></span></header>
 <div class="banner" id="fault"></div>
-<div class="banner upd" id="updban"><span id="updtxt"></span><span class="ub"><a class="btn sm" id="updlink" target="_blank" rel="noopener">What's new</a><button class="btn alt sm" type="button" onclick="tab('system')">Update</button><button class="x" type="button" aria-label="Close" title="Hide until the next release" onclick="updClose()">&times;</button></span></div>
+<div class="banner upd" id="updban"><span id="updtxt"></span><span class="ub"><a class="btn sm" id="updlink" target="_blank" rel="noopener">What's new</a><button class="btn alt sm" type="button" id="updnow" onclick="updNow()">Update now</button><button class="x" type="button" aria-label="Close" title="Hide until the next release" onclick="updClose()">&times;</button></span></div>
 
 <!-- ============================== DASHBOARD -->
 <section id="dash" class="on">
@@ -473,6 +473,8 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div class="drop" id="drop">Drop <b>axeforge.bin</b> here or click to choose<input type="file" id="file" accept=".bin" hidden></div>
 <div class="prog" id="prog"><i></i></div>
 <p class="note">Use the app image (axeforge.bin), not the factory image. Mining keeps running during the upload.</p>
+<div class="switch"><div><b>Install updates automatically</b><span>The miner checks GitHub for a new AxeForge release every 6 hours and installs it by itself, then restarts. Off: the dashboard tells you and you press Update now.</span></div><input class="tg" type="checkbox" id="autoupd" onchange="act('/api/settings',JSON.stringify({autoupdate:this.checked}))"></div>
+<div class="btns" style="margin:4px 0 10px"><button class="btn alt sm" type="button" onclick="act('/api/update','check')">Check for updates</button><button class="btn sm" type="button" id="updnow2" style="display:none" onclick="updNow()">Update now</button><span class="note" id="updmsg" style="margin:0"></span></div>
 <div class="switch"><div><b>Roll back a bad update</b><span>If new firmware crashes at start-up twice, or is online but not mining 10 minutes after boot, the previous firmware starts again. It is kept once it has mined normally for 2 minutes.</span></div><input class="tg" type="checkbox" id="otaguard" onchange="act('/api/settings',JSON.stringify({otaguard:this.checked}))"></div>
 <div id="otabox" style="display:none"><p class="note">This firmware is still on probation.</p><div class="btns"><button class="btn alt sm" onclick="act('/api/ota/keep')">Keep this version</button></div></div></div>
 </div>
@@ -524,81 +526,29 @@ function findShow(n){findLeft=n;const b=$('findbtn');if(!b)return;b.textContent=
  clearInterval(findTimer);if(n>0)findTimer=setInterval(()=>{if(--findLeft<=0){clearInterval(findTimer);findLeft=0}b.textContent=findLeft>0?'Blinking · '+findLeft+' s':'Find';b.classList.toggle('on',findLeft>0)},1000)}
 async function findMe(){const stop=findLeft>0;try{const r=await fetch('/api/identify',{method:'POST',body:stop?'0':''});if(!r.ok)throw 0;
  findShow(stop?0:30);toast(stop?'Stopped blinking':'The screen is blinking for 30 s')}catch(e){toast('Could not reach the miner')}}
-// New release check: the browser asks GitHub for the latest AxeForge release (cached
-// for 6 h) and shows a banner when it is newer than this firmware. The x hides it
+// New release: the miner checks GitHub itself (every 6 h, status.update) and
+// installs on Update now, or by itself with auto-update on. If the miner couldn't
+// reach GitHub, the browser asks instead (cached for 6 h). The x hides the banner
 // until the release after that one.
 const verNum=v=>{const m=/^v?(\d+)\.(\d+)\.(\d+)/.exec(v||'');return m?[+m[1],+m[2],+m[3]]:null};
 const verNewer=(a,b)=>{for(let i=0;i<3;i++){if(a[i]!=b[i])return a[i]>b[i]}return false};
+function showUpd(html,tag,btns,force){const b=$('updban');let skip='';try{skip=localStorage.getItem('af-upd-skip')||''}catch(e){}
+ if(!force&&skip===tag){b.classList.remove('on');return}
+ $('updtxt').innerHTML=html;$('updlink').href=SRC+'/releases/tag/'+encodeURIComponent(tag);$('updnow').style.display=btns?'':'none';
+ b.dataset.tag=tag;b.classList.add('on')}
 let updChecked=false;
 async function checkUpdate(cur){if(updChecked||!verNum(cur))return;updChecked=true;
  let r=null;try{r=JSON.parse(localStorage.getItem('af-upd')||'null')}catch(e){}
  if(!r||Date.now()-r.t>6*3600e3){try{const j=await rawFetch('https://api.github.com/repos/IsSasoriDev/AxeForge/releases/latest',{headers:{Accept:'application/vnd.github+json'}}).then(x=>x.ok?x.json():null);
-  if(!j||!j.tag_name)return;r={t:Date.now(),tag:j.tag_name,url:j.html_url};try{localStorage.setItem('af-upd',JSON.stringify(r))}catch(e){}}catch(e){return}}
- const nv=verNum(r.tag);let skip='';try{skip=localStorage.getItem('af-upd-skip')||''}catch(e){}
- if(!nv||!verNewer(nv,verNum(cur))||skip===r.tag)return;
- $('updtxt').innerHTML=`<b>AxeForge ${esc(r.tag)} is out.</b> This miner runs v${esc(cur)}.`;$('updlink').href=r.url||SRC+'/releases/latest';
- $('updban').dataset.tag=r.tag;$('updban').classList.add('on')}
+  if(!j||!j.tag_name)return;r={t:Date.now(),tag:j.tag_name};try{localStorage.setItem('af-upd',JSON.stringify(r))}catch(e){}}catch(e){return}}
+ const nv=verNum(r.tag);if(nv&&verNewer(nv,verNum(cur)))showUpd(`<b>AxeForge ${esc(r.tag)} is out.</b> This miner runs v${esc(S.version)}.`,r.tag,false)}
+function updShow(S){const u=S.update||{};$('updmsg').textContent=u.msg||'';$('updnow2').style.display=u.newer&&u.state!='downloading'?'':'none';
+ if(u.state=='downloading'){showUpd(`<b>Updating to ${esc(u.latest)}: ${u.pct|0}%.</b> The miner restarts by itself when it's installed; this page comes back after.`,u.latest,false,true);return}
+ if(u.latest){if(u.newer)showUpd(`<b>AxeForge ${esc(u.latest)} is out.</b> This miner runs v${esc(S.version)}.`+(u.state=='failed'?` <span style="color:var(--red)">${esc(u.msg)}</span>`:''),u.latest,true);
+  else $('updban').classList.remove('on');return}
+ checkUpdate(S.version)}
+async function updNow(){$('updnow').disabled=$('updnow2').disabled=true;await act('/api/update');setTimeout(()=>{$('updnow').disabled=$('updnow2').disabled=false},3000)}
 function updClose(){const b=$('updban');b.classList.remove('on');try{localStorage.setItem('af-upd-skip',b.dataset.tag||'')}catch(e){}}
-// DTV theme background: AxeMobile's black hole, ray-traced live in WebGL at reduced
-// resolution and ~30 fps, paused while the tab is hidden. One still frame with
-// reduced motion; nothing without WebGL (the page stays AMOLED black).
-const BH_FS=`precision highp float;
-uniform vec2 u_res;uniform float u_time;
-float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
-float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
- return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
-  mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
-float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*noise(p);p*=2.03;a*=.5;}return s;}
-vec3 sky(vec3 d){vec3 col=vec3(0.);
- col+=vec3(.28,.07,.38)*pow(fbm(d*2.2+vec3(0.,0.,u_time*.01)),3.)*1.1;
- col+=vec3(.5,.2,.03)*pow(fbm(d*3.1+7.),4.)*.9;
- for(int i=0;i<3;i++){float s=90.+float(i)*140.;vec3 p=d*s;vec3 id=floor(p);vec3 f=fract(p)-.5;float h=hash(id+float(i)*17.31);
-  if(h>.986){float tw=.65+.35*sin(u_time*(2.+h*4.)+h*80.);float b=smoothstep(.22,0.,length(f))*tw;
-   col+=mix(vec3(1.),vec3(1.,.62,.28),step(.994,h))*b*(1.6-float(i)*.4);}}
- return col;}
-void main(){vec2 uv=(gl_FragCoord.xy-.5*u_res)/u_res.y;float dist=17.;
- float ang=.9+u_time*.05;float elev=.16+.05*sin(u_time*.2);
- vec3 ro=vec3(sin(ang),elev,-cos(ang))*dist;vec3 ww=normalize(-ro);vec3 uu=normalize(cross(ww,vec3(0.,1.,0.)));vec3 vv=cross(uu,ww);
- float roll=.18;vec2 q=mat2(cos(roll),-sin(roll),sin(roll),cos(roll))*uv;vec3 rd=normalize(q.x*uu+q.y*vv+1.5*ww);
- vec3 p=ro;vec3 v=rd;vec3 hv=cross(p,v);float h2=dot(hv,hv);vec3 col=vec3(0.);float trans=1.;bool cap=false;float minr=1e9;
- for(int i=0;i<170;i++){float r2=dot(p,p);float r=sqrt(r2);minr=min(minr,r);
-  if(r<1.){cap=true;break;}
-  if(r>30.)break;
-  float dt=.02+.07*r;v+=-1.5*h2*p/(r2*r2*r)*dt;vec3 pn=p+v*dt;
-  if(p.y*pn.y<0.){float k=p.y/(p.y-pn.y);vec3 c=mix(p,pn,k);float rc=length(c.xz);
-   if(rc>2.4&&rc<11.){float a=atan(c.z,c.x);float spin=a-u_time*1.6/pow(rc,1.5)*2.5;
-    float bands=fbm(vec3(rc*2.2,spin*3.,u_time*.15));float fine=noise(vec3(rc*14.,spin*18.,3.));
-    float edge=smoothstep(11.,6.,rc)*smoothstep(2.4,3.,rc);float temp=pow(3./rc,1.5);
-    vec3 vel=normalize(vec3(-c.z,0.,c.x));float dop=1.+.75*dot(vel,-normalize(v));
-    vec3 dc=mix(vec3(.55,.12,.02),vec3(1.,.45,.06),clamp(temp*1.2,0.,1.));dc=mix(dc,vec3(1.,.93,.82),clamp((temp-.75)*1.6,0.,1.));
-    float inten=edge*(.25+bands*1.1+fine*.25)*temp*1.8*dop*dop*dop;col+=trans*dc*inten;trans*=1.-clamp(inten*.55,0.,.92);
-    if(trans<.02)break;}}
-  p=pn;}
- if(!cap)col+=trans*sky(normalize(v));
- col+=vec3(1.,.7,.35)*exp(-pow((minr-1.5)*6.,2.))*(cap?0.:1.)*.9*trans;
- col=1.-exp(-col*1.35);col=pow(col,vec3(.92));col*=1.-.35*dot(uv,uv);
- gl_FragColor=vec4(col*.8,1.);}`;
-let BH=null;
-function dtvBH(on){const cv=$('bh');if(!cv)return;
- if(!on){cv.classList.remove('on');if(BH)BH.run=false;return}
- if(!BH){const gl=cv.getContext('webgl',{antialias:false,alpha:false,powerPreference:'low-power'});if(!gl)return;
-  const sh=(t,src)=>{const o=gl.createShader(t);gl.shaderSource(o,src);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null};
-  const vs=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),fs=sh(gl.FRAGMENT_SHADER,BH_FS);if(!vs||!fs)return;
-  const pr=gl.createProgram();gl.attachShader(pr,vs);gl.attachShader(pr,fs);gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS))return;
-  gl.useProgram(pr);gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
-  const al=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
-  BH={gl,ur:gl.getUniformLocation(pr,'u_res'),ut:gl.getUniformLocation(pr,'u_time'),run:false,last:0,t0:performance.now()};
-  addEventListener('visibilitychange',()=>{if(!document.hidden&&BH.run)requestAnimationFrame(bhFrame)})}
- cv.classList.add('on');if(!BH.run){BH.run=true;requestAnimationFrame(bhFrame)}}
-function bhFrame(now){if(!BH||!BH.run||document.hidden)return;
- const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
- if(now-BH.last>=33||still){BH.last=now;const cv=$('bh'),k=Math.min(.6,Math.sqrt(360000/(innerWidth*innerHeight)));
-  const w=Math.max(1,Math.round(innerWidth*k)),h=Math.max(1,Math.round(innerHeight*k));
-  if(cv.width!=w||cv.height!=h){cv.width=w;cv.height=h}
-  const g=BH.gl;g.viewport(0,0,w,h);g.uniform2f(BH.ur,w,h);g.uniform1f(BH.ut,(now-BH.t0)/1000);g.drawArrays(g.TRIANGLES,0,3)}
- if(still){addEventListener('resize',()=>requestAnimationFrame(bhFrame),{once:true});return}
- requestAnimationFrame(bhFrame)}
-dtvBH(document.documentElement.dataset.theme=='dtv');
 // AxeMobile corner card on the dashboard; the x hides it for this browser
 (()=>{const a=document.getElementById('axm');if(!a)return;try{if(localStorage.getItem('af-axm')==='0')a.classList.add('off')}catch(e){}
 a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();a.classList.add('off');try{localStorage.setItem('af-axm','0')}catch(e){}})})();
@@ -718,7 +668,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
   <span class="meta" style="color:var(--green)">${p.accepted}</span>/<span class="meta" style="color:var(--red)">${p.rejected}</span></div>`:'').join('')||'<span class="meta">No pools enabled</span>';
  $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
- $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;checkUpdate(S.version);
+ $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;updShow(S);
  $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';$('npmf').textContent=S.pmf===undefined?'--':S.pmf?'yes (802.11w)':'no, the router doesn\'t offer them';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
@@ -763,7 +713,7 @@ async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setThem
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[(+L.maxPower).toFixed(L.maxPower%1?1:0)+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';
- $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;$('chipworkers').checked=!!cfg.chipworkers;
+ $('baprow').style.display=cfg.hasBap?'':'none';$('otaguard').checked=!!cfg.otaguard;$('autoupd').checked=!!cfg.autoupdate;$('chipworkers').checked=!!cfg.chipworkers;
  {const pu=document.querySelector('[name=priceurl]');pu.value='';pu.placeholder=cfg.priceurlSet?'saved (hidden) · type to replace':'https://example.com/price.json'}$('chiprow').style.display=cfg.chipClock?'':'none';goalUi();priceUi();
  notifyForm();pagesFrom(cfg.pages)}
 document.querySelectorAll('form[data-f]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const d={};

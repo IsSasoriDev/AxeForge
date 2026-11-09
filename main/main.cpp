@@ -29,6 +29,7 @@
 #include "asic/bm13xx.h"
 #include "mining/stats.h"
 #include "net/eth.h"
+#include "net/fwupdate.h"
 #include "net/notify.h"
 #include "net/otp.h"
 #include "net/price.h"
@@ -170,6 +171,7 @@ extern "C" void app_main(void)
     weather::start();
     mempool::start();
     price::start();
+    fwupdate::start();
 
     if (e != board::Error::None) {
         g_state.status = SysStatus::Fault;

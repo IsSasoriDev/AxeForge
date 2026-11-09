@@ -160,6 +160,12 @@ int sv2_build_submit_shares_standard(uint8_t *buf, size_t buf_len,
 int sv2_parse_setup_connection_success(const uint8_t *payload, uint32_t len,
                                        uint16_t *used_version, uint32_t *flags);
 
+// Parse SetupConnection.Error (0x02, spec 3.6.3): flags U32 + error_code STR0_255.
+// flags names the requested features the server does not support.
+int sv2_parse_setup_connection_error(const uint8_t *payload, uint32_t len,
+                                     uint32_t *flags,
+                                     char *error_code, size_t error_code_size);
+
 int sv2_parse_open_channel_success(const uint8_t *payload, uint32_t len,
                                    uint32_t *request_id, uint32_t *channel_id,
                                    uint8_t target[32],

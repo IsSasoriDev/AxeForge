@@ -547,6 +547,12 @@ static void v2_message(Pool &p, uint8_t type, const uint8_t *pl, int len)
     case SV2_MSG_SET_EXTRANONCE_PREFIX: {
         uint8_t pfx[32], plen;
         if (sv2_parse_set_extranonce_prefix(pl, len, &channel, pfx, &plen) == 0) {
+            // Spec 5.3.10: a prefix addressed to a group channel MUST be ignored.
+            if (channel != p.channel_id) {
+                ESP_LOGW(TAG, "[%d] ignoring extranonce prefix for channel %lu (ours is %lu)", p.idx,
+                         (unsigned long) channel, (unsigned long) p.channel_id);
+                break;
+            }
             // prefix + rolled bytes must still fit the 32-byte extranonce
             if (plen + p.ext_size > 32) {
                 ESP_LOGE(TAG, "[%d] pool sent a %u-byte extranonce prefix, too long", p.idx, plen);
@@ -642,9 +648,39 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
                                        SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING);
     if (n < 0 || !send_frame(p, buf, n) || !v2_recv(p, hdr, buf, &len)) goto out;
     sv2_parse_frame_header(hdr, &fh);
+    if (fh.msg_type == SV2_MSG_SETUP_CONNECTION_ERROR) {
+        uint32_t eflags = 0;
+        char code[64] = "";
+        sv2_parse_setup_connection_error(buf, len, &eflags, code, sizeof(code));
+        ESP_LOGW(TAG, "[%d] SV2 setup refused: %s (flags 0x%lx)", p.idx, code, (unsigned long) eflags);
+        set_status(p, code[0] ? "SV2 setup refused: %s" : "SV2 setup refused", code);
+        goto out;
+    }
     if (fh.msg_type != SV2_MSG_SETUP_CONNECTION_SUCCESS) {
         set_status(p, "SV2 setup refused");
         goto out;
+    }
+    {
+        // We offered version 2 only, and we roll version bits, so a pool that
+        // picks another version or forbids rolling cannot be mined correctly.
+        uint16_t ver = 0;
+        uint32_t sflags = 0;
+        if (sv2_parse_setup_connection_success(buf, len, &ver, &sflags) != 0) {
+            ESP_LOGE(TAG, "[%d] SV2 setup reply too short (%d bytes)", p.idx, len);
+            set_status(p, "SV2 setup reply unreadable");
+            goto out;
+        }
+        if (ver != 2) {
+            ESP_LOGE(TAG, "[%d] pool chose SV2 version %u, we offered 2", p.idx, ver);
+            set_status(p, "Pool chose an unsupported SV2 version");
+            goto out;
+        }
+        if (sflags & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION) {
+            ESP_LOGE(TAG, "[%d] pool requires a fixed version (flags 0x%lx), we roll version bits", p.idx,
+                     (unsigned long) sflags);
+            set_status(p, "Pool forbids version rolling");
+            goto out;
+        }
     }
 
     {

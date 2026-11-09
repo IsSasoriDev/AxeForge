@@ -249,6 +249,17 @@ int sv2_parse_setup_connection_success(const uint8_t *payload, uint32_t len,
     return 0;
 }
 
+int sv2_parse_setup_connection_error(const uint8_t *payload, uint32_t len,
+                                     uint32_t *flags,
+                                     char *error_code, size_t error_code_size)
+{
+    // flags(4) + STR0_255(1+N) = min 5 bytes
+    if (len < 5) return -1;
+    *flags = read_u32_le(payload);
+    if (read_str0255(payload + 4, len - 4, error_code, error_code_size) < 0) return -1;
+    return 0;
+}
+
 int sv2_parse_open_channel_success(const uint8_t *payload, uint32_t len,
                                    uint32_t *request_id, uint32_t *channel_id,
                                    uint8_t target[32],

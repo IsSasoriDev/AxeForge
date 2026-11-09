@@ -21,6 +21,9 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - **Overclock shows as a pill, not a banner.** The orange bar across the top of every page is now an orange *Overclocked* pill beside the mining state in the header; hover for what it means, click to open Tuning → Overclock.
 - **The menu collapses to icons.** A menu button at the top of the left menu folds it to an icon rail, hover names the page, and the choice is remembered. The AxeForge logo moves into the page header, so phones, where the menu is a bar along the bottom, see it too.
 
+### Fixes
+- Stratum V2 follows three rules from the recent spec revision. An extranonce prefix the pool addresses to a group channel is ignored rather than applied (spec 5.3.10). A pool that refuses the connection now has its error code shown on the Pools card instead of a bare "SV2 setup refused". The miner disconnects from a pool that picks a protocol version other than 2, or that forbids version rolling at setup, rather than mining shares the pool would reject.
+
 ### Dashboard
 - **AxeMobile in the corner.** A card in the lower right of the dashboard points to [AxeMobile](https://github.com/IsSasoriDev/AxeMobile), the companion app for managing all your miners in one place. The × hides it for that browser.
 - **Gauges for the four telemetry cards, opt-in.** *Display → Dashboard tiles → Gauges*: ASIC temperature, VR temperature, power and fan each show a half-arc with tick marks at the lines the firmware acts on: the tuner ceiling and the shutdown temperature, the power ceiling, the 95 % line where the tuner stops climbing and the emergency cut-off. The arc and a word under the number say which zone the value is in; a stopped fan turns the fan gauge red. The ticks move when Overclock is turned on or off. The compact bars stay the default.

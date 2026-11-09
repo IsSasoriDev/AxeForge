@@ -49,31 +49,30 @@ static const Pair EMBER_MAP[] = {
     {0x2bff88, EMBER_OK},     {0xff9f1c, EMBER_WARN},  {0xffc83d, EMBER_WARN},  {0xff3b5c, EMBER_BAD},
 };
 
-// Spatial: deep space. Near-black indigo, starlight text, and the colours of a
-// nebula for accents: sky blue, violet, lilac, a gas-giant amber, aurora green.
-#define SPATIAL_BG 0x03040b
-#define SPATIAL_BG2 0x0a0c24
-#define SPATIAL_CARD 0x0c1029
-#define SPATIAL_SOFT 0x161b3d
-#define SPATIAL_RULE 0x252b5a
-#define SPATIAL_TEXT 0xe9ecff
-#define SPATIAL_DIM 0x9aa2c9
-#define SPATIAL_SKY 0x7dd3fc
-#define SPATIAL_LILAC 0xc084fc
-#define SPATIAL_VIOLET 0xa78bfa
-#define SPATIAL_INDIGO 0x818cf8
-#define SPATIAL_GREEN 0x6ee7b7
-#define SPATIAL_AMBER 0xfbbf72
-#define SPATIAL_GOLD 0xfde68a
-#define SPATIAL_RED 0xfb7185
+// DTV: the DTV Electronics look from AxeMobile. Black, white text, DTV orange as the
+// accent, with a violet nebula tone and ember for the second accent.
+#define DTV_BG 0x000000  // AMOLED black: the pixels are off
+#define DTV_BG2 0x000000
+#define DTV_CARD 0x0a0a0a
+#define DTV_SOFT 0x161616
+#define DTV_RULE 0x3a2414
+#define DTV_TEXT 0xf2f2f2
+#define DTV_DIM 0x8c8c8c
+#define DTV_ORANGE 0xff8000
+#define DTV_EMBER 0xc2570a
+#define DTV_AMBER 0xffa64d
+#define DTV_VIOLET 0x8b5cf6
+#define DTV_GREEN 0x00cc88
+#define DTV_GOLD 0xffc266
+#define DTV_RED 0xf0434f
 
-static const Pair SPATIAL_MAP[] = {
-    {0x070a10, SPATIAL_BG},   {0x0b1220, SPATIAL_BG2},  {0x0a0f18, SPATIAL_BG},    {0x05070b, SPATIAL_BG},
-    {0x0f1520, SPATIAL_CARD}, {0x0b0f17, SPATIAL_CARD}, {0x141c2a, SPATIAL_SOFT},  {0x1c2635, SPATIAL_RULE},
-    {0x1c2636, SPATIAL_RULE}, {0xe6edf6, SPATIAL_TEXT}, {0xe8ecf5, SPATIAL_TEXT},  {0x9aa8bd, SPATIAL_DIM},
-    {0x6b7a90, SPATIAL_DIM},  {0x8d99ab, SPATIAL_DIM},  {0xc9d3e0, 0xc7cbef},      {0x9fb4ff, 0xa5b4fc},
-    {0x00e5ff, SPATIAL_SKY},  {0xff2bd6, SPATIAL_LILAC}, {0x3da5ff, SPATIAL_INDIGO}, {0x8b5cff, SPATIAL_VIOLET},
-    {0x2bff88, SPATIAL_GREEN}, {0xff9f1c, SPATIAL_AMBER}, {0xffc83d, SPATIAL_GOLD}, {0xff3b5c, SPATIAL_RED},
+static const Pair DTV_MAP[] = {
+    {0x070a10, DTV_BG},   {0x0b1220, DTV_BG2},    {0x0a0f18, DTV_BG},     {0x05070b, DTV_BG},
+    {0x0f1520, DTV_CARD}, {0x0b0f17, DTV_CARD},   {0x141c2a, DTV_SOFT},   {0x1c2635, DTV_RULE},
+    {0x1c2636, DTV_RULE}, {0xe6edf6, DTV_TEXT},   {0xe8ecf5, DTV_TEXT},   {0x9aa8bd, DTV_DIM},
+    {0x6b7a90, DTV_DIM},  {0x8d99ab, DTV_DIM},    {0xc9d3e0, 0xd9d9d9},   {0x9fb4ff, DTV_AMBER},
+    {0x00e5ff, DTV_ORANGE}, {0xff2bd6, DTV_EMBER}, {0x3da5ff, DTV_AMBER}, {0x8b5cff, DTV_VIOLET},
+    {0x2bff88, DTV_GREEN}, {0xff9f1c, DTV_AMBER},  {0xffc83d, DTV_GOLD},  {0xff3b5c, DTV_RED},
 };
 
 static const Pair PAPER_MAP[] = {
@@ -113,12 +112,12 @@ uint32_t mempool_fee_rgb(float fee)
 Id current()
 {
     uint8_t s = settings::get().theme;
-    return s == PAPER ? PAPER : s == EMBER ? EMBER : s == SPATIAL ? SPATIAL : FORGE;
+    return s == PAPER ? PAPER : s == EMBER ? EMBER : s == DTV ? DTV : FORGE;
 }
 
 bool paper() { return current() == PAPER; }
 bool ember() { return current() == EMBER; }
-bool spatial() { return current() == SPATIAL; }
+bool dtv() { return current() == DTV; }
 
 uint32_t map(uint32_t rgb)
 {
@@ -128,8 +127,8 @@ uint32_t map(uint32_t rgb)
             if (p.from == rgb) return p.to;
         return rgb;
     }
-    if (spatial()) {
-        for (const Pair &p : SPATIAL_MAP)
+    if (dtv()) {
+        for (const Pair &p : DTV_MAP)
             if (p.from == rgb) return p.to;
         return rgb;
     }
@@ -209,18 +208,18 @@ static void starfield_cb(lv_event_t *e)
         lv_coord_t y = (lv_coord_t) ((next() >> 8) % h);
         uint32_t k = next() >> 28;  // 0..15
         lv_coord_t size = k >= 14 ? 2 : 1;
-        d.bg_color = lv_color_hex(k >= 12 ? 0xc7d2fe : k >= 9 ? 0xfde68a : 0xffffff);
+        d.bg_color = lv_color_hex(k >= 13 ? 0xff9a3d : 0xffffff);  // white stars, a few orange
         d.bg_opa = (lv_opa_t) (70 + k * 11);
         lv_area_t a = {x, y, (lv_coord_t) (x + size - 1), (lv_coord_t) (y + size - 1)};
         lv_draw_rect(ctx, &d, &a);
     }
 }
 
-// Spatial's cards are glass: mostly see-through, so the stars show, with a thin
-// starlight outline. LVGL can't blur what's behind, so it's clear glass, not frosted.
+// DTV's cards are glass: mostly see-through, so the stars show, with a thin
+// DTV orange outline. LVGL can't blur what's behind, so it's clear glass, not frosted.
 static void glassify(lv_obj_t *obj)
 {
-    const lv_color_t card = lv_color_hex(SPATIAL_CARD);
+    const lv_color_t card = lv_color_hex(DTV_CARD);
     uint32_t n = lv_obj_get_child_cnt(obj);
     for (uint32_t i = 0; i < n; i++) {
         lv_obj_t *c = lv_obj_get_child(obj, i);
@@ -229,7 +228,7 @@ static void glassify(lv_obj_t *obj)
             lv_obj_set_style_bg_opa(c, LV_OPA_20, LV_PART_MAIN);
             lv_obj_set_style_bg_grad_dir(c, LV_GRAD_DIR_NONE, LV_PART_MAIN);
             lv_obj_set_style_border_width(c, 1, LV_PART_MAIN);
-            lv_obj_set_style_border_color(c, lv_color_hex(0xc7d2fe), LV_PART_MAIN);
+            lv_obj_set_style_border_color(c, lv_color_hex(DTV_ORANGE), LV_PART_MAIN);
             lv_obj_set_style_border_opa(c, LV_OPA_40, LV_PART_MAIN);
             lv_obj_set_style_shadow_width(c, 0, LV_PART_MAIN);
         }
@@ -240,7 +239,7 @@ static void glassify(lv_obj_t *obj)
 void decorate(lv_obj_t *scr)
 {
     lv_obj_remove_event_cb(scr, starfield_cb);  // a theme change rebuilds the screen
-    if (spatial()) {
+    if (dtv()) {
         lv_obj_add_event_cb(scr, starfield_cb, LV_EVENT_DRAW_MAIN_END, nullptr);
         glassify(scr);
     }
@@ -249,8 +248,8 @@ void decorate(lv_obj_t *scr)
 
 void apply_lvgl_theme(lv_disp_t *disp)
 {
-    if (spatial()) {  // stock widgets (sliders, switches) pick up the violet accent
-        lv_disp_set_theme(disp, lv_theme_default_init(disp, lv_color_hex(SPATIAL_VIOLET), lv_color_hex(SPATIAL_RED),
+    if (dtv()) {  // stock widgets (sliders, switches) pick up DTV orange
+        lv_disp_set_theme(disp, lv_theme_default_init(disp, lv_color_hex(DTV_ORANGE), lv_color_hex(DTV_RED),
                                                        true, LV_FONT_DEFAULT));
         return;
     }

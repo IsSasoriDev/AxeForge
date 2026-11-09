@@ -32,35 +32,79 @@ static const char *TAG = "sensors";
 
 static bool s_emc_ok = false;
 
+#ifdef AF_EMC_MUX_ADDR
+// BitForge Nano: two EMC2101s, one per chip and fan, both at 0x4C behind a PCA9544
+// switch. Select a channel, then talk to that one; the lock keeps the pair together.
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#define EMC_N 2
+static const uint8_t MUX_CH[EMC_N] = {AF_EMC_MUX_CH0, AF_EMC_MUX_CH1};
+static SemaphoreHandle_t s_mux_lock;
+struct Emc {
+    bool ok;
+    explicit Emc(int i)
+    {
+        if (!s_mux_lock) s_mux_lock = xSemaphoreCreateMutex();
+        xSemaphoreTake(s_mux_lock, portMAX_DELAY);
+        uint8_t ctl = 0x04 | MUX_CH[i];  // bit 2 enables, bits 0-1 pick the channel
+        ok = i2c_bus::write(AF_EMC_MUX_ADDR, &ctl, 1) == ESP_OK;
+    }
+    ~Emc() { xSemaphoreGive(s_mux_lock); }
+};
+#else
+#define EMC_N 1
+struct Emc {
+    bool ok = true;
+    explicit Emc(int) {}
+};
+#endif
+
 namespace fan {
+
+static bool init_one(int i)
+{
+    Emc e(i);
+    bool ok = e.ok && i2c_bus::write_byte(EMC2101_ADDR, EMC2101_CONFIG, EMC2101_CONFIG_VALUE) == ESP_OK &&
+              i2c_bus::write_byte(EMC2101_ADDR, EMC2101_FAN_CONFIG, EMC2101_FAN_CONFIG_VALUE) == ESP_OK;
+#ifdef AF_EMC_IDEALITY
+    // diode model of the chip (reference firmware values)
+    ok &= i2c_bus::write_byte(EMC2101_ADDR, EMC2101_IDEALITY, AF_EMC_IDEALITY) == ESP_OK;
+    ok &= i2c_bus::write_byte(EMC2101_ADDR, EMC2101_BETA, AF_EMC_BETA) == ESP_OK;
+#endif
+    return ok;
+}
 
 bool init()
 {
-    s_emc_ok = i2c_bus::write_byte(EMC2101_ADDR, EMC2101_CONFIG, EMC2101_CONFIG_VALUE) == ESP_OK &&
-               i2c_bus::write_byte(EMC2101_ADDR, EMC2101_FAN_CONFIG, EMC2101_FAN_CONFIG_VALUE) == ESP_OK;
-#ifdef AF_EMC_IDEALITY
-    // diode model of the chip (reference firmware values)
-    s_emc_ok &= i2c_bus::write_byte(EMC2101_ADDR, EMC2101_IDEALITY, AF_EMC_IDEALITY) == ESP_OK;
-    s_emc_ok &= i2c_bus::write_byte(EMC2101_ADDR, EMC2101_BETA, AF_EMC_BETA) == ESP_OK;
-#endif
-    if (!s_emc_ok) ESP_LOGE(TAG, "EMC2101 init failed");
+    s_emc_ok = true;
+    for (int i = 0; i < EMC_N; i++) {
+        if (!init_one(i)) {
+            ESP_LOGE(TAG, "EMC2101 %d init failed", i + 1);
+            s_emc_ok = false;
+        }
+    }
     return s_emc_ok;
 }
 
 void set_pct(int channel, float pct)
 {
-    if (channel != 0) return;  // single fan header
+    if (channel < 0 || channel >= EMC_N) return;  // one fan per EMC2101
     if (pct < 0) pct = 0;
     if (pct > 100) pct = 100;
-    i2c_bus::write_byte(EMC2101_ADDR, EMC2101_FAN_SETTING, (uint8_t) (pct * 63.0f / 100.0f + 0.5f));
+    Emc e(channel);
+    if (e.ok) i2c_bus::write_byte(EMC2101_ADDR, EMC2101_FAN_SETTING, (uint8_t) (pct * 63.0f / 100.0f + 0.5f));
 }
 
 uint16_t rpm(int channel)
 {
-    if (channel != 0) return 0;
+    if (channel < 0 || channel >= EMC_N) return 0;
     uint8_t lsb = 0, msb = 0;
-    if (i2c_bus::read(EMC2101_ADDR, EMC2101_TACH_LSB, &lsb, 1) != ESP_OK) return 0;
-    if (i2c_bus::read(EMC2101_ADDR, EMC2101_TACH_MSB, &msb, 1) != ESP_OK) return 0;
+    {
+        Emc e(channel);
+        if (!e.ok) return 0;
+        if (i2c_bus::read(EMC2101_ADDR, EMC2101_TACH_LSB, &lsb, 1) != ESP_OK) return 0;
+        if (i2c_bus::read(EMC2101_ADDR, EMC2101_TACH_MSB, &msb, 1) != ESP_OK) return 0;
+    }
     uint16_t raw = lsb | (msb << 8);
     if (raw == 0 || raw == 0xffff) return 0;
     uint32_t r = 5400000u / raw;
@@ -69,12 +113,19 @@ uint16_t rpm(int channel)
 
 bool check()
 {
-    uint8_t cfg = 0;
-    if (i2c_bus::read(EMC2101_ADDR, EMC2101_FAN_CONFIG, &cfg, 1) != ESP_OK) return true;
-    if (cfg == EMC2101_FAN_CONFIG_VALUE) return true;
-    ESP_LOGW(TAG, "fan controller config is %02x, it was reset - re-initialising", cfg);
-    init();
-    return false;
+    bool fine = true;
+    for (int i = 0; i < EMC_N; i++) {
+        uint8_t cfg = 0;
+        {
+            Emc e(i);
+            if (!e.ok || i2c_bus::read(EMC2101_ADDR, EMC2101_FAN_CONFIG, &cfg, 1) != ESP_OK) continue;
+        }
+        if (cfg == EMC2101_FAN_CONFIG_VALUE) continue;
+        ESP_LOGW(TAG, "fan controller %d config is %02x, it was reset - re-initialising", i + 1, cfg);
+        init_one(i);
+        fine = false;
+    }
+    return fine;
 }
 
 } // namespace fan
@@ -84,20 +135,29 @@ namespace temp {
 int detect()
 {
     uint8_t t;
-    bool ok = false;
-    for (int tries = 0; tries < 3 && !ok; tries++)
-        ok = i2c_bus::read(EMC2101_ADDR, EMC2101_INTERNAL_TEMP, &t, 1) == ESP_OK;
-    ESP_LOGI(TAG, "%d ASIC temperature sensors (EMC2101)", ok ? 1 : 0);
-    return ok ? 1 : 0;
+    int found = 0;
+    for (int i = 0; i < EMC_N; i++) {
+        bool ok = false;
+        for (int tries = 0; tries < 3 && !ok; tries++) {
+            Emc e(i);
+            ok = e.ok && i2c_bus::read(EMC2101_ADDR, EMC2101_INTERNAL_TEMP, &t, 1) == ESP_OK;
+        }
+        if (ok) found++;
+    }
+    ESP_LOGI(TAG, "%d ASIC temperature sensors (EMC2101)", found);
+    return found;
 }
 
-int count() { return s_emc_ok ? 1 : detect(); }
+int count() { return s_emc_ok ? EMC_N : detect(); }
 
 float asic_area(int index)
 {
-    if (index != 0) return NAN;
+    if (index < 0 || index >= EMC_N) return NAN;
     uint8_t t;
-    if (i2c_bus::read(EMC2101_ADDR, EMC2101_INTERNAL_TEMP, &t, 1) != ESP_OK) return NAN;
+    {
+        Emc e(index);
+        if (!e.ok || i2c_bus::read(EMC2101_ADDR, EMC2101_INTERNAL_TEMP, &t, 1) != ESP_OK) return NAN;
+    }
     if (t == 0 || t > 127) return NAN;  // 0 C on a running miner, or a negative reading: garbage
     return t;
 }
@@ -106,10 +166,14 @@ float vr_board() { return NAN; }
 
 float chip_diode(int index)
 {
-    if (index != 0) return NAN;
+    if (index < 0 || index >= EMC_N) return NAN;
     uint8_t msb = 0, lsb = 0;
-    if (i2c_bus::read(EMC2101_ADDR, EMC2101_EXTERNAL_MSB, &msb, 1) != ESP_OK) return NAN;
-    if (i2c_bus::read(EMC2101_ADDR, EMC2101_EXTERNAL_LSB, &lsb, 1) != ESP_OK) return NAN;
+    {
+        Emc e(index);
+        if (!e.ok) return NAN;
+        if (i2c_bus::read(EMC2101_ADDR, EMC2101_EXTERNAL_MSB, &msb, 1) != ESP_OK) return NAN;
+        if (i2c_bus::read(EMC2101_ADDR, EMC2101_EXTERNAL_LSB, &lsb, 1) != ESP_OK) return NAN;
+    }
     int16_t raw = (int16_t) (((msb << 8) | lsb) >> 5);  // 11-bit, 1/8 C
     if (raw == EMC2101_DIODE_OPEN || raw == EMC2101_DIODE_SHORT) return NAN;
     if (raw & 0x400) raw |= (int16_t) 0xF800;

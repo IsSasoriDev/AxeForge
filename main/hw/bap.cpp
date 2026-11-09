@@ -4,7 +4,7 @@
 #include "sdkconfig.h"
 
 // the color boards (Naja, Gamma Hex) have no BAP header; the Bitair uses its pins for the purifier
-#if (AF_BITAXE_FAMILY || AF_HEX_FAMILY) && !AF_COLOR_BOARD && !CONFIG_AF_BOARD_BITAIR
+#if (AF_BITAXE_FAMILY || AF_HEX_FAMILY) && !AF_COLOR_BOARD && !CONFIG_AF_BOARD_BITAIR && !CONFIG_AF_BOARD_BITFORGE_NANO
 
 #include <stdio.h>
 #include <stdlib.h>

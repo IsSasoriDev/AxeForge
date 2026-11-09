@@ -5,6 +5,8 @@
 //    enabled by GPIO10 low.
 //  - Gamma (1x BM1370) and Gamma Duo (2x BM1370 in parallel): TPS546 on 5 V.
 //  - GT (2x BM1370 in parallel): two stacked TPS546s on 12 V.
+//  - BitForge Nano (2x BM1370 in parallel): TPS546 on 12 V, an EMC2101 and a fan
+//    per chip behind a PCA9544 switch, input measured by an INA260.
 //  - NerdAxe Gaia (1x BM1373): TPS546 on 12 V, its logic powered by the LDO on
 //    GPIO12, which is switched on at boot and left on.
 //  - Naja Duo (2x BM1373, 2 series domains) and Gamma Hex (6x BM1370, 2 series
@@ -56,6 +58,8 @@ static const char *TAG = "board";
 #define TPS_PROFILE tps546::GAMMA_HEX
 #elif CONFIG_AF_BOARD_GAIA
 #define TPS_PROFILE tps546::GAIA
+#elif CONFIG_AF_BOARD_BITFORGE_NANO
+#define TPS_PROFILE tps546::BITFORGE_NANO
 #else
 #define TPS_PROFILE tps546::BITAXE_SINGLE
 #endif
@@ -65,10 +69,15 @@ static const char *TAG = "board";
 #else
 #define POWER_OFFSET_W 5.0f
 #endif
-#if AF_EMC2103
+#if AF_EMC2103 || defined(AF_EMC_MUX_ADDR)
 #define CHIP_DIODES 2
 #else
 #define CHIP_DIODES 1
+#endif
+#ifdef AF_EMC_MUX_ADDR
+#define FANS 2  // one EMC2101 and fan per chip
+#else
+#define FANS 1
 #endif
 
 static bool s_powered = false;
@@ -137,7 +146,7 @@ Error init_hardware()
 
     if (i2c_bus::init() != ESP_OK) return Error::NoRegulator;
     s_tps = tps546::detect();
-#if !(CONFIG_AF_BOARD_NAJA || CONFIG_AF_BOARD_BITAXE_GT || CONFIG_AF_BOARD_GAMMA_HEX || CONFIG_AF_BOARD_GAIA)
+#if !(CONFIG_AF_BOARD_NAJA || CONFIG_AF_BOARD_BITAXE_GT || CONFIG_AF_BOARD_GAMMA_HEX || CONFIG_AF_BOARD_GAIA || CONFIG_AF_BOARD_BITFORGE_NANO)
     // A 5 V board's regulator refuses 12 V (its over-voltage limit is 6.5 V), and
     // some Gamma 601 boards (StarMiner) are fed 12 V: take the limits that fit.
     if (s_tps) {
@@ -161,7 +170,7 @@ Error init_hardware()
     }
 #endif
     fan::init();
-    fan::set_pct(0, 100);
+    for (int i = 0; i < FANS; i++) fan::set_pct(i, 100);
     temp::detect();
     asic::uart_init();
 
@@ -253,7 +262,7 @@ void shutdown()
     g_state.core_mv = 0;
     // telemetry stops updating while off; don't leave the last readings on screen
     g_state.pin = g_state.iin = g_state.vout = g_state.iout = 0;
-    fan::set_pct(0, 100);
+    for (int i = 0; i < FANS; i++) fan::set_pct(i, 100);
 }
 
 bool set_core_mv(uint16_t mv)
@@ -319,7 +328,7 @@ void read_telemetry()
     g_state.chip_temp_max = tmax;
     g_state.temp_ok = ok;
     g_state.fan_rpm[0] = fan::rpm(0);
-    g_state.fan_rpm[1] = 0;
+    g_state.fan_rpm[1] = FANS > 1 ? fan::rpm(1) : 0;
 
     if (s_tps) {
         float vr = tps546::temperature();
@@ -331,6 +340,16 @@ void read_telemetry()
         float vo = tps546::vout();
         if (!isnan(vo)) g_state.vout = vo;  // a failed read keeps the last value
         g_state.iout = tps546::iout();
+#if AF_INA260
+        // the INA260 sees the whole board's input: no allowance needed
+        float iv, ia, iw;
+        if (ds4432u::vin(iv) && ds4432u::iin(ia) && ds4432u::pin(iw)) {
+            g_state.vin = iv;
+            g_state.iin = ia;
+            g_state.pin = iw;
+            return;
+        }
+#endif
         float p = tps546::pout();
         if (!isnan(p)) g_state.pin = p + POWER_OFFSET_W;
         g_state.iin = g_state.vin > 1 ? g_state.pin / g_state.vin : 0;

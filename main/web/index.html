@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#070a10">
 <title>AxeForge</title>
-<script>try{const t=localStorage.getItem("af-theme");if(t)document.documentElement.dataset.theme=t;const n=localStorage.getItem("af-nav");if(n)document.documentElement.dataset.nav=n}catch(e){}</script>
+<script>try{let t=localStorage.getItem("af-theme");if(t=="spatial")t="dtv";if(t)document.documentElement.dataset.theme=t;const n=localStorage.getItem("af-nav");if(n)document.documentElement.dataset.nav=n}catch(e){}</script>
 <link rel="icon" href="/favicon.ico" type="image/svg+xml">
 <style>
 :root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#9aa8bd;
@@ -99,6 +99,9 @@ pre.toml{background:var(--panel2);border-radius:10px;padding:10px 12px;margin:0 
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;transition:.3s;z-index:20;box-shadow:0 10px 30px #0008}
 #toast.show{transform:translateX(-50%) translateY(0)}
 .banner{display:none;background:rgba(255,59,92,.14);border:1px solid var(--red);color:#ffd5dc;padding:10px 14px;border-radius:12px;margin-bottom:14px}
+.banner.upd{background:color-mix(in srgb,var(--g1) 12%,transparent);border-color:var(--g1);color:var(--text);align-items:center;gap:12px;flex-wrap:wrap}
+.banner.upd.on{display:flex}.banner.upd #updtxt{flex:1;min-width:200px}.banner.upd .ub{display:flex;gap:8px;align-items:center}
+.banner.upd .x{border:0;background:transparent;color:var(--dim);font-size:18px;cursor:pointer;width:28px;height:28px;border-radius:8px}.banner.upd .x:hover{background:var(--line);color:var(--text)}
 .wx{display:flex;align-items:center;gap:14px}.wx .t{font-size:34px;font-weight:800}
 /* blocks */
 .cubes{display:flex;gap:14px;align-items:flex-end;overflow-x:auto;padding:6px 2px 4px}
@@ -149,42 +152,27 @@ main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 #swt th:nth-child(2),#swt td:nth-child(2),#swt th:nth-child(n+6):not(:last-child),#swt td:nth-child(n+6):not(:last-child){display:none}
 #swt{font-size:13px}#swt td,#swt th{padding:8px 4px}#swt .sub{white-space:normal}}
 
-/* ---------- Spatial: deep space. Nebula glow, a slow starfield, a ringed planet off the corner. */
-html[data-theme=spatial]{--bg:#03040b;--bg2:#070a1c;--panel:rgba(255,255,255,.035);--panel2:rgba(255,255,255,.07);--pend:rgba(255,255,255,.015);
---line:rgba(200,210,255,.22);--text:#e9ecff;--dim:#9aa2c9;--cyan:#7dd3fc;--mag:#c084fc;--green:#6ee7b7;--orange:#fbbf72;--red:#fb7185;
---violet:#a78bfa;--input:rgba(5,7,22,.55);--navbg:rgba(6,8,24,.4);--console:#02030a;--glow:#1d1650;
---g1:#7dd3fc;--g2:#c084fc;--chart:#a5b4fc;--track:rgba(150,160,255,.17);--axis:#9aa2c9}
-html[data-theme=spatial] body{background:
- radial-gradient(900px 520px at 85% -8%,rgba(124,58,237,.30),transparent 62%),
- radial-gradient(700px 480px at 5% 105%,rgba(14,165,233,.20),transparent 60%),
- radial-gradient(520px 380px at 45% 55%,rgba(192,132,252,.09),transparent 70%),
- linear-gradient(#03040b,#070a1c) fixed}
-html[data-theme=spatial] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
- background-image:
-  radial-gradient(1px 1px at 23px 41px,#fff,transparent),radial-gradient(1px 1px at 131px 87px,rgba(255,255,255,.8),transparent),
-  radial-gradient(1px 1px at 197px 163px,rgba(199,210,254,.9),transparent),radial-gradient(1px 1px at 61px 199px,rgba(255,255,255,.6),transparent),
-  radial-gradient(1.5px 1.5px at 91px 23px,#fff,transparent),radial-gradient(1px 1px at 167px 211px,rgba(253,230,138,.8),transparent),
-  radial-gradient(1px 1px at 311px 57px,rgba(255,255,255,.7),transparent),radial-gradient(2px 2px at 257px 293px,rgba(199,210,254,.95),transparent),
-  radial-gradient(1px 1px at 353px 251px,#fff,transparent),radial-gradient(1.5px 1.5px at 29px 331px,rgba(255,255,255,.85),transparent);
- background-size:233px 233px,233px 233px,233px 233px,233px 233px,377px 377px,377px 377px,377px 377px,610px 610px,610px 610px,610px 610px;
- animation:twinkle 7s ease-in-out infinite alternate}
-html[data-theme=spatial] body::after{content:"";position:fixed;right:-140px;bottom:-150px;width:460px;height:460px;z-index:-1;pointer-events:none;opacity:.55;
- background:
-  radial-gradient(ellipse 228px 44px at 50% 50%,transparent 80%,rgba(216,180,254,.5) 86%,rgba(125,211,252,.3) 92%,transparent 98%),
-  radial-gradient(circle 64px at 42% 40%,rgba(237,233,254,.55),transparent),
-  radial-gradient(circle 140px at 50% 50%,#8b5cf6 0,#5b21b6 45%,#2e1065 78%,#1e1b4b 96%,transparent 100%);
- transform:rotate(-16deg)}
-@keyframes twinkle{from{opacity:.55}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){html[data-theme=spatial] body::before{animation:none}}
-html[data-theme=spatial] .card,html[data-theme=spatial] .pool{background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.015));
- backdrop-filter:blur(10px) saturate(120%);-webkit-backdrop-filter:blur(10px) saturate(120%);border:1px solid rgba(200,210,255,.22);
- box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
-html[data-theme=spatial] nav{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-right:1px solid rgba(200,210,255,.14)}
-html[data-theme=spatial] nav button.on{background:linear-gradient(90deg,rgba(167,139,250,.22),transparent);color:#c4b5fd;box-shadow:inset 3px 0 #a78bfa}
-html[data-theme=spatial] .logo b{color:#7dd3fc}html[data-theme=spatial] .logo i{color:#c084fc}
-html[data-theme=spatial] .btn{background:linear-gradient(135deg,#818cf8,#a78bfa 55%,#c084fc);color:#0b0a24;border:0}
-html[data-theme=spatial] .btn.alt{background:transparent;color:#c4b5fd;border:1px solid rgba(167,139,250,.6)}
-html[data-theme=spatial] .btn.warn{background:var(--red);color:#fff;border:0}
+/* ---------- DTV: DTV Electronics, First Supporter. The AxeMobile look: AMOLED black, white text,
+   DTV orange, and a live black hole behind the pages (the #bh canvas, drawn by dtvBH below). */
+html[data-theme=dtv]{--bg:#000;--bg2:#000;--panel:rgba(8,8,8,.74);--panel2:rgba(22,22,22,.86);--pend:rgba(4,4,4,.7);
+--line:rgba(255,128,0,.28);--text:#f2f2f2;--dim:#8c8c8c;--cyan:#ff8000;--mag:#c2570a;--green:#00cc88;--orange:#ff8000;--red:#f0434f;
+--violet:#ff9a3d;--input:rgba(0,0,0,.65);--navbg:rgba(0,0,0,.78);--console:#000;--glow:#000;
+--g1:#ff8000;--g2:#c2570a;--chart:#ff8000;--track:rgba(255,128,0,.16);--axis:#8c8c8c}
+html[data-theme=dtv] body{background:#000}
+#bh{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;display:none}
+html[data-theme=dtv] #bh.on{display:block}
+html[data-theme=dtv] .card,html[data-theme=dtv] .pool{background:rgba(6,6,6,.74);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+ border:1px solid rgba(255,128,0,.3);animation:dtvpulse 4s ease-in-out infinite;transition:border-color .3s}
+html[data-theme=dtv] .card:hover{border-color:rgba(255,128,0,.8)}
+@keyframes dtvpulse{0%,100%{box-shadow:0 0 12px rgba(255,255,255,.05);border-color:rgba(255,128,0,.3)}50%{box-shadow:0 0 20px rgba(255,255,255,.11);border-color:rgba(255,128,0,.5)}}
+@media (prefers-reduced-motion:reduce){html[data-theme=dtv] .card,html[data-theme=dtv] .pool{animation:none}}
+html[data-theme=dtv] nav{background:rgba(0,0,0,.8);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-right:1px solid rgba(255,128,0,.3)}
+html[data-theme=dtv] nav button.on{background:linear-gradient(90deg,rgba(255,128,0,.16),transparent);color:#ff8c1a;box-shadow:inset 3px 0 #ff8000}
+html[data-theme=dtv] .logo b{color:#fff}html[data-theme=dtv] .logo i{color:#ff8000}
+html[data-theme=dtv] .btn{background:rgba(255,128,0,.08);color:#ff8c1a;border:1px solid rgba(255,128,0,.6);font-weight:600}
+html[data-theme=dtv] .btn:hover{background:rgba(255,128,0,.16);box-shadow:0 4px 16px rgba(255,255,255,.14)}
+html[data-theme=dtv] .btn.alt{background:transparent;color:#f2f2f2;border:1px solid rgba(255,255,255,.25)}
+html[data-theme=dtv] .btn.warn{background:var(--red);color:#fff;border:0}
 /* ---------- Paper: minimal, e-ink style. Ink on paper, hairline rules, no glow, no motion. */
 html[data-theme=ember]{--bg:#0a0a0b;--bg2:#0a0a0b;--panel:#131316;--panel2:#1a1a1f;--pend:#131316;--line:#232328;--text:#ededef;--dim:#9a9aa3;
 --cyan:#f7931a;--mag:#ffb35c;--green:#3ecf8e;--orange:#e3b341;--red:#f0564a;--violet:#f7931a;--input:#0a0a0b;--navbg:rgba(10,10,11,.88);--console:#070708;--glow:#2a1906;
@@ -243,7 +231,7 @@ html[data-theme=paper] .pill{background:transparent}
 #login.on{display:flex}#login .card{max-width:360px;width:100%}
 html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{display:none!important}
 </style></head>
-<body><div class="app">
+<body><canvas id="bh" aria-hidden="true"></canvas><div class="app">
 <nav id="nav">
 <button type="button" class="tog" id="navtog" onclick="navRail()" title="Collapse menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
 <button data-t="dash" class="on"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg><span>Dashboard</span></button>
@@ -259,6 +247,7 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
 <main>
 <header><div class="logo"><b>AXE</b><i>FORGE</i></div><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="pill" id="ocpill" style="display:none;color:var(--orange);cursor:pointer" title="Overclocked: the tuner and manual settings may go past this board&#x27;s stock limits. Click for Tuning → Overclock." onclick="tab('tuning')">Overclocked</span><button class="pill" id="findbtn" type="button" title="Blink this miner's screen (or LED) for 30 s, to tell which box on the shelf it is" onclick="findMe()">Find</button><span class="meta" id="up"></span></header>
 <div class="banner" id="fault"></div>
+<div class="banner upd" id="updban"><span id="updtxt"></span><span class="ub"><a class="btn sm" id="updlink" target="_blank" rel="noopener">What's new</a><button class="btn alt sm" type="button" onclick="tab('system')">Update</button><button class="x" type="button" aria-label="Close" title="Hide until the next release" onclick="updClose()">&times;</button></span></div>
 
 <!-- ============================== DASHBOARD -->
 <section id="dash" class="on">
@@ -429,7 +418,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div class="lcd"><label style="margin-top:0" title="Which panel the miner has. The miner reboots to switch. If the screen goes blank afterwards, hold the bottom button at power-on to flip back.">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p></div>
 <label title="Gauges draw each value on a half arc with the firmware's limits as tick marks. Bars is the compact row with a thin bar under the number.">Dashboard tiles</label><select name="tiles"><option value="0">Bars, compact</option><option value="1">Gauges, with the limits as ticks</option></select>
-<label title="Forge is dark, Paper is for daylight and e-ink-like screens, Ember is dark with Bitcoin orange, Spatial is deep space. Applies to the miner&#x27;s screen and this page.">Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">Spatial: deep space, stars and planets</option></select>
+<label title="Forge is dark, Paper is for daylight and e-ink-like screens, Ember is dark with Bitcoin orange, DTV is the DTV Electronics look from AxeMobile, on AMOLED black with a live black hole. Applies to the miner&#x27;s screen and this page.">Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">DTV: First Supporter</option></select>
 <label title="Backlight level. Applies at once.">Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <div class="lcd"><label title="Backlight off after this many idle minutes. A button wakes it; faults, overheating and a found block wake it too.">Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select></div>
 <div class="row"><div class="lcd"><label title="The screen page shown after boot.">Start page</label><select name="defpage" id="defpage"></select></div>
@@ -535,6 +524,81 @@ function findShow(n){findLeft=n;const b=$('findbtn');if(!b)return;b.textContent=
  clearInterval(findTimer);if(n>0)findTimer=setInterval(()=>{if(--findLeft<=0){clearInterval(findTimer);findLeft=0}b.textContent=findLeft>0?'Blinking · '+findLeft+' s':'Find';b.classList.toggle('on',findLeft>0)},1000)}
 async function findMe(){const stop=findLeft>0;try{const r=await fetch('/api/identify',{method:'POST',body:stop?'0':''});if(!r.ok)throw 0;
  findShow(stop?0:30);toast(stop?'Stopped blinking':'The screen is blinking for 30 s')}catch(e){toast('Could not reach the miner')}}
+// New release check: the browser asks GitHub for the latest AxeForge release (cached
+// for 6 h) and shows a banner when it is newer than this firmware. The x hides it
+// until the release after that one.
+const verNum=v=>{const m=/^v?(\d+)\.(\d+)\.(\d+)/.exec(v||'');return m?[+m[1],+m[2],+m[3]]:null};
+const verNewer=(a,b)=>{for(let i=0;i<3;i++){if(a[i]!=b[i])return a[i]>b[i]}return false};
+let updChecked=false;
+async function checkUpdate(cur){if(updChecked||!verNum(cur))return;updChecked=true;
+ let r=null;try{r=JSON.parse(localStorage.getItem('af-upd')||'null')}catch(e){}
+ if(!r||Date.now()-r.t>6*3600e3){try{const j=await rawFetch('https://api.github.com/repos/IsSasoriDev/AxeForge/releases/latest',{headers:{Accept:'application/vnd.github+json'}}).then(x=>x.ok?x.json():null);
+  if(!j||!j.tag_name)return;r={t:Date.now(),tag:j.tag_name,url:j.html_url};try{localStorage.setItem('af-upd',JSON.stringify(r))}catch(e){}}catch(e){return}}
+ const nv=verNum(r.tag);let skip='';try{skip=localStorage.getItem('af-upd-skip')||''}catch(e){}
+ if(!nv||!verNewer(nv,verNum(cur))||skip===r.tag)return;
+ $('updtxt').innerHTML=`<b>AxeForge ${esc(r.tag)} is out.</b> This miner runs v${esc(cur)}.`;$('updlink').href=r.url||SRC+'/releases/latest';
+ $('updban').dataset.tag=r.tag;$('updban').classList.add('on')}
+function updClose(){const b=$('updban');b.classList.remove('on');try{localStorage.setItem('af-upd-skip',b.dataset.tag||'')}catch(e){}}
+// DTV theme background: AxeMobile's black hole, ray-traced live in WebGL at reduced
+// resolution and ~30 fps, paused while the tab is hidden. One still frame with
+// reduced motion; nothing without WebGL (the page stays AMOLED black).
+const BH_FS=`precision highp float;
+uniform vec2 u_res;uniform float u_time;
+float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
+ return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+  mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*noise(p);p*=2.03;a*=.5;}return s;}
+vec3 sky(vec3 d){vec3 col=vec3(0.);
+ col+=vec3(.28,.07,.38)*pow(fbm(d*2.2+vec3(0.,0.,u_time*.01)),3.)*1.1;
+ col+=vec3(.5,.2,.03)*pow(fbm(d*3.1+7.),4.)*.9;
+ for(int i=0;i<3;i++){float s=90.+float(i)*140.;vec3 p=d*s;vec3 id=floor(p);vec3 f=fract(p)-.5;float h=hash(id+float(i)*17.31);
+  if(h>.986){float tw=.65+.35*sin(u_time*(2.+h*4.)+h*80.);float b=smoothstep(.22,0.,length(f))*tw;
+   col+=mix(vec3(1.),vec3(1.,.62,.28),step(.994,h))*b*(1.6-float(i)*.4);}}
+ return col;}
+void main(){vec2 uv=(gl_FragCoord.xy-.5*u_res)/u_res.y;float dist=17.;
+ float ang=.9+u_time*.05;float elev=.16+.05*sin(u_time*.2);
+ vec3 ro=vec3(sin(ang),elev,-cos(ang))*dist;vec3 ww=normalize(-ro);vec3 uu=normalize(cross(ww,vec3(0.,1.,0.)));vec3 vv=cross(uu,ww);
+ float roll=.18;vec2 q=mat2(cos(roll),-sin(roll),sin(roll),cos(roll))*uv;vec3 rd=normalize(q.x*uu+q.y*vv+1.5*ww);
+ vec3 p=ro;vec3 v=rd;vec3 hv=cross(p,v);float h2=dot(hv,hv);vec3 col=vec3(0.);float trans=1.;bool cap=false;float minr=1e9;
+ for(int i=0;i<170;i++){float r2=dot(p,p);float r=sqrt(r2);minr=min(minr,r);
+  if(r<1.){cap=true;break;}
+  if(r>30.)break;
+  float dt=.02+.07*r;v+=-1.5*h2*p/(r2*r2*r)*dt;vec3 pn=p+v*dt;
+  if(p.y*pn.y<0.){float k=p.y/(p.y-pn.y);vec3 c=mix(p,pn,k);float rc=length(c.xz);
+   if(rc>2.4&&rc<11.){float a=atan(c.z,c.x);float spin=a-u_time*1.6/pow(rc,1.5)*2.5;
+    float bands=fbm(vec3(rc*2.2,spin*3.,u_time*.15));float fine=noise(vec3(rc*14.,spin*18.,3.));
+    float edge=smoothstep(11.,6.,rc)*smoothstep(2.4,3.,rc);float temp=pow(3./rc,1.5);
+    vec3 vel=normalize(vec3(-c.z,0.,c.x));float dop=1.+.75*dot(vel,-normalize(v));
+    vec3 dc=mix(vec3(.55,.12,.02),vec3(1.,.45,.06),clamp(temp*1.2,0.,1.));dc=mix(dc,vec3(1.,.93,.82),clamp((temp-.75)*1.6,0.,1.));
+    float inten=edge*(.25+bands*1.1+fine*.25)*temp*1.8*dop*dop*dop;col+=trans*dc*inten;trans*=1.-clamp(inten*.55,0.,.92);
+    if(trans<.02)break;}}
+  p=pn;}
+ if(!cap)col+=trans*sky(normalize(v));
+ col+=vec3(1.,.7,.35)*exp(-pow((minr-1.5)*6.,2.))*(cap?0.:1.)*.9*trans;
+ col=1.-exp(-col*1.35);col=pow(col,vec3(.92));col*=1.-.35*dot(uv,uv);
+ gl_FragColor=vec4(col*.8,1.);}`;
+let BH=null;
+function dtvBH(on){const cv=$('bh');if(!cv)return;
+ if(!on){cv.classList.remove('on');if(BH)BH.run=false;return}
+ if(!BH){const gl=cv.getContext('webgl',{antialias:false,alpha:false,powerPreference:'low-power'});if(!gl)return;
+  const sh=(t,src)=>{const o=gl.createShader(t);gl.shaderSource(o,src);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null};
+  const vs=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),fs=sh(gl.FRAGMENT_SHADER,BH_FS);if(!vs||!fs)return;
+  const pr=gl.createProgram();gl.attachShader(pr,vs);gl.attachShader(pr,fs);gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS))return;
+  gl.useProgram(pr);gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const al=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+  BH={gl,ur:gl.getUniformLocation(pr,'u_res'),ut:gl.getUniformLocation(pr,'u_time'),run:false,last:0,t0:performance.now()};
+  addEventListener('visibilitychange',()=>{if(!document.hidden&&BH.run)requestAnimationFrame(bhFrame)})}
+ cv.classList.add('on');if(!BH.run){BH.run=true;requestAnimationFrame(bhFrame)}}
+function bhFrame(now){if(!BH||!BH.run||document.hidden)return;
+ const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(now-BH.last>=33||still){BH.last=now;const cv=$('bh'),k=Math.min(.6,Math.sqrt(360000/(innerWidth*innerHeight)));
+  const w=Math.max(1,Math.round(innerWidth*k)),h=Math.max(1,Math.round(innerHeight*k));
+  if(cv.width!=w||cv.height!=h){cv.width=w;cv.height=h}
+  const g=BH.gl;g.viewport(0,0,w,h);g.uniform2f(BH.ur,w,h);g.uniform1f(BH.ut,(now-BH.t0)/1000);g.drawArrays(g.TRIANGLES,0,3)}
+ if(still){addEventListener('resize',()=>requestAnimationFrame(bhFrame),{once:true});return}
+ requestAnimationFrame(bhFrame)}
+dtvBH(document.documentElement.dataset.theme=='dtv');
 // AxeMobile corner card on the dashboard; the x hides it for this browser
 (()=>{const a=document.getElementById('axm');if(!a)return;try{if(localStorage.getItem('af-axm')==='0')a.classList.add('off')}catch(e){}
 a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();a.classList.add('off');try{localStorage.setItem('af-axm','0')}catch(e){}})})();
@@ -654,7 +718,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
   <span class="meta" style="color:var(--green)">${p.accepted}</span>/<span class="meta" style="color:var(--red)">${p.rejected}</span></div>`:'').join('')||'<span class="meta">No pools enabled</span>';
  $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
- $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
+ $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;checkUpdate(S.version);
  $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';$('npmf').textContent=S.pmf===undefined?'--':S.pmf?'yes (802.11w)':'no, the router doesn\'t offer them';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
@@ -670,8 +734,8 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
 function fanText(S){const f=(S.fans||[]).filter(x=>x.connected);
  return f.length?f.length+(f.length>1?' fans · ':' fan · ')+f.map(x=>x.rpm).join(' / ')+' rpm':'no fan detected'}
 function fanStatus(){(S.fans||[]).forEach((f,i)=>{const e=$('fan'+(i+1)+'st');if(e)e.textContent=f.connected?`connected · ${f.rpm} rpm at ${f.speedPerc}%`:'nothing connected'})}
-function setTheme(t){const n=t==1?'paper':t==2?'ember':t==3?'spatial':'';document.documentElement.dataset.theme=n;try{localStorage.setItem('af-theme',n)}catch(e){}
- document.querySelector('meta[name=theme-color]').content=t==1?'#f3f1ea':t==2?'#0a0a0b':t==3?'#03040b':'#070a10'}
+function setTheme(t){const n=t==1?'paper':t==2?'ember':t==3?'dtv':'';document.documentElement.dataset.theme=n;try{localStorage.setItem('af-theme',n)}catch(e){}
+ document.querySelector('meta[name=theme-color]').content=t==1?'#f3f1ea':t==2?'#0a0a0b':t==3?'#000000':'#070a10';dtvBH(n=='dtv')}
 /* ---------------- swarm */
 let SW=null;
 async function loadSwarm(){try{SW=await (await fetch('/api/swarm')).json()}catch(e){return}

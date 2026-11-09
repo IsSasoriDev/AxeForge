@@ -4,10 +4,11 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
+_Nothing yet._
+
+## AxeForge v1.4.9
+
 ### Boards
-- Bitfortun BS-1: 4× BM1373 on the NerdQaxe layout, a 4-phase TPS53647 on 12 V. Pins, regulator limits and the stock point (425 MHz / 1010 mV) come from Bitfortun's published source. Their screen adds a fixed 400 GH/s to the hashrate it shows; AxeForge shows what the chips report. Not tested on hardware yet.
-- NerdAxe Gaia: one BM1373 on a 12 V TPS546D24A, with the NerdAxe's T-Display-S3. The regulator's logic is powered from the LDO on GPIO12, so AxeForge switches that on before it looks for the regulator. Stock point 350 MHz / 940 mV, values from shufps' firmware. The optional W5500 Ethernet interposer isn't supported. Not tested on hardware yet.
-- The README marks every board the community has run as tested. The HX-6 has no built board yet.
 - BitForge Nano (WantClue / DTV Electronics): 2× BM1370 on a 12 V TPS546. Each chip has its own EMC2101 and fan behind a PCA9544 I2C switch, so both chip temperatures and both fans show, and the input power comes from its INA260. Values from ForgeOS. No display; the accessory port stays off. Not tested on hardware yet.
 
 ### Themes
@@ -15,14 +16,23 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ### Web UI
 - **Updates from GitHub, one click or none.** The miner checks GitHub for the latest AxeForge release every 6 hours. When there's a newer one, a banner under the header says so, with the release notes and an *Update now* button: the miner downloads its own board's file from the release, checks it the same way as an upload (right board, valid image), installs it and restarts, with the banner showing progress. *System → Firmware update → Install updates automatically* does all of that without a click. It waits while the last update is still on probation or the miner is in a fault, and the rollback guard still covers a bad release. *Check for updates* asks GitHub right away. The × hides the banner until the next release. `POST /api/update` installs (or checks, with the body `check`), `/api/status` gains `update` and the settings `autoupdate`.
+
+### Fixes
+- Stratum V2 follows three rules from the recent spec revision. An extranonce prefix the pool addresses to a group channel is ignored rather than applied (spec 5.3.10). A pool that refuses the connection now has its error code shown on the Pools card instead of a bare "SV2 setup refused". The miner disconnects from a pool that picks a protocol version other than 2, or that forbids version rolling at setup, rather than mining shares the pool would reject.
+
+## AxeForge v1.4.8
+
+### Boards
+- Bitfortun BS-1: 4× BM1373 on the NerdQaxe layout, a 4-phase TPS53647 on 12 V. Pins, regulator limits and the stock point (425 MHz / 1010 mV) come from Bitfortun's published source. Their screen adds a fixed 400 GH/s to the hashrate it shows; AxeForge shows what the chips report. Not tested on hardware yet.
+- NerdAxe Gaia: one BM1373 on a 12 V TPS546D24A, with the NerdAxe's T-Display-S3. The regulator's logic is powered from the LDO on GPIO12, so AxeForge switches that on before it looks for the regulator. Stock point 350 MHz / 940 mV, values from shufps' firmware. The optional W5500 Ethernet interposer isn't supported. Not tested on hardware yet.
+- The README marks every board the community has run as tested. The HX-6 has no built board yet.
+
+### Web UI
 - **Find this miner.** A *Find* button in the header blinks the miner's screen for 30 seconds (the LCD backlight, the OLED inverting, the Bitair's front LED), so you can tell which box on the shelf is the one open in the browser. Click again to stop. `POST /api/identify` does the same (empty body for 30 s, a number for that many seconds up to 300, `0` to stop), and `/api/status` gains `identify`, the seconds left.
 - Network shows whether the Wi-Fi link uses protected management frames (802.11w), and the log says so at each connect. The miner has always used them when the router offers them; this tells you whether yours does. With them, nobody in radio range can knock the miner off Wi-Fi with forged disconnect frames. Turn it on in the router (PMF, MFP or 802.11w, set to capable or optional, not required, which shuts out older devices that can't do it).
 - The dashboard's live hash card shows the block height, the network difficulty and the coinbase ScriptSig, as text with dots for unprintable bytes (hover for the hex). The ScriptSig carries the pool's tag, so the separate tag line under Now mining is gone. `/api/status` adds `template.scriptSig`.
 - **Overclock shows as a pill, not a banner.** The orange bar across the top of every page is now an orange *Overclocked* pill beside the mining state in the header; hover for what it means, click to open Tuning → Overclock.
 - **The menu collapses to icons.** A menu button at the top of the left menu folds it to an icon rail, hover names the page, and the choice is remembered. The AxeForge logo moves into the page header, so phones, where the menu is a bar along the bottom, see it too.
-
-### Fixes
-- Stratum V2 follows three rules from the recent spec revision. An extranonce prefix the pool addresses to a group channel is ignored rather than applied (spec 5.3.10). A pool that refuses the connection now has its error code shown on the Pools card instead of a bare "SV2 setup refused". The miner disconnects from a pool that picks a protocol version other than 2, or that forbids version rolling at setup, rather than mining shares the pool would reject.
 
 ### Dashboard
 - **AxeMobile in the corner.** A card in the lower right of the dashboard points to [AxeMobile](https://github.com/IsSasoriDev/AxeMobile), the companion app for managing all your miners in one place. The × hides it for that browser.

@@ -13,6 +13,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - The dashboard's live hash card shows the block height, the network difficulty and the coinbase ScriptSig, as text with dots for unprintable bytes (hover for the hex). The ScriptSig carries the pool's tag, so the separate tag line under Now mining is gone. `/api/status` adds `template.scriptSig`.
 - **Overclock shows as a pill, not a banner.** The orange bar across the top of every page is now an orange *Overclocked* pill beside the mining state in the header; hover for what it means, click to open Tuning → Overclock.
 - **The menu collapses to icons.** A menu button at the top of the left menu folds it to an icon rail, hover names the page, and the choice is remembered. The AxeForge logo moves into the page header, so phones, where the menu is a bar along the bottom, see it too.
+### Dashboard
+- **Gauges for the four telemetry cards, opt-in.** *Display → Dashboard tiles → Gauges*: ASIC temperature, VR temperature, power and fan each show a half-arc with tick marks at the lines the firmware acts on: the tuner ceiling and the shutdown temperature, the power ceiling, the 95 % line where the tuner stops climbing and the emergency cut-off. The arc and a word under the number say which zone the value is in; a stopped fan turns the fan gauge red. The ticks move when Overclock is turned on or off. The compact bars stay the default.
 
 ## AxeForge v1.4.7
 

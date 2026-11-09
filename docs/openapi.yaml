@@ -224,7 +224,7 @@ paths:
       summary: Change any subset of settings
       description: |
         Send only the keys to change. Keys: `ssid`, `wpass`, `hostname`, `atune`, `freq`, `mv`,
-        `fantgt`, `fanmin`, `fmode0`, `fmode1`, `fman0`, `fman1`, `theme`, `bright`, `scroff`,
+        `fantgt`, `fanmin`, `fmode0`, `fmode1`, `fman0`, `fman1`, `theme`, `tiles` (dashboard cards: 0 bars, 1 gauges), `bright`, `scroff`,
         `defpage`, `rotate`, `rot180`, `city`, `fahr`, `h24`, `pages`, `disptype`, `mempool`,
         `mpurl`, `paymode` (0 warn, 1 hold back work), `payfee` (0-100), `jobms` (0 = default),
         `vrhz` (0 = default, BM1370 only), `discord`, `tgtoken`, `tgchat`, `notify` (bits: 1 block,

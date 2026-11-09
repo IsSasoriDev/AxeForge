@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#070a10">
 <title>AxeForge</title>
-<script>try{const t=localStorage.getItem("af-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{const t=localStorage.getItem("af-theme");if(t)document.documentElement.dataset.theme=t;const n=localStorage.getItem("af-nav");if(n)document.documentElement.dataset.nav=n}catch(e){}</script>
 <link rel="icon" href="/favicon.ico" type="image/svg+xml">
 <style>
 :root{--bg:#070a10;--bg2:#0b1220;--panel:#0f1520;--panel2:#141c2a;--line:#1c2635;--text:#e6edf6;--dim:#9aa8bd;
@@ -19,7 +19,9 @@ nav button{all:unset;display:flex;align-items:center;gap:10px;width:100%;box-siz
 nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 nav button:hover{background:var(--panel);color:var(--text)}
 nav button.on{background:linear-gradient(90deg,rgba(0,229,255,.16),transparent);color:var(--cyan);box-shadow:inset 3px 0 var(--cyan)}
-nav .foot{margin-top:auto;padding:16px 10px 0;color:var(--dim);font-size:12px}
+nav .tog{width:auto;margin:0 0 12px;color:var(--dim)}nav .foot{margin-top:auto;padding:16px 10px 0;color:var(--dim);font-size:12px}
+header .logo{font-size:20px;padding:0 14px 0 0;border-right:1px solid var(--line);line-height:1}
+@media(min-width:721px){html[data-nav=rail] .app{grid-template-columns:64px minmax(0,1fr)}html[data-nav=rail] nav{padding:18px 8px}html[data-nav=rail] nav button{justify-content:center;padding:10px}html[data-nav=rail] nav button>span,html[data-nav=rail] nav .foot{display:none}}
 nav .foot a{color:inherit;text-decoration:underline dotted}nav .foot a:hover{color:var(--text)}
 main{padding:22px clamp(14px,3vw,34px) 90px;max-width:1280px;width:100%;min-width:0}
 header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
@@ -35,6 +37,12 @@ header h1{font-size:20px;margin:0;flex:1}
 .big{font-size:30px;font-weight:750;letter-spacing:-.5px}.big small{font-size:14px;color:var(--dim);font-weight:600;margin-left:3px}
 .sub{color:var(--dim);font-size:12px;margin-top:2px}
 .bar{height:5px;background:var(--line);border-radius:3px;margin-top:12px;overflow:hidden}.bar i{display:block;height:100%;border-radius:3px;transition:width .6s}
+.meter{display:grid;justify-items:center}.meter svg{width:100%;max-width:190px;height:auto;display:block;overflow:visible}
+.meter .track{fill:none;stroke:var(--track);stroke-width:10;stroke-linecap:round}.meter .fill{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset .6s,stroke .6s}
+.meter .tick{stroke:var(--text);stroke-width:1.5;opacity:.55}.meter .tick.soft{stroke-dasharray:2 2;opacity:.4}.meter .tl{font-size:9px;fill:var(--dim);font-weight:700}
+.meter .v{font-size:30px;font-weight:750;letter-spacing:-.5px;fill:var(--text)}.meter .u{font-size:12px;fill:var(--dim);font-weight:600}
+#tele:not(.bars) .tb{display:none}#tele:not(.bars) .sub{text-align:center}#tele.bars .meter{display:none}
+.zone{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-top:-2px}.zone i{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
 .hero{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-bottom:14px}
 .gauge{display:grid;place-items:center;padding:10px}
 .gauge svg{width:210px;height:210px}.gauge .v{font-size:40px;font-weight:800;fill:var(--text)}.gauge .u{font-size:15px;fill:var(--cyan);font-weight:700}.gauge .s{font-size:11px;fill:var(--dim)}
@@ -75,6 +83,19 @@ pre.toml{background:var(--panel2);border-radius:10px;padding:10px 12px;margin:0 
 .drop{border:2px dashed var(--line);border-radius:var(--r);padding:28px;text-align:center;color:var(--dim);cursor:pointer;transition:.2s}
 .drop:hover,.drop.over{border-color:var(--cyan);color:var(--text)}
 .prog{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:12px;display:none}.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--mag))}
+#axm{position:fixed;right:20px;bottom:20px;z-index:6;display:flex;align-items:center;gap:12px;max-width:300px;padding:12px 38px 12px 12px;border-radius:16px;
+ background:linear-gradient(var(--panel2),var(--panel2)) padding-box,linear-gradient(135deg,var(--g1),var(--g2)) border-box;border:1px solid transparent;
+ color:var(--text);text-decoration:none;box-shadow:0 12px 32px #0007;animation:axmin .5s ease-out .8s both;transition:transform .2s,box-shadow .2s}
+#axm:hover{transform:translateY(-3px);box-shadow:0 16px 40px #000a,0 0 24px color-mix(in srgb,var(--g1) 30%,transparent)}
+#axm .ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff}
+#axm b{display:block;font-size:14px}#axm span{display:block;font-size:12px;color:var(--dim);line-height:1.35}
+#axm .x{position:absolute;top:6px;right:6px;width:24px;height:24px;border:0;border-radius:8px;background:transparent;color:var(--dim);cursor:pointer;font-size:16px;line-height:1}
+#axm .x:hover{background:var(--line);color:var(--text)}#axm.off{display:none}
+@keyframes axmin{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media(max-width:720px){#axm{right:12px;bottom:84px;max-width:240px;padding:10px 34px 10px 10px}#axm .ic{width:34px;height:34px}}
+@media(prefers-reduced-motion:reduce){#axm{animation:none;transition:none}}
+#findbtn{color:var(--dim);cursor:pointer;font-family:inherit}#findbtn:hover,#findbtn.on{color:var(--g1)}#findbtn.on{animation:findpulse .8s steps(2) infinite}
+@keyframes findpulse{50%{opacity:.45}}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;transition:.3s;z-index:20;box-shadow:0 10px 30px #0008}
 #toast.show{transform:translateX(-50%) translateY(0)}
 .banner{display:none;background:rgba(255,59,92,.14);border:1px solid var(--red);color:#ffd5dc;padding:10px 14px;border-radius:12px;margin-bottom:14px}
@@ -115,7 +136,7 @@ background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),line
 @media(max-width:1000px){.g4{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}.g3{grid-template-columns:1fr 1fr}.ed-wrap{grid-template-columns:1fr}}
 @media(max-width:720px){.app{grid-template-columns:1fr}
 nav{position:fixed;bottom:0;top:auto;height:auto;width:100%;display:flex;flex-direction:row;overflow-x:auto;padding:6px;border-right:0;border-top:1px solid var(--line);z-index:5}
-nav .logo,nav .foot{display:none}nav button{flex-direction:column;gap:3px;font-size:10px;padding:8px 10px;width:auto;flex:1;min-width:62px;justify-content:center}
+nav .foot,nav .tog{display:none}nav button{flex-direction:column;gap:3px;font-size:10px;padding:8px 10px;width:auto;flex:1;min-width:62px;justify-content:center}
 nav button.on{box-shadow:inset 0 -2px var(--cyan)}.g3,.g2{grid-template-columns:1fr}main{padding-bottom:100px}}
 /* phones: all eight tabs fit across the bottom bar, and the Swarm table keeps to the
    columns that matter so nothing important sits off-screen */
@@ -175,7 +196,7 @@ html[data-theme=paper]{color-scheme:light;--bg:#f3f1ea;--bg2:#f3f1ea;--panel:#fb
 html[data-theme=paper] *{box-shadow:none!important;text-shadow:none!important;animation:none!important}
 html[data-theme=paper] [filter]{filter:none}
 html[data-theme=paper] body{background:var(--bg)}
-html[data-theme=paper] .big,html[data-theme=paper] .gauge .v,html[data-theme=paper] .logo{font-family:Georgia,"Iowan Old Style",serif;font-weight:700;letter-spacing:0}
+html[data-theme=paper] .big,html[data-theme=paper] .gauge .v,html[data-theme=paper] .meter .v,html[data-theme=paper] .logo{font-family:Georgia,"Iowan Old Style",serif;font-weight:700;letter-spacing:0}
 html[data-theme=paper] .card,html[data-theme=paper] .pool{border-width:1.5px}
 html[data-theme=paper] .card h3{color:var(--text);border-bottom:1px solid var(--line);padding-bottom:6px}
 html[data-theme=paper] .accent{display:none}
@@ -224,21 +245,20 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
 </style></head>
 <body><div class="app">
 <nav id="nav">
-<div class="logo"><b>AXE</b><i>FORGE</i></div>
-<button data-t="dash" class="on"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg>Dashboard</button>
-<button data-t="pools"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>Pools</button>
-<button data-t="tuning"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Tuning</button>
-<button data-t="swarm"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.8 7.2 6.3 15.8M13.2 7.2l4.5 8.6M7.5 18h9"/></svg>Swarm</button>
-<button data-t="display"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Display</button>
+<button type="button" class="tog" id="navtog" onclick="navRail()" title="Collapse menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+<button data-t="dash" class="on"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg><span>Dashboard</span></button>
+<button data-t="pools"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg><span>Pools</span></button>
+<button data-t="tuning"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Tuning</span></button>
+<button data-t="swarm"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.8 7.2 6.3 15.8M13.2 7.2l4.5 8.6M7.5 18h9"/></svg><span>Swarm</span></button>
+<button data-t="display"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Display</span></button>
 <button data-t="clock"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Clock<span class="long"> &amp; data</span></span></button>
-<button data-t="network"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M2 9a15 15 0 0120 0"/><circle cx="12" cy="19.5" r=".8"/></svg>Network</button>
-<button data-t="system"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>System</button>
+<button data-t="network"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M2 9a15 15 0 0120 0"/><circle cx="12" cy="19.5" r=".8"/></svg><span>Network</span></button>
+<button data-t="system"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg><span>System</span></button>
 <div class="foot" id="navfoot"></div>
 </nav>
 <main>
-<header><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="meta" id="up"></span></header>
+<header><div class="logo"><b>AXE</b><i>FORGE</i></div><h1 id="title">Dashboard</h1><span class="pill" id="st" style="color:var(--dim)">…</span><span class="pill" id="ocpill" style="display:none;color:var(--orange);cursor:pointer" title="Overclocked: the tuner and manual settings may go past this board&#x27;s stock limits. Click for Tuning → Overclock." onclick="tab('tuning')">Overclocked</span><button class="pill" id="findbtn" type="button" title="Blink this miner's screen (or LED) for 30 s, to tell which box on the shelf it is" onclick="findMe()">Find</button><span class="meta" id="up"></span></header>
 <div class="banner" id="fault"></div>
-<div class="banner" id="ocban" style="display:none;background:var(--orange);color:#000">Overclocked: the tuner and manual settings may go past this board's stock limits. Tuning → Overclock to go back.</div>
 
 <!-- ============================== DASHBOARD -->
 <section id="dash" class="on">
@@ -256,22 +276,25 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
   <span class="seg xs" id="rangeseg"><button data-r="hour" class="on">1 h</button><button data-r="day">24 h</button></span></span></h3>
   <svg class="chart" id="chart" preserveAspectRatio="none"></svg><p class="note" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span id="cnote"></span><span class="tag" id="eff">--</span></p></div>
 </div>
-<div class="grid g4 mb">
- <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="big" id="ct">--</div><div class="sub" id="cts"></div><div class="bar"><i id="ctb" style="background:var(--orange)"></i></div></div>
- <div class="card"><i class="accent" style="background:var(--violet)"></i><h3>VR temp</h3><div class="big" id="vt">--</div><div class="sub" id="vts"></div><div class="bar"><i id="vtb" style="background:var(--violet)"></i></div></div>
- <div class="card"><i class="accent" style="background:var(--mag)"></i><h3>Power</h3><div class="big" id="pw">--</div><div class="sub" id="pws"></div><div class="bar"><i id="pwb" style="background:var(--mag)"></i></div></div>
- <div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>Fan</h3><div class="big" id="fn">--</div><div class="sub" id="fns"></div><div class="bar"><i id="fnb" style="background:var(--cyan)"></i></div></div>
+<div class="grid g4 mb" id="tele">
+ <div class="card"><i class="accent" style="background:var(--orange)"></i><h3>ASIC temp</h3><div class="meter" id="m-ct"></div><div class="big tb" id="ct">--</div><div class="sub" id="cts"></div><div class="bar tb"><i id="ctb" style="background:var(--orange)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--violet)"></i><h3>VR temp</h3><div class="meter" id="m-vt"></div><div class="big tb" id="vt">--</div><div class="sub" id="vts"></div><div class="bar tb"><i id="vtb" style="background:var(--violet)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--mag)"></i><h3>Power</h3><div class="meter" id="m-pw"></div><div class="big tb" id="pw">--</div><div class="sub" id="pws"></div><div class="bar tb"><i id="pwb" style="background:var(--mag)"></i></div></div>
+ <div class="card"><i class="accent" style="background:var(--cyan)"></i><h3>Fan</h3><div class="meter" id="m-fn"></div><div class="big tb" id="fn">--</div><div class="sub" id="fns"></div><div class="bar tb"><i id="fnb" style="background:var(--cyan)"></i></div></div>
 </div>
 <div class="grid g4 chips mb" id="chips"></div>
 <div class="card mb"><h3>Blocks <span class="tag" id="fees">--</span></h3><div class="cubes" id="cubes"></div></div>
 <div class="grid g2 mb">
  <div class="card"><h3>Now mining <span class="tag" id="nmpool">--</span></h3>
-  <div class="big" id="nmh">--</div><div class="sub" id="nmtag"></div>
+  <div class="big" id="nmh">--</div>
   <div class="kv" style="margin-top:12px"><div>Block reward</div><div id="nmrew">--</div><div>Transactions</div><div id="nmtx">--</div><div>Previous block</div><div id="nmprev" class="hash" style="font-size:11px">--</div>
   <div>Payout</div><div id="nmpay" title="Who a block found on this template would pay. Solo pools pay the address in your username.">--</div></div>
   <div class="outs" id="nmouts"></div></div>
  <div class="card"><h3>Live share hash <span class="tag" id="lhd">--</span></h3><div class="hash" id="lh">waiting for the first share…</div>
-  <div class="sub" style="margin-top:8px" id="lhn"></div></div>
+  <div class="sub" style="margin-top:8px" id="lhn"></div>
+  <div class="kv" style="margin-top:12px"><div>Block height</div><div id="lhht">--</div><div>Network difficulty</div><div id="lhnd">--</div></div>
+  <div class="sub" style="margin-top:10px" title="The coinbase input script as text, dots for bytes that are not printable: BIP34 height, the pool's tag, then the extranonce (extranonce2 as zeros, it changes with every job). Hover the line for the hex.">ScriptSig</div>
+  <div class="hash" style="font-size:11px" id="lhsig">--</div></div>
 </div>
 <div class="grid g2 mb">
  <div class="card"><h3>Power bill &amp; odds <span class="tag" id="enfrom">--</span></h3>
@@ -296,6 +319,11 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
  <div class="card"><h3>Weather</h3><div class="wx"><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div>
   <div class="kv" style="margin-top:14px"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Firmware</div><div id="kver">--</div></div></div>
 </div>
+<a id="axm" href="https://github.com/IsSasoriDev/AxeMobile" target="_blank" rel="noopener" title="AxeMobile on GitHub">
+ <i class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></i>
+ <div><b>AxeMobile</b><span>Watch and manage all your miners from one app. Open source.</span></div>
+ <button class="x" type="button" aria-label="Hide" title="Hide">&times;</button>
+</a>
 </section>
 
 <!-- ============================== SWARM -->
@@ -400,6 +428,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <form data-f><div class="card"><h3>Screen settings</h3>
 <div class="lcd"><label style="margin-top:0" title="Which panel the miner has. The miner reboots to switch. If the screen goes blank afterwards, hold the bottom button at power-on to flip back.">Screen fitted</label><select name="disptype"><option value="0">3.5" 480 × 320 (ST7796 / ILI9488)</option><option value="1">LilyGo T-Display-S3 1.9" 320 × 170 (stock NerdQaxe++ screen)</option></select>
 <p class="note">Changing the screen reboots the miner. If the screen stays blank after switching, hold the bottom button while powering on to flip back.</p></div>
+<label title="Gauges draw each value on a half arc with the firmware's limits as tick marks. Bars is the compact row with a thin bar under the number.">Dashboard tiles</label><select name="tiles"><option value="0">Bars, compact</option><option value="1">Gauges, with the limits as ticks</option></select>
 <label title="Forge is dark, Paper is for daylight and e-ink-like screens, Ember is dark with Bitcoin orange, Spatial is deep space. Applies to the miner&#x27;s screen and this page.">Theme (screen and web)</label><select name="theme"><option value="0">Forge: dark neon</option><option value="1">Paper: minimal, e-ink style</option><option value="2">Ember: dark, Bitcoin orange</option><option value="3">Spatial: deep space, stars and planets</option></select>
 <label title="Backlight level. Applies at once.">Brightness <span class="rv" id="bv"></span></label><input type="range" name="bright" min="5" max="100" oninput="bv.textContent=this.value+'%'">
 <div class="lcd"><label title="Backlight off after this many idle minutes. A button wakes it; faults, overheating and a found block wake it too.">Screen off after</label><select name="scroff"><option value="0">Never</option><option value="1">1 minute idle</option><option value="5">5 minutes idle</option><option value="15">15 minutes idle</option><option value="30">30 minutes idle</option><option value="60">1 hour idle</option></select></div>
@@ -430,7 +459,7 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div class="wl" id="wlist"></div>
 <label title="Left empty, the saved password is kept.">Password</label><input name="wpass" type="password" placeholder="leave empty to keep current">
 <label title="The name this miner gives your router and shows on other miners&#x27; Swarm pages. Letters, digits and hyphens.">Hostname</label><input name="hostname" id="hostin" maxlength="32" pattern="[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?" placeholder="automatic">
-<div class="kv" style="margin-top:16px"><div>IP address</div><div id="nip">--</div><div>Signal</div><div id="nrssi">--</div></div>
+<div class="kv" style="margin-top:16px"><div>IP address</div><div id="nip">--</div><div>Signal</div><div id="nrssi">--</div><div title="802.11w: the router and the miner protect their disconnect frames with the Wi-Fi key, so nobody in radio range can knock the miner off Wi-Fi with forged ones. The miner always uses it when the router offers it; turn it on in the router as PMF, MFP or 802.11w, set to capable or optional. Not required: that shuts out older devices that can&#x27;t do it.">Protected frames</div><div id="npmf">--</div></div>
 <p class="note">The name this miner gives your router, and the one other miners' Swarm pages show. Leave it empty to keep the name the stock firmware used, or axeforge-XXXX.</p>
 <p class="note">Changing Wi-Fi or the hostname reboots the miner. If it can't connect for 5 minutes, it opens the AxeForge-XXXX setup network, with the password shown on the miner's screen.</p></div>
 <div class="card"><h3>Other connections</h3>
@@ -500,11 +529,22 @@ function askLogin(){if(loginWait)return loginWait;const m=$('login'),c=$('loginc
 const $=id=>document.getElementById(id);
 const titles={dash:'Dashboard',swarm:'Swarm',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
 let S={},cfg={},cur='dash',navv;
+// Find this miner: the screen (or the Bitair's LED) blinks for 30 s; a second click stops it
+let findLeft=0,findTimer=0;
+function findShow(n){findLeft=n;const b=$('findbtn');if(!b)return;b.textContent=n>0?'Blinking · '+n+' s':'Find';b.classList.toggle('on',n>0);
+ clearInterval(findTimer);if(n>0)findTimer=setInterval(()=>{if(--findLeft<=0){clearInterval(findTimer);findLeft=0}b.textContent=findLeft>0?'Blinking · '+findLeft+' s':'Find';b.classList.toggle('on',findLeft>0)},1000)}
+async function findMe(){const stop=findLeft>0;try{const r=await fetch('/api/identify',{method:'POST',body:stop?'0':''});if(!r.ok)throw 0;
+ findShow(stop?0:30);toast(stop?'Stopped blinking':'The screen is blinking for 30 s')}catch(e){toast('Could not reach the miner')}}
+// AxeMobile corner card on the dashboard; the x hides it for this browser
+(()=>{const a=document.getElementById('axm');if(!a)return;try{if(localStorage.getItem('af-axm')==='0')a.classList.add('off')}catch(e){}
+a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();a.classList.add('off');try{localStorage.setItem('af-axm','0')}catch(e){}})})();
 const SRC='https://github.com/IsSasoriDev/AxeForge';
-function tab(t){cur=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
+function tab(t){cur=t;document.querySelectorAll('nav button[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);
  if(t=='display'){shot();drawCanvas()}if(t=='system'){pollLogs();pollSelftest();loadOtp()}if(t=='swarm')loadSwarm()}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
+document.querySelectorAll('nav button[data-t]').forEach(b=>{b.onclick=()=>tab(b.dataset.t);b.title=titles[b.dataset.t]});
+function navRail(){const r=document.documentElement.dataset.nav!='rail';document.documentElement.dataset.nav=r?'rail':'';try{localStorage.setItem('af-nav',r?'rail':'')}catch(e){}$('navtog').title=r?'Expand menu':'Collapse menu'}
+if(document.documentElement.dataset.nav=='rail')$('navtog').title='Expand menu';
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500)}
 async function act(u,body){try{const r=await fetch(u,{method:'POST',body:body||''});const x=await r.text();toast(x);return x}catch(e){toast('Request failed')}}
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -522,11 +562,33 @@ const ember=()=>document.documentElement.dataset.theme=='ember';
 // One temperature rule: amber where the fans are forced to 100% and the tuner stops
 // climbing (3 C under its ceiling), red at the ceiling, where a tuning step fails.
 const tempCol=(t,ceil)=>t>=ceil?'var(--red)':t>=ceil-3?'var(--orange)':'var(--green)';
-function emberBars(S,L){const st=(v,warn,bad)=>v>=bad?'var(--red)':v>=warn?'var(--orange)':'var(--green)';
- $('ctb').style.background=tempCol(S.chipTemp,L.chipCeil||68);
- $('vtb').style.background=tempCol(S.vrTemp,L.vrCeil||85);
- $('pwb').style.background=st(S.power,(L.maxPower||100)*.95,(L.maxPower||100)*1.05);
- $('fnb').style.background='var(--cyan)'}
+/* telemetry meters: a half arc with ticks at the lines the firmware acts on */
+const MR=70,MCX=90,MCY=86,MLEN=Math.PI*MR,mpt=(f,r=MR)=>{const a=Math.PI*(1-f);return [MCX+r*Math.cos(a),MCY-r*Math.sin(a)]};
+const ZC={ok:'var(--green)',warn:'var(--orange)',crit:'var(--red)',none:'var(--dim)'},ZW={ok:'ok',warn:'near ceiling',crit:'over',none:'no sensor'};
+function meterHtml(id,o){const ticks=o.ticks.map(t=>{const f=(t.v-o.min)/(o.max-o.min),[x1,y1]=mpt(f,MR-9),[x2,y2]=mpt(f,MR+9),[lx,ly]=mpt(f,MR+18);
+ return `<line class="tick${t.soft?' soft':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"><title>${t.label}: ${t.v}${o.unit}</title></line>${t.short===''?'':`<text class="tl" x="${lx}" y="${ly+3}" text-anchor="middle">${t.short}</text>`}`}).join('');
+ return `<svg viewBox="0 -4 180 100" role="img"><title>${o.title}</title><path class="track" d="M ${MCX-MR} ${MCY} A ${MR} ${MR} 0 0 1 ${MCX+MR} ${MCY}"/><path class="fill" id="${id}-f" d="M ${MCX-MR} ${MCY} A ${MR} ${MR} 0 0 1 ${MCX+MR} ${MCY}" stroke-dasharray="${MLEN}" stroke-dashoffset="${MLEN}"/>${ticks}<text class="v" x="${MCX}" y="${MCY-10}" text-anchor="middle" id="${id}-v">--</text><text class="u" x="${MCX}" y="${MCY+7}" text-anchor="middle">${o.unit}</text></svg><div class="zone" id="${id}-z"><i></i><span></span></div>`}
+let meterSig='',METERS={};
+function buildMeters(L){const fm=+cfg.fanmin||30,cut=cfg.overclock?.cutoffPower||(L.maxPower||100)*1.15,cc=L.chipCeil||68,ck=L.chipCrit||80,vc=L.vrCeil||85,vk=L.vrCrit||100,mp=L.maxPower||100;
+ METERS={ct:{title:'ASIC temperature',unit:'°C',min:30,max:Math.max(90,ck+10),ticks:[{v:cc,label:'tuner ceiling',short:cc},{v:ck,label:'shutdown',short:ck}]},
+  vt:{title:'Regulator temperature',unit:'°C',min:30,max:Math.max(110,vk+10),ticks:[{v:vc,label:'tuner ceiling',short:vc},{v:vk,label:'shutdown',short:vk}]},
+  pw:{title:'Input power',unit:'W',min:0,max:cut,ticks:[{v:Math.round(mp*.95*10)/10,label:'tuner stops climbing',short:'',soft:true},{v:mp,label:'ceiling',short:Math.round(mp)},{v:Math.round(cut*10)/10,label:'emergency cut-off',short:Math.round(cut)}]},
+  fn:{title:'Fan speed',unit:'%',min:0,max:100,ticks:[{v:fm,label:'minimum',short:String(fm)},{v:100,label:'full',short:'100'}]}};
+ for(const k in METERS)$('m-'+k).innerHTML=meterHtml(k,METERS[k])}
+function setMeter(id,v,zone,txt){const o=METERS[id],f=v==null?0:Math.max(0,Math.min(1,(v-o.min)/(o.max-o.min))),e=$(id+'-f');e.style.strokeDashoffset=MLEN*(1-f);e.style.stroke=ZC[zone];
+ $(id+'-v').textContent=txt;const z=$(id+'-z');z.style.color=ZC[zone];z.querySelector('span').textContent=ZW[zone]}
+const zoneOf=(v,ceil,crit)=>v>=crit?'crit':v>=ceil?'warn':'ok';
+function barTiles(S,L){const st=(v,warn,bad)=>v>=bad?'var(--red)':v>=warn?'var(--orange)':'var(--green)';
+ $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('ctb').style.width=pct(S.chipTemp,L.chipCrit||80);
+ $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vtb').style.width=pct(S.vrTemp,L.vrCrit||100);
+ $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pwb').style.width=pct(S.power,L.maxPower||100);
+ $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fnb').style.width=S.fanPct+'%';
+ if(ember()){$('ctb').style.background=tempCol(S.chipTemp,L.chipCeil||68);$('vtb').style.background=tempCol(S.vrTemp,L.vrCeil||85);$('pwb').style.background=st(S.power,(L.maxPower||100)*.95,(L.maxPower||100)*1.05)}}
+function meters(S,L){const sig=JSON.stringify([L,cfg.overclock?.cutoffPower,cfg.fanmin]);if(sig!=meterSig){buildMeters(L);meterSig=sig}
+ setMeter('ct',S.chipTemp,zoneOf(S.chipTemp,L.chipCeil||68,L.chipCrit||80),S.chipTemp.toFixed(1));
+ if(S.vrSensor===false)setMeter('vt',null,'none','--');else setMeter('vt',S.vrTemp,zoneOf(S.vrTemp,L.vrCeil||85,L.vrCrit||100),S.vrTemp.toFixed(1));
+ const cut=cfg.overclock?.cutoffPower||(L.maxPower||100)*1.15;setMeter('pw',S.power,zoneOf(S.power,L.maxPower||100,cut),S.power.toFixed(1));
+ const dead=(S.fans||[]).some(f=>f.connected&&!f.rpm);setMeter('fn',S.fanPct,dead?'crit':S.fanPct>=95?'warn':'ok',String(S.fanPct))}
 const feeCol=f=>ember()?mpCol(f):f<2?'#5b3fd9':f<5?'#3d7bff':f<10?'#1fbfa0':f<20?'#8fd12b':f<50?'#ffb21c':'#ff3b5c';
 const PROTO=['Stratum V1','V1 + TLS','Stratum V2'],PSHORT=['V1','TLS','SV2'];
 function arc(f){const r=88,cx=110,cy=110,a0=135*Math.PI/180,sw=270*Math.PI/180,p=t=>[cx+r*Math.cos(a0+sw*t),cy+r*Math.sin(a0+sw*t)];
@@ -565,22 +627,23 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  const eff=S.expected?100*S.hashrate/S.expected:0;arc(S.hashrate/(L.maxFreq*(S.smallCores||2040)*(S.asicCount||4)/1000));
  $('hrs').textContent=`err ${S.errorPct.toFixed(2)}%`;$('eff').textContent=eff.toFixed(0)+'% of theoretical';
  const st=$('st');st.textContent=S.status+(S.purifier?' · purifier '+S.purifier:'');st.style.color=statusCol[S.status]||'var(--dim)';$('up').textContent='up '+dur(S.uptime);
- $('fault').style.display=S.fault?'block':'none';$('ocban').style.display=S.overclocked?'block':'none';$('fault').textContent='⚠ '+S.fault;
- $('ct').innerHTML=S.chipTemp.toFixed(0)+'<small>°C</small>';$('cts').textContent='ceiling '+(L.chipCeil||68)+'°C';$('ctb').style.width=pct(S.chipTemp,L.chipCrit);
- $('vt').innerHTML=S.vrSensor===false?'--':S.vrTemp.toFixed(0)+'<small>°C</small>';$('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';$('vtb').style.width=pct(S.vrTemp,L.vrCrit);
- $('pw').innerHTML=S.power.toFixed(2)+'<small>W</small>';$('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';$('pwb').style.width=pct(S.power,L.maxPower);
- $('fn').innerHTML=S.fanPct+'<small>%</small>';$('fns').textContent=fanText(S);$('fnb').style.width=S.fanPct+'%';
- if(ember())emberBars(S,L);
+ $('fault').style.display=S.fault?'block':'none';$('ocpill').style.display=S.overclocked?'inline-flex':'none';findShow(S.identify||0);$('fault').textContent='⚠ '+S.fault;
+ const bars=cfg.tiles!=1;$('tele').classList.toggle('bars',bars);if(bars)barTiles(S,L);else meters(S,L);$('cts').textContent='hottest of '+(S.chipsDetected||S.asicCount||4)+' chips';
+ $('vts').textContent=S.vout.toFixed(3)+' V · '+S.iout.toFixed(1)+' A';
+ $('pws').textContent=(S.hashrate>1?S.power/(S.hashrate/1000):0).toFixed(1)+' J/TH · '+S.vin.toFixed(2)+' V in';
+ $('fns').textContent=fanText(S);
  chips(S.chips);blocks(S.mempool);fanStatus();
  const t=S.tuner,tp=$('tph');tp.textContent=t.phase;const pc=phaseCol[t.phase]||(ember()?'var(--cyan)':'var(--violet)');tp.style.color=pc;if(ember())$('tbar').style.background=pc;
  $('tpt').textContent=S.freq+' MHz · '+(S.coreMv/1000).toFixed(2)+' V';$('tnote').textContent=t.note;if(cur=='tuning')headroom(S);
  $('tbar').style.width=(t.phase=='locked'||t.phase=='manual'?100:t.progress)+'%';
  $('tbest').textContent=t.bestFreq?`${t.bestFreq} MHz @ ${t.bestMv} mV (${hr(t.bestGhs).join(' ')})`:'searching…';$('tsteps').textContent=t.steps;
  // template + hash
- const tm=S.template;if(tm.valid){$('nmh').textContent=tm.height.toLocaleString();$('nmtag').textContent=tm.tag||'';
+ const tm=S.template;if(tm.valid){$('nmh').textContent=tm.height.toLocaleString();
   $('nmpool').textContent='pool '+(tm.pool+1)+' · '+(S.pools[tm.pool]?.host||'');$('nmrew').textContent=tm.reward.toFixed(8)+' BTC';
   $('nmtx').textContent='~'+(2**tm.branches).toLocaleString()+' (merkle depth '+tm.branches+')';$('nmprev').textContent=tm.prevHash;
   $('nmpay').innerHTML=payHtml(tm);
+  $('lhht').textContent=tm.height.toLocaleString();$('lhnd').textContent=sfx(S.pool.networkDiff);
+  const sig=tm.scriptSig||'';$('lhsig').textContent=sig.replace(/../g,b=>{const c=parseInt(b,16);return c>=32&&c<127?String.fromCharCode(c):'.'})||'--';$('lhsig').title=sig;
   $('nmouts').innerHTML=(tm.outputs||[]).map(o=>`<div><span title="${esc(o.addr)}">${o.yours?'<b>you</b> · ':''}${esc(shortAddr(o.addr)||'non-standard script')}</span><span>${(o.sats/1e8).toFixed(8)} BTC</span></div>`).join('')}
  if(S.lastHash){$('lh').innerHTML=hashHtml(S.lastHash);$('lhd').textContent='diff '+sfx(S.lastHashDiff);
   $('lhn').textContent=(S.lastHash.match(/^0*/)[0].length)+' leading zeros · '+S.hashesChecked.toLocaleString()+' shares verified on the ESP32'}
@@ -592,7 +655,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
  const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
  $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;
- $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';
+ $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';$('npmf').textContent=S.pmf===undefined?'--':S.pmf?'yes (802.11w)':'no, the router doesn\'t offer them';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
  $('otabox').style.display=S.otaPending?'':'none';$('cwrow').style.display=S.asicCount>1?'':'none';priceLive(S.price);energyLive(S.energy);dustLive(S.dust);

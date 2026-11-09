@@ -5,6 +5,8 @@
 //    enabled by GPIO10 low.
 //  - Gamma (1x BM1370) and Gamma Duo (2x BM1370 in parallel): TPS546 on 5 V.
 //  - GT (2x BM1370 in parallel): two stacked TPS546s on 12 V.
+//  - NerdAxe Gaia (1x BM1373): TPS546 on 12 V, its logic powered by the LDO on
+//    GPIO12, which is switched on at boot and left on.
 //  - Naja Duo (2x BM1373, 2 series domains) and Gamma Hex (6x BM1370, 2 series
 //    domains of 3): stacked TPS546s on 12 V, enabled by GPIO10 high.
 // The regulator is found at boot, so one image covers every revision of a board.
@@ -52,6 +54,8 @@ static const char *TAG = "board";
 #define TPS_PROFILE tps546::GAMMA_TURBO
 #elif CONFIG_AF_BOARD_GAMMA_HEX
 #define TPS_PROFILE tps546::GAMMA_HEX
+#elif CONFIG_AF_BOARD_GAIA
+#define TPS_PROFILE tps546::GAIA
 #else
 #define TPS_PROFILE tps546::BITAXE_SINGLE
 #endif
@@ -122,10 +126,18 @@ Error init_hardware()
     gpio_reset_pin(PIN_ASIC_RST);
     gpio_set_direction(PIN_ASIC_RST, GPIO_MODE_OUTPUT);
     gpio_set_level(PIN_ASIC_RST, 0);
+#ifdef AF_PIN_LDO_EN
+    // the regulator answers PMBus only once this rail is up (it would read a
+    // garbage device ID otherwise); the core stays off until tps546::init
+    gpio_reset_pin((gpio_num_t) AF_PIN_LDO_EN);
+    gpio_set_direction((gpio_num_t) AF_PIN_LDO_EN, GPIO_MODE_OUTPUT);
+    gpio_set_level((gpio_num_t) AF_PIN_LDO_EN, 1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+#endif
 
     if (i2c_bus::init() != ESP_OK) return Error::NoRegulator;
     s_tps = tps546::detect();
-#if !(CONFIG_AF_BOARD_NAJA || CONFIG_AF_BOARD_BITAXE_GT || CONFIG_AF_BOARD_GAMMA_HEX)
+#if !(CONFIG_AF_BOARD_NAJA || CONFIG_AF_BOARD_BITAXE_GT || CONFIG_AF_BOARD_GAMMA_HEX || CONFIG_AF_BOARD_GAIA)
     // A 5 V board's regulator refuses 12 V (its over-voltage limit is 6.5 V), and
     // some Gamma 601 boards (StarMiner) are fed 12 V: take the limits that fit.
     if (s_tps) {

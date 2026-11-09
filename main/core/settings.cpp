@@ -243,6 +243,7 @@ void load()
     get_u8(h, "fman0", s.fan_manual[0]);
     get_u8(h, "fman1", s.fan_manual[1]);
     get_u8(h, "theme", s.theme);
+    get_u8(h, "tiles", s.tiles);
     get_u8(h, "bright", s.brightness);
     get_u8(h, "scroff", s.screen_off_min);
     get_u8(h, "disptype", s.display_type);
@@ -312,6 +313,7 @@ void save()
     nvs_set_u8(h, "fman0", s.fan_manual[0]);
     nvs_set_u8(h, "fman1", s.fan_manual[1]);
     nvs_set_u8(h, "theme", s.theme);
+    nvs_set_u8(h, "tiles", s.tiles);
     nvs_set_u8(h, "bright", s.brightness);
     nvs_set_u8(h, "scroff", s.screen_off_min);
     nvs_set_u8(h, "disptype", s.display_type);

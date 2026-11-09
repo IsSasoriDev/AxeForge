@@ -10,6 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "core/identify.h"
 #include "core/state.h"
 #include "net/wifi.h"
 
@@ -106,7 +107,7 @@ static purifier::Mode raw_mode(const Capture &c, int64_t now)
 
 static void led_task(void *)
 {
-    enum { DARK, BREATHE, FAULT, STEADY } last = DARK;
+    enum { DARK, BREATHE, FAULT, STEADY, FIND } last = DARK;
     int bright = 5, last_duty = -1;
     bool rising = true;
     int64_t since = 0;
@@ -116,7 +117,8 @@ static void led_task(void *)
         SysStatus st = g_state.status;
         purifier::Mode m = purifier::mode();
         int show, duty = 0;
-        if (st == SysStatus::Fault || st == SysStatus::Overheat) show = FAULT;
+        if (identify::active()) show = FIND;
+        else if (st == SysStatus::Fault || st == SysStatus::Overheat) show = FAULT;
         else if (!wifi::connected()) show = BREATHE;
         else if (st == SysStatus::Paused || purifier::want_off()) show = DARK;
         else show = STEADY;
@@ -136,6 +138,9 @@ static void led_task(void *)
             if (rising && (bright += 3) >= 100) bright = 100, rising = false;
             else if (!rising && (bright -= 3) < 6) bright = 5, rising = true;
             duty = bright * LED_MAX / 100;
+            break;
+        case FIND:  // Find this miner, from the web UI
+            duty = identify::lit() ? LED_MAX : 0;
             break;
         case STEADY:  // brightness is the purifier's mode, as stock
             duty = m == purifier::Mode::Turbo ? LED_MAX : m == purifier::Mode::Auto ? 0x2ff : 0x1ff;

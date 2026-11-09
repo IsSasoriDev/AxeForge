@@ -1,0 +1,39 @@
+# NerdAxe Gaia: a NerdAxe (ESP32-S3 on a T-Display-S3, I2C 44/43) with 1x BM1373 on a
+# TPS546D24A fed 12 V and an EMC2101 for the fan and the chip diode. The TPS546 takes
+# its logic supply from the LDO enabled by GPIO12, so that pin is driven high before
+# anything talks to the regulator and stays high. Values from shufps' firmware
+# (github.com/shufps/ESP-Miner-NerdQAxePlus, boards/nerdaxegaia.cpp). Its optional
+# W5500 interposer isn't supported.
+name = "NerdAxe Gaia"
+id = "gaia"
+kconfig = "AF_BOARD_GAIA"
+family = "bitaxe"
+
+[asic]
+chip = "bm1373"
+count = 1
+bm1373_shufps_init = true
+job_interval_ms = 1500
+min_freq_mhz = 300        # bottom of the stock frequency list
+diff_min = 512
+diff_max = 2048
+
+[pins]
+i2c_sda = 44              # the NerdAxe's T-Display-S3 layout
+i2c_scl = 43
+ldo_en = 12               # powers the TPS546 logic and the chip's LDO rail
+
+[display]
+lcd = true                # T-Display-S3 320x170, as on the NerdAxe
+color_board = true        # GPIO39/40 are LCD data lines: no accessory port
+
+[sensors]
+emc2101 = true
+emc_ideality = 0x24       # 1.0319, as stock
+emc_beta = 0x00
+
+[stock]
+freq_mhz = 350
+mv = 940
+display_type = 1
+rotate_180 = false        # mounted the other way round than on the NerdAxe

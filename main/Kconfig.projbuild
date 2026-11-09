@@ -44,6 +44,10 @@ menu "AxeForge"
             bool "Bitaxe Naja Duo 1201 (2x BM1373)"
         config AF_BOARD_NEXUS
             bool "Nexus S1 (4x BM1373)"
+        config AF_BOARD_BS1
+            bool "Bitfortun BS-1 (4x BM1373)"
+        config AF_BOARD_GAIA
+            bool "NerdAxe Gaia (1x BM1373, 12 V)"
     endchoice
 
 
@@ -168,6 +172,8 @@ menu "AxeForge"
             default 650 if AF_BOARD_BITAIR  # 25 W budget; 600 MHz drew ~19 W in skot's bring-up
             default 450 if AF_BOARD_NAJA
             default 500 if AF_BOARD_NEXUS  # stock v1.0.2 stops at 450; 475 MHz / 975 mV ran clean
+            default 550 if AF_BOARD_BS1  # top of the stock frequency list
+            default 440 if AF_BOARD_GAIA  # top of the stock list; ~31 A at 1 V there
             default 750
         config AF_MAX_CORE_MV
             int "Max core voltage (mV)"
@@ -176,11 +182,13 @@ menu "AxeForge"
             default 1350 if AF_BOARD_NERDQX
             default 1250 if AF_BOARD_NAJA
             default 1000 if AF_BOARD_NEXUS  # stock allows 1050, but that draws ~185 W, over the 170 W cap
+            default 1080 if AF_BOARD_BS1  # top of the stock voltage list
+            default 1040 if AF_BOARD_GAIA  # top of the stock voltage list
             default 1300
         config AF_MIN_CORE_MV
             int "Min core voltage (mV)"
             range 900 1200
-            default 900 if AF_BOARD_NEXUS
+            default 900 if AF_BOARD_NEXUS || AF_BOARD_BS1 || AF_BOARD_GAIA
             default 1000 if AF_BOARD_BITAXE_GAMMA || AF_BOARD_BITAIR || AF_BOARD_NAJA || AF_BOARD_GAMMA_DUO || AF_BOARD_BITAXE_GT || AF_BOARD_GAMMA_HEX
             default 1100
         config AF_MAX_CHIP_TEMP
@@ -213,6 +221,8 @@ menu "AxeForge"
             default 240 if AF_BOARD_NERDQX
             default 130 if AF_BOARD_HX6  # its README: about 100-110 W at stock
             default 170 if AF_BOARD_NEXUS  # stock draws ~148 W at 450 MHz; shufps' Q1373 allows 180
+            default 120 if AF_BOARD_BS1  # sold as 95 W at stock
+            default 35 if AF_BOARD_GAIA
             default 100
 
         comment "Rev7 boards (TPS546 regulator, detected at boot)"

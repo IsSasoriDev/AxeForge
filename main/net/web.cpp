@@ -17,6 +17,7 @@
 #include "sdkconfig.h"
 
 #include "asic/bm13xx.h"
+#include "core/identify.h"
 #include "core/board.h"
 #include "core/logbuf.h"
 #include "core/monitor.h"
@@ -175,6 +176,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON *r = cJSON_CreateObject();
     cJSON_AddStringToObject(r, "status", status_name(s.status));
     cJSON_AddStringToObject(r, "fault", s.fault);
+    cJSON_AddNumberToObject(r, "identify", identify::remaining_s());  // seconds Find has left
 #if CONFIG_AF_BOARD_BITAIR
     cJSON_AddStringToObject(r, "purifier", purifier::mode_name());  // the panel's fan mode
 #endif
@@ -233,6 +235,8 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddStringToObject(r, "screen", "oled");
 #endif
     cJSON_AddNumberToObject(r, "rssi", rssi);
+    int pmf = wifi::pmf();
+    if (pmf >= 0) cJSON_AddBoolToObject(r, "pmf", pmf);  // left out off Wi-Fi or when unknown
     cJSON_AddStringToObject(r, "ip", s.ip);
     cJSON_AddStringToObject(r, "ssid", s.ssid);
     cJSON_AddStringToObject(r, "hostname", s.hostname);
@@ -316,6 +320,7 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(tm, "reward", bt.reward_btc);
     cJSON_AddNumberToObject(tm, "branches", bt.branches);
     cJSON_AddStringToObject(tm, "tag", bt.tag);
+    cJSON_AddStringToObject(tm, "scriptSig", bt.script_sig);
     cJSON_AddNumberToObject(tm, "ntime", bt.ntime);
     // solo payout check: 0 unknown, 1 username isn't an address, 2 pays you, 3 doesn't
     cJSON_AddNumberToObject(tm, "payout", (int) bt.payout);
@@ -461,6 +466,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(r, "fman0", c.fan_manual[0]);
     cJSON_AddNumberToObject(r, "fman1", c.fan_manual[1]);
     cJSON_AddNumberToObject(r, "theme", c.theme);
+    cJSON_AddNumberToObject(r, "tiles", c.tiles);
     cJSON_AddNumberToObject(r, "bright", c.brightness);
     cJSON_AddNumberToObject(r, "scroff", c.screen_off_min);
     cJSON_AddNumberToObject(r, "defpage", c.default_page);
@@ -666,6 +672,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.fan_mode[1] = (uint8_t) get_int(j, "fmode1", c.fan_mode[1], 0, 1);
     c.fan_manual[0] = (uint8_t) get_int(j, "fman0", c.fan_manual[0], 20, 100);
     c.fan_manual[1] = (uint8_t) get_int(j, "fman1", c.fan_manual[1], 20, 100);
+    c.tiles = (uint8_t) get_int(j, "tiles", c.tiles, 0, 1);
     uint8_t theme = (uint8_t) get_int(j, "theme", c.theme, 0, 3);
     if (theme != c.theme) {
         c.theme = theme;
@@ -842,6 +849,22 @@ static esp_err_t ota_keep_post(httpd_req_t *req)
 {
     ota_guard::keep();
     return httpd_resp_sendstr(req, "Keeping this firmware.");
+}
+
+// Find this miner: POST with an empty body blinks the screen for 30 s, "0" stops it
+// early, any other number of seconds (up to 300) blinks that long.
+static esp_err_t identify_post(httpd_req_t *req)
+{
+    char buf[8] = {0};
+    int n = req->content_len > 0 ? httpd_req_recv(req, buf, sizeof(buf) - 1) : 0;
+    int sec = n > 0 ? atoi(buf) : 30;
+    if (sec <= 0) {
+        identify::stop();
+        return httpd_resp_sendstr(req, "Stopped.");
+    }
+    if (sec > 300) sec = 300;
+    identify::start(sec);
+    return httpd_resp_sendstr(req, "Blinking.");
 }
 
 static esp_err_t restart_post(httpd_req_t *req)
@@ -1422,6 +1445,7 @@ void start()
         {"/api/settings", HTTP_POST, settings_post, NULL},
         {"/api/retune", HTTP_POST, retune_post, NULL},
         {"/api/restart", HTTP_POST, restart_post, NULL},
+        {"/api/identify", HTTP_POST, identify_post, NULL},
         {"/api/ota", HTTP_POST, ota_post, NULL},
         {"/api/ota/keep", HTTP_POST, ota_keep_post, NULL},
         {"/api/dust", HTTP_POST, dust_post, NULL},

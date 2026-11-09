@@ -24,6 +24,7 @@
 #include "esp_lcd_ili9488.h"
 #endif
 
+#include "core/identify.h"
 #include "core/settings.h"
 #include "core/state.h"
 #include "ui/ui.h"
@@ -91,6 +92,18 @@ static void screen_idle_check()
         s_asleep = true;
         backlight(0);
         ESP_LOGI(TAG, "screen off after %u min idle", min);
+    }
+}
+// Find this miner: blink the backlight, then put back what was there
+static void identify_tick()
+{
+    static bool was = false;
+    if (identify::active()) {
+        backlight(identify::lit() ? 100 : 0);
+        was = true;
+    } else if (was) {
+        was = false;
+        backlight(s_asleep ? 0 : settings::get().brightness);
     }
 }
 static volatile int s_pending_rot = -1;
@@ -427,6 +440,7 @@ static void display_task(void *)
         }
         buttons_poll();
         screen_idle_check();
+        identify_tick();
         uint32_t wait = lv_timer_handler();
         if (wait > 20) wait = 20;
         if (wait < 5) wait = 5;

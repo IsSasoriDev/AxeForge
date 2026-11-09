@@ -1,0 +1,4 @@
+# Bitfortun BS-1 build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_bs1 -D SDKCONFIG=build_bs1/sdkconfig \n#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.bs1" build
+CONFIG_AF_BOARD_BS1=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-bs1"

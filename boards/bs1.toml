@@ -1,0 +1,33 @@
+# Bitfortun BS-1: the NerdQaxe layout (ESP32-S3 module, T-Display-S3 panel, EMC2302
+# fans, TMP1075s at 0x48/0x4a/0x4b by the chips and 0x49 on the regulator, TPS53647
+# enabled on GPIO10, LDO on GPIO13, reset on GPIO1) with 4x BM1373 on 4 phases, fed
+# 12 V. Values from Bitfortun's published source (github.com/liaojinguu/bitfortun-BS-1,
+# boards/bitfortunqaxeplus2.cpp), itself a fork of shufps' NerdQAxe firmware.
+# Their screen adds a fixed 400 GH/s to the hashrate it shows; AxeForge shows the real one.
+name = "Bitfortun BS-1"
+id = "bs1"
+kconfig = "AF_BOARD_BS1"
+family = "nerdq"
+
+[asic]
+chip = "bm1373"
+count = 4
+bm1373_shufps_init = true # their firmware inits it as shufps does
+job_interval_ms = 1200
+min_freq_mhz = 250        # bottom of the stock frequency list
+diff_min = 1024
+diff_max = 4096
+
+[regulator]
+phases = 4
+imax_a = 122              # stock: round(0.85 / 48700 / 5 mOhm * 35000)
+ifault_a = 160
+init_mv = 1050            # stock: chips enumerate at max(1050 mV, target)
+
+[sensors]
+proxy_die_offset_c = 10.0 # no die sensors; stock adds 10 C to the board sensors
+
+[stock]
+freq_mhz = 425
+mv = 1010
+display_type = 1

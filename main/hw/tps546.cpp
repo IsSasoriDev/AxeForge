@@ -92,6 +92,10 @@ const Profile BITAXE_SINGLE = {"single", 1, 4.8f, 4.5f, 0.0f, 6.5f, 0.25f, 1.0f,
 // BITAXE_SINGLE with the input limits of AxeOS's 12 V boards (VIN 11/10.5 V, OV 14.8 V)
 const Profile BITAXE_SINGLE_12V = {"single 12V", 1, 11.0f, 10.5f, 11.0f, 14.8f, 0.25f, 1.0f, 2.0f,
                                    25.0f, 30.0f, 1.16f, ON_OFF_CMD_ONLY, 0, 0xFFFF, {0}};
+// shufps' NerdAxe Gaia: VIN 10.5/9.5 V, OV 14 V, 0.8..1.3 V out, 28/33 A (the
+// TPS546D24A is rated 40 A; 25/30 A tripped around 440 MHz at 1 V)
+const Profile GAIA = {"gaia", 1, 10.5f, 9.5f, 10.5f, 14.0f, 0.25f, 0.8f, 1.3f,
+                      28.0f, 33.0f, 1.10f, ON_OFF_CMD_ONLY, 0, 0xFFFF, {0}};
 // reference TPS546_CONFIG_NAJA_DUO: VIN 11/10.5 V, 1.8..3.0 V out, 61/68 A, two-phase stack
 const Profile NAJA_DUO = {"naja duo", 2, 11.0f, 10.5f, 11.0f, 14.0f, 0.125f, 1.8f / 2, 3.0f / 2,
                           61.0f, 68.0f, 1.10f, ON_OFF_CMD_ONLY, 0x0001, 0xFFFF, {0x12, 0x34, 0x42, 0x25, 0x04}};

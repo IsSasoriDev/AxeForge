@@ -71,6 +71,7 @@ paths:
                 type: object
                 properties:
                   status: {type: string, enum: [booting, no wifi, setup, connecting, mining, fault, overheat]}
+                  identify: {type: integer, description: 'seconds left on Find this miner, 0 when off'}
                   hashrate: {type: number, description: GH/s}
                   expected: {type: number, description: theoretical GH/s at the current clock}
                   errorPct: {type: number}
@@ -84,6 +85,7 @@ paths:
                   version: {type: string}
                   hostname: {type: string}
                   ip: {type: string}
+                  pmf: {type: boolean, description: 'the Wi-Fi link uses protected management frames (802.11w), which the miner always takes when the router offers them; left out when not on Wi-Fi'}
                   eth: {type: object, properties: {present: {type: boolean, description: a W5500 adapter answered at boot}, up: {type: boolean}, ip: {type: string}}}
                   pools:
                     type: array
@@ -223,7 +225,7 @@ paths:
       summary: Change any subset of settings
       description: |
         Send only the keys to change. Keys: `ssid`, `wpass`, `hostname`, `atune`, `freq`, `mv`,
-        `fantgt`, `fanmin`, `fmode0`, `fmode1`, `fman0`, `fman1`, `theme`, `bright`, `scroff`,
+        `fantgt`, `fanmin`, `fmode0`, `fmode1`, `fman0`, `fman1`, `theme`, `tiles` (dashboard cards: 0 bars, 1 gauges), `bright`, `scroff`,
         `defpage`, `rotate`, `rot180`, `city`, `fahr`, `h24`, `pages`, `disptype`, `mempool`,
         `mpurl`, `paymode` (0 warn, 1 hold back work), `payfee` (0-100), `jobms` (0 = default),
         `vrhz` (0 = default, BM1370 only), `discord`, `tgtoken`, `tgchat`, `notify` (bits: 1 block,
@@ -387,6 +389,15 @@ paths:
   /api/restart:
     post:
       summary: Reboot the miner
+      responses:
+        '200': {$ref: '#/components/responses/Text'}
+  /api/identify:
+    post:
+      summary: Find this miner (blink its screen, or the Bitair's LED)
+      description: Empty body blinks for 30 s; a number blinks that many seconds (at most 300); 0 stops.
+      requestBody:
+        required: false
+        content: {text/plain: {schema: {type: string, example: '60'}}}
       responses:
         '200': {$ref: '#/components/responses/Text'}
   /api/ota:

@@ -124,6 +124,7 @@ struct BlockTemplate {
     uint8_t branches = 0;        // merkle depth -> ~2^n transactions
     double reward_btc = 0;       // sum of coinbase outputs (subsidy + fees)
     char tag[40] = "";           // printable coinbase text (pool tag)
+    char script_sig[201] = "";   // coinbase scriptSig hex, up to 100 bytes (extranonce2 as zeros)
     // coinbase outputs (the first AF_SHOWN_OUTPUTS) and the payout check
     uint8_t n_outputs = 0;
     CoinbaseOut outputs[AF_SHOWN_OUTPUTS];

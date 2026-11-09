@@ -1,5 +1,5 @@
 // The NerdQaxe family: NerdQaxe++ (rev5.1/rev6: TPS53647, rev7: TPS546 stack),
-// NerdQAxe+, NerdOctaxe+, NerdOctaxe-g and NerdQX. They share the ESP32 module,
+// NerdQAxe+, NerdOctaxe+, NerdOctaxe-g, NerdQX and the Bitfortun BS-1. They share the ESP32 module,
 // regulator wiring, fans and board sensors; board_config.h holds what differs.
 // The NerdAxe and the Supra Hex have their own files; exactly one is compiled.
 #include "core/board_config.h"
@@ -39,6 +39,8 @@ static const char *TAG = "board";
 #define START_DIFFICULTY AF_ASIC_DIFF_MAX
 #if AF_ASIC_BM1368
 #define NO_CHIPS_TEXT "No BM1368 chips answered"
+#elif AF_ASIC_BM1373
+#define NO_CHIPS_TEXT "No BM1373 chips answered"
 #else
 #define NO_CHIPS_TEXT "No BM1370 chips answered"
 #endif

@@ -75,6 +75,17 @@ pre.toml{background:var(--panel2);border-radius:10px;padding:10px 12px;margin:0 
 .drop{border:2px dashed var(--line);border-radius:var(--r);padding:28px;text-align:center;color:var(--dim);cursor:pointer;transition:.2s}
 .drop:hover,.drop.over{border-color:var(--cyan);color:var(--text)}
 .prog{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:12px;display:none}.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--mag))}
+#axm{position:fixed;right:20px;bottom:20px;z-index:6;display:flex;align-items:center;gap:12px;max-width:300px;padding:12px 38px 12px 12px;border-radius:16px;
+ background:linear-gradient(var(--panel2),var(--panel2)) padding-box,linear-gradient(135deg,var(--g1),var(--g2)) border-box;border:1px solid transparent;
+ color:var(--text);text-decoration:none;box-shadow:0 12px 32px #0007;animation:axmin .5s ease-out .8s both;transition:transform .2s,box-shadow .2s}
+#axm:hover{transform:translateY(-3px);box-shadow:0 16px 40px #000a,0 0 24px color-mix(in srgb,var(--g1) 30%,transparent)}
+#axm .ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff}
+#axm b{display:block;font-size:14px}#axm span{display:block;font-size:12px;color:var(--dim);line-height:1.35}
+#axm .x{position:absolute;top:6px;right:6px;width:24px;height:24px;border:0;border-radius:8px;background:transparent;color:var(--dim);cursor:pointer;font-size:16px;line-height:1}
+#axm .x:hover{background:var(--line);color:var(--text)}#axm.off{display:none}
+@keyframes axmin{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media(max-width:720px){#axm{right:12px;bottom:84px;max-width:240px;padding:10px 34px 10px 10px}#axm .ic{width:34px;height:34px}}
+@media(prefers-reduced-motion:reduce){#axm{animation:none;transition:none}}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:12px;transition:.3s;z-index:20;box-shadow:0 10px 30px #0008}
 #toast.show{transform:translateX(-50%) translateY(0)}
 .banner{display:none;background:rgba(255,59,92,.14);border:1px solid var(--red);color:#ffd5dc;padding:10px 14px;border-radius:12px;margin-bottom:14px}
@@ -296,6 +307,11 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
  <div class="card"><h3>Weather</h3><div class="wx"><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div>
   <div class="kv" style="margin-top:14px"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Firmware</div><div id="kver">--</div></div></div>
 </div>
+<a id="axm" href="https://github.com/IsSasoriDev/AxeMobile" target="_blank" rel="noopener" title="AxeMobile on GitHub">
+ <i class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></i>
+ <div><b>AxeMobile</b><span>Watch and manage all your miners from one app. Open source.</span></div>
+ <button class="x" type="button" aria-label="Hide" title="Hide">&times;</button>
+</a>
 </section>
 
 <!-- ============================== SWARM -->
@@ -500,6 +516,9 @@ function askLogin(){if(loginWait)return loginWait;const m=$('login'),c=$('loginc
 const $=id=>document.getElementById(id);
 const titles={dash:'Dashboard',swarm:'Swarm',pools:'Pools',tuning:'Tuning',display:'Display',clock:'Clock & data',network:'Network',system:'System'};
 let S={},cfg={},cur='dash',navv;
+// AxeMobile corner card on the dashboard; the x hides it for this browser
+(()=>{const a=document.getElementById('axm');if(!a)return;try{if(localStorage.getItem('af-axm')==='0')a.classList.add('off')}catch(e){}
+a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();a.classList.add('off');try{localStorage.setItem('af-axm','0')}catch(e){}})})();
 const SRC='https://github.com/IsSasoriDev/AxeForge';
 function tab(t){cur=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);

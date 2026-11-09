@@ -1,0 +1,4 @@
+# NerdAxe Gaia build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_gaia -D SDKCONFIG=build_gaia/sdkconfig \n#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.gaia" build
+CONFIG_AF_BOARD_GAIA=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-gaia"

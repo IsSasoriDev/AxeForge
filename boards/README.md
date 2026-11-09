@@ -22,6 +22,7 @@ Top level: `name` (shown in the UI), `id` (file names and the board tag an updat
 | asic | bm1373_shufps_init | `AF_BM1373_SHUFPS_INIT` | init the BM1373 as shufps does, not as bitaxe |
 | pins | i2c_sda, i2c_scl | `AF_PIN_I2C_SDA/SCL` | |
 | pins | button_1 | `AF_PIN_BTN_1` | user button, where it isn't the default |
+| pins | ldo_en | `AF_PIN_LDO_EN` | Bitaxe-family boards whose regulator logic hangs off an LDO: driven high at boot and kept there |
 | display | lcd | `AF_HAS_LCD` | an LCD (true) or the 128x32 OLED (false) |
 | display | color_board | `AF_COLOR_BOARD` | Bitaxe "color" layout: ST7789, no accessory header |
 | display | spi_st7789 | `AF_LCD_SPI_ST7789` | the HX-6's 2.8in SPI panel |

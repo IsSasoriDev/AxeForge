@@ -28,6 +28,8 @@ extern const Profile BITAXE_HEX;
 extern const Profile BITAXE_SINGLE;
 // the same board fed 12 V (StarMiner's Gamma 601): only the input limits differ
 extern const Profile BITAXE_SINGLE_12V;
+// NerdAxe Gaia: one TPS546D24A on 12 V, one BM1373 (0.8..1.3 V, 28/33 A)
+extern const Profile GAIA;
 // Bitaxe Naja Duo: two stacked TPS546s on 12 V, 2 domains of 1 chip
 extern const Profile NAJA_DUO;
 // Bitaxe GT: two stacked TPS546s on 12 V, one domain of 2 chips

@@ -75,6 +75,7 @@ FIELDS = [
     ("pins", "i2c_sda", "AF_PIN_I2C_SDA"),
     ("pins", "i2c_scl", "AF_PIN_I2C_SCL"),
     ("pins", "button_1", "AF_PIN_BTN_1"),
+    ("pins", "ldo_en", "AF_PIN_LDO_EN"),
     ("display", "lcd", "AF_HAS_LCD"),
     ("display", "color_board", "AF_COLOR_BOARD"),
     ("display", "spi_st7789", "AF_LCD_SPI_ST7789"),

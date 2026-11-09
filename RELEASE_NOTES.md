@@ -8,6 +8,8 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 - Bitfortun BS-1: 4× BM1373 on the NerdQaxe layout, a 4-phase TPS53647 on 12 V. Pins, regulator limits and the stock point (425 MHz / 1010 mV) come from Bitfortun's published source. Their screen adds a fixed 400 GH/s to the hashrate it shows; AxeForge shows what the chips report. Not tested on hardware yet.
 - NerdAxe Gaia: one BM1373 on a 12 V TPS546D24A, with the NerdAxe's T-Display-S3. The regulator's logic is powered from the LDO on GPIO12, so AxeForge switches that on before it looks for the regulator. Stock point 350 MHz / 940 mV, values from shufps' firmware. The optional W5500 Ethernet interposer isn't supported. Not tested on hardware yet.
 - The README marks every board the community has run as tested. The HX-6 has no built board yet.
+### Web UI
+- Network shows whether the Wi-Fi link uses protected management frames (802.11w), and the log says so at each connect. The miner has always used them when the router offers them; this tells you whether yours does. With them, nobody in radio range can knock the miner off Wi-Fi with forged disconnect frames. Turn it on in the router (PMF, MFP or 802.11w, set to capable or optional, not required, which shuts out older devices that can't do it).
 
 ## AxeForge v1.4.7
 

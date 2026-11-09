@@ -126,6 +126,8 @@ static void test_describe_template()
     CHECK(t.valid);
     CHECK(t.height == 973282);
     CHECK(strcmp(t.tag, "/solo-pool-rs/") == 0);
+    // the whole 26-byte scriptSig: height push, tag, extranonce1, extranonce2 as zeros
+    CHECK(strcmp(t.script_sig, "03e2d90e2f736f6c6f2d706f6f6c2d72732f" "00000000" "00000000") == 0);
     CHECK_NEAR(t.reward_btc, 3.125 + 0.0049, 1e-9);  // 312500000 + 490000 sat
 }
 
@@ -249,6 +251,7 @@ static void test_hostile_coinbase()
     CHECK(t.valid);
     CHECK(t.n_outputs == 0);
     CHECK(t.payout == Payout::NotYou);
+    CHECK(strcmp(t.script_sig, "03e2d90e" "00000000" "00000000") == 0);
 
     // a scriptSig length past the end of the coinbase
     j.coinb1 = (char *) "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff"
@@ -257,6 +260,17 @@ static void test_hostile_coinbase()
     BlockTemplate u;
     work::describe_template(j, "", 0, u);
     CHECK(u.valid && u.n_outputs == 0);
+    CHECK(strcmp(u.script_sig, "00") == 0);  // length past the end: cut to what is left
+
+    // a scriptSig over the 100-byte limit is cut there, never past the buffer
+    char long_cb1[84 + 4 + 2 * 150 + 1] = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff"
+                                          "fd9600";  // 150 bytes
+    for (int i = 0; i < 150; i++) strcat(long_cb1, "41");
+    j.coinb1 = long_cb1;
+    j.coinb2 = (char *) "ffffffff0000000000";
+    BlockTemplate w;
+    work::describe_template(j, "", 0, w);
+    CHECK(strlen(w.script_sig) == 200 && w.script_sig[0] == '4');
 }
 
 // A pool picks the extranonce2 size. A negative one used to size the coinbase

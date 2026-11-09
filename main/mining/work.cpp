@@ -281,6 +281,8 @@ void describe_template(const StratumJob &sj, const char *en1, int en2_len, Block
     // 64-bit length can wrap past any `> len` test)
     if (o > len || slen > len - o) slen = o <= len ? len - o : 0;
     size_t script = o;
+    size_t sig_len = slen < 100 ? (size_t) slen : 100;  // consensus caps a coinbase scriptSig at 100
+    bin2hex(cb + script, sig_len, t.script_sig);
     o += (size_t) slen + 4;                // script + sequence
     // printable coinbase text, skipping the height push
     // keep only runs of 4+ printable characters so random bytes don't leak in

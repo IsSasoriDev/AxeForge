@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: AxeForge miner API
-  version: 1.4.2
+  version: 1.4.8
   description: |
     The HTTP API every AxeForge miner serves at `http://<miner-ip>/api/...`. The web UI uses
     exactly these calls.
@@ -34,6 +34,56 @@ components:
       in: header
       name: X-AxeForge-Session
       description: Only while two-factor login is on.
+  schemas:
+    Settings:
+      type: object
+      description: The settings GET returns and POST accepts. POST takes any subset.
+      properties:
+        ssid: {type: string}
+        hostname: {type: string, description: empty means automatic; reboots}
+        atune: {type: boolean, description: auto-tune on}
+        freq: {type: integer, description: MHz, when auto-tune is off}
+        mv: {type: integer, description: core mV, when auto-tune is off}
+        tgoal: {type: integer, description: '0 hashrate, 1 power limit, 2 efficiency'}
+        pcap: {type: number, description: 'W, 0 = board limit'}
+        chiptune: {type: boolean, description: per-chip clock trimming}
+        chipworkers: {type: boolean, description: 'Stratum V1: each chip submits under its own worker name'}
+        otaguard: {type: boolean, description: roll back a new firmware that doesn't come up mining}
+        fantgt: {type: number, description: target chip temperature for the automatic fan, °C}
+        fanmin: {type: integer, description: 'lowest automatic fan speed, %'}
+        fmode0: {type: integer, description: fan 1 mode}
+        fmode1: {type: integer, description: fan 2 mode}
+        fman0: {type: integer, description: 'fan 1 manual speed, %'}
+        fman1: {type: integer, description: 'fan 2 manual speed, %'}
+        theme: {type: integer, description: '0 Forge, 1 Paper, 2 Ember, 3 Spatial; reboots'}
+        tiles: {type: integer, description: 'dashboard cards: 0 bars, 1 gauges'}
+        bright: {type: integer, description: 'screen brightness, %'}
+        scroff: {type: integer}
+        defpage: {type: integer, description: index into pages}
+        rotate: {type: integer}
+        rot180: {type: boolean}
+        pages: {type: string, description: screen page order, one letter per page}
+        disptype: {type: integer, description: '0 3.5" 480x320, 1 LilyGo T-Display-S3 320x170; reboots'}
+        city: {type: string, description: for the weather}
+        fahr: {type: boolean}
+        h24: {type: boolean}
+        mempool: {type: boolean}
+        mpurl: {type: string, description: mempool server, e.g. https://mempool.space}
+        paymode: {type: integer, description: 'payout check: 0 warn, 1 hold back work'}
+        payfee: {type: integer, description: 'highest pool fee accepted, 0-100 %'}
+        jobms: {type: integer, description: 'new job for the chips every N ms, 0 = default'}
+        vrhz: {type: integer, description: 'version-rolling speed, Hz, 0 = default; BM1370 only'}
+        tgchat: {type: string}
+        notify: {type: integer, description: 'bits: 1 block, 2 best share, 4 faults, 8 no pool, 16 started'}
+        bap: {type: boolean, description: the accessory port; reboots}
+        blesetup: {type: boolean, description: Bluetooth Wi-Fi setup while in setup mode}
+        priceon: {type: boolean, description: pause mining above a price}
+        pricesrc: {type: integer, description: '0 Energy-Charts day-ahead price, 1 your own URL'}
+        pricezone: {type: string, description: Energy-Charts bidding zone, e.g. DE-LU}
+        pricepath: {type: string, description: dotted path to the price in the URL's JSON, e.g. data.0.price}
+        pricemax: {type: number, description: 'ct/kWh for Energy-Charts, the URL''s own unit otherwise'}
+        eprice: {type: number, description: 'per kWh in currency, 0 = market price'}
+        currency: {type: string}
   responses:
     Text:
       description: A short, human-readable result ("Saved.", "Rebooting...")
@@ -70,7 +120,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  status: {type: string, enum: [booting, no wifi, setup, connecting, mining, fault, overheat]}
+                  status: {type: string, enum: [booting, no wifi, setup, connecting, mining, fault, overheat, paused]}
                   identify: {type: integer, description: 'seconds left on Find this miner, 0 when off'}
                   hashrate: {type: number, description: GH/s}
                   expected: {type: number, description: theoretical GH/s at the current clock}
@@ -87,7 +137,7 @@ paths:
                   ip: {type: string}
                   pmf: {type: boolean, description: 'the Wi-Fi link uses protected management frames (802.11w), which the miner always takes when the router offers them; left out when not on Wi-Fi'}
                   eth: {type: object, properties: {present: {type: boolean, description: a W5500 adapter answered at boot}, up: {type: boolean}, ip: {type: string}}}
-                  weather: {type: object, properties: {valid: {type: boolean}, city: {type: string}, temp: {type: number}, code: {type: integer, description: WMO weather code}, text: {type: string}, isDay: {type: boolean}, feels: {type: number}, humidity: {type: integer}, wind: {type: number}, tmin: {type: number}, tmax: {type: number}, days: {type: array, description: today and the next two, items: {type: object, properties: {code: {type: integer}, tmin: {type: number}, tmax: {type: number}}}}}}
+                  weather: {type: object, properties: {valid: {type: boolean}, city: {type: string}, temp: {type: number}, code: {type: integer, description: WMO weather code}, text: {type: string}, isDay: {type: boolean}, feels: {type: number}, humidity: {type: integer}, wind: {type: number}, tmin: {type: number}, tmax: {type: number}, error: {type: string}, days: {type: array, description: today and the next two, items: {type: object, properties: {code: {type: integer}, tmin: {type: number}, tmax: {type: number}}}}}}
                   net: {type: object, description: ICMP ping to the pool in use, properties: {target: {type: string}, rttMs: {type: number}, lossPct: {type: number}}}
                   pools:
                     type: array
@@ -101,9 +151,22 @@ paths:
                         payout: {type: integer, description: '0 unknown, 1 username is not an address, 2 pays you, 3 does not'}
                         payoutPct: {type: integer}
                         payoutBlocked: {type: boolean, description: the payout check holds work back from this pool}
+                        enabled: {type: boolean}
+                        proto: {type: integer, description: '0 Stratum V1, 1 V1 + TLS, 2 Stratum V2'}
+                        diff: {type: number, description: the pool's share difficulty}
+                        best: {type: number, description: best share difficulty on this pool}
+                        ghs: {type: number, description: hashrate this pool's shares account for}
+                        workPct: {type: number, description: share of the work this pool gets, split mode}
+                        jobs: {type: integer}
+                        pingMs: {type: integer, description: 'share response: from sending a share to the pool''s answer'}
+                        chipWorkers: {type: integer, description: chips submitting under their own worker name}
+                        lagMs: {type: integer, description: how long after the first pool this pool announced the last new block}
+                        lagBlocks: {type: integer}
+                        lagFirst: {type: integer}
+                        status: {type: string, description: what the connection is doing, in words}
                   chips:
                     type: array
-                    items: {type: object, properties: {ghs: {type: number}, errGhs: {type: number}, temp: {type: number}}}
+                    items: {type: object, properties: {ghs: {type: number}, errGhs: {type: number}, temp: {type: number}, ownSensor: {type: boolean, description: the temperature is this chip's own sensor, not the board's}, mhz: {type: integer, description: this chip's clock, the board clock plus its per-chip offset}}}
                   tuner:
                     type: object
                     description: Auto-tune state. The wall and peak fields cover the current search only; a lock restored at boot has none.
@@ -125,6 +188,160 @@ paths:
                       peakW: {type: number, description: highest input power over this search's stable windows (failing steps don't count)}
                       peakChipC: {type: number, description: highest over every window, failing ones included}
                       peakVrC: {type: number}
+                  fault: {type: string, description: the fault in words, empty when there is none}
+                  purifier: {type: string, description: 'the panel fan mode; Bitair boards only'}
+                  vrSensor: {type: boolean, description: the board has a voltage-regulator temperature sensor}
+                  tempOk: {type: boolean, description: the chip and VR sensors both read}
+                  board: {type: string, example: NerdQaxe++ rev5.1/6 (TPS53647)}
+                  asicModel: {type: string, example: BM1370}
+                  asicCount: {type: integer}
+                  smallCores: {type: integer}
+                  iout: {type: number, description: A at the regulator output}
+                  fanPct: {type: number}
+                  fanRpm: {type: number}
+                  fan2Rpm: {type: number}
+                  fans:
+                    type: array
+                    description: the same shape as the AxeOS / NerdQAxe list, so swarm tools can read it
+                    items:
+                      type: object
+                      properties:
+                        label: {type: string}
+                        connected: {type: boolean}
+                        rpm: {type: number}
+                        speedPerc: {type: number}
+                        mode: {type: integer}
+                        manualSpeed: {type: integer}
+                  fanCount: {type: integer}
+                  uptime: {type: integer, description: seconds since boot}
+                  resetReason: {type: string}
+                  restartedBy: {type: string, description: who asked for the last restart, if it was asked for}
+                  lastEmergency: {type: string}
+                  emergencies: {type: integer}
+                  screen: {type: string, enum: [big, tdisplay, oled]}
+                  rssi: {type: integer, description: dBm, 0 when not on Wi-Fi}
+                  ssid: {type: string}
+                  worker: {type: string, description: the worker name this miner submits under}
+                  otaPending: {type: boolean, description: a new firmware is on trial under the OTA guard}
+                  psu:
+                    type: object
+                    description: the supply check
+                    properties:
+                      level: {type: string, enum: [ok, weak, bad, unknown]}
+                      nominal: {type: number, description: V}
+                      idle: {type: number, description: V with no load}
+                      load: {type: number, description: V under load}
+                      min: {type: number, description: lowest V seen}
+                      watts: {type: number, description: W at the load reading}
+                      sag: {type: number, description: '% below nominal'}
+                      mohm: {type: number, description: estimated supply and cable resistance}
+                  price:
+                    type: object
+                    description: the electricity price pause
+                    properties:
+                      'on': {type: boolean}
+                      src: {type: integer, description: '0 Energy-Charts, 1 your own URL'}
+                      now: {type: number, description: the price now; left out until one is known}
+                      max: {type: number, description: mining pauses above this}
+                      unit: {type: string, description: 'ct/kWh for Energy-Charts, empty for a URL'}
+                      pausing: {type: boolean}
+                      age: {type: integer, description: 'seconds since the last fetch, -1 before the first'}
+                      error: {type: string}
+                      step: {type: integer, description: seconds per slot}
+                      start: {type: number, description: unix time of the first slot}
+                      slots: {type: array, items: {type: number, nullable: true}}
+                  dust:
+                    type: object
+                    description: the clean-heatsink reminder
+                    properties:
+                      state: {type: string, enum: [learning, ok, dirty]}
+                      baseDays: {type: integer}
+                      weekDays: {type: integer}
+                      refW: {type: number}
+                      baseTemp: {type: number}
+                      baseFan: {type: number}
+                      temp: {type: number}
+                      fan: {type: number}
+                      dTemp: {type: number}
+                      dFan: {type: number}
+                  overclocked: {type: boolean, description: an overclock envelope is in force}
+                  energy:
+                    type: object
+                    description: the power bill and block odds
+                    properties:
+                      currency: {type: string}
+                      priceFrom: {type: string}
+                      price: {type: number, description: per kWh; left out until known}
+                      kwhToday: {type: number}
+                      kwhTotal: {type: number}
+                      costToday: {type: number}
+                      costTotal: {type: number}
+                      since: {type: integer, description: unix time the totals start}
+                      costPerDay: {type: number}
+                      oddsDay: {type: number, description: chance of a block in a day, 0-1}
+                      oddsMonth: {type: number}
+                      oddsYear: {type: number}
+                      yearsPerBlock: {type: number}
+                      costPerBlock: {type: number}
+                  freeHeap: {type: integer}
+                  freeInternal: {type: integer}
+                  freeDma: {type: integer, description: largest free DMA block}
+                  chipsDetected: {type: integer}
+                  bleSetup: {type: string, description: the Bluetooth setup name while in setup mode, else empty}
+                  pool:
+                    type: object
+                    description: totals over all pools
+                    properties:
+                      connected: {type: boolean}
+                      host: {type: string, description: the pool whose template is being mined}
+                      diff: {type: number}
+                      accepted: {type: integer}
+                      rejected: {type: integer}
+                      bestDiff: {type: number, description: best share ever, kept across reboots}
+                      sessionBest: {type: number, description: best share since boot}
+                      height: {type: integer}
+                      networkDiff: {type: number}
+                      blocks: {type: integer}
+                      mode: {type: string, enum: [split, failover]}
+                  template:
+                    type: object
+                    description: the block template being mined
+                    properties:
+                      valid: {type: boolean}
+                      pool: {type: integer}
+                      height: {type: integer}
+                      prevHash: {type: string}
+                      reward: {type: number, description: BTC}
+                      branches: {type: integer, description: merkle branches}
+                      tag: {type: string, description: the pool's coinbase tag}
+                      scriptSig: {type: string}
+                      ntime: {type: integer}
+                      payout: {type: integer, description: '0 unknown, 1 username is not an address, 2 pays you, 3 does not'}
+                      payoutAddr: {type: string}
+                      payoutSats: {type: number}
+                      totalSats: {type: number}
+                      outputs:
+                        type: array
+                        items: {type: object, properties: {addr: {type: string}, sats: {type: number}, yours: {type: boolean}}}
+                  lastHash: {type: string}
+                  lastHashDiff: {type: number}
+                  hashesChecked: {type: number}
+                  dupResults: {type: integer}
+                  mempool:
+                    type: object
+                    description: fees and blocks from the mempool server
+                    properties:
+                      valid: {type: boolean}
+                      error: {type: string}
+                      feeFast: {type: number, description: sat/vB}
+                      feeHour: {type: number}
+                      feeEco: {type: number}
+                      mined:
+                        type: array
+                        items: {type: object, properties: {height: {type: integer}, txs: {type: integer}, size: {type: number, description: MB}, time: {type: integer}, fee: {type: number, description: median sat/vB}, fees: {type: number, description: BTC}, pool: {type: string}}}
+                      next:
+                        type: array
+                        items: {type: object, properties: {txs: {type: integer}, vsize: {type: number, description: MvB}, fee: {type: number}, min: {type: number}, max: {type: number}}}
   /api/history:
     get:
       summary: The last hour, 120 points 30 s apart, oldest first (same shape as /api/stats)
@@ -190,57 +407,72 @@ paths:
       security: []
       responses:
         '200':
-          description: Settings. Only the limit and overclock objects are typed here; the other keys match the POST keys below.
+          description: Settings
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  limits:
-                    type: object
-                    description: What the tuner and manual settings work within right now (the envelope while overclocking is active)
+                allOf:
+                  - $ref: '#/components/schemas/Settings'
+                  - type: object
                     properties:
-                      maxFreq: {type: integer, description: MHz}
-                      minMv: {type: integer}
-                      maxMv: {type: integer}
-                      chipCeil: {type: number, description: tuner chip-temperature ceiling, °C}
-                      chipCrit: {type: number, description: emergency chip-temperature cut, °C}
-                      vrCeil: {type: number}
-                      vrCrit: {type: number}
-                      maxPower: {type: number, description: the tuner's power ceiling, W}
-                  overclock:
-                    type: object
-                    properties:
-                      available: {type: boolean, description: 'the board file has an [envelope] (never on a NerdQaxe++ rev7)'}
-                      unlocked: {type: boolean, description: the user unlocked it}
-                      active: {type: boolean, description: unlocked, and the power supply check is not weak or bad}
-                      stockFreq: {type: integer}
-                      stockMv: {type: integer}
-                      stockPower: {type: number}
-                      cutoffPower: {type: number, description: 'the power cut-off, 115 % of stock; never moves'}
-                      boardId: {type: string, description: 'the board file, boards/<id>.toml'}
-                      envFreq: {type: integer, description: 'MHz an unlock adds: the board file''s envelope, 0 where overclocking is not available'}
-                      envMv: {type: integer}
-                      envPowerPct: {type: integer, description: at most maxPowerPct}
-                      maxPowerPct: {type: integer, description: 'the most an envelope may add to the stock power limit (10, below the 115 % cut-off)'}
+                      chipClock: {type: boolean, description: the chips take a clock of their own (per-chip trimming possible)}
+                      priceurlSet: {type: boolean, description: a price URL is saved (it may hold a token, so it is never sent back)}
+                      jobmsDefault: {type: integer, description: what jobms 0 means on this board}
+                      vrSupported: {type: boolean, description: vrhz has an effect on this board}
+                      discordSet: {type: boolean}
+                      tgSet: {type: boolean}
+                      hasBap: {type: boolean, description: the board has the accessory port}
+                      hasEth: {type: boolean, description: the build drives a W5500 Ethernet adapter}
+                      limits:
+                        type: object
+                        description: What the tuner and manual settings work within right now (the envelope while overclocking is active)
+                        properties:
+                          maxFreq: {type: integer, description: MHz}
+                          minMv: {type: integer}
+                          maxMv: {type: integer}
+                          chipCeil: {type: number, description: tuner chip-temperature ceiling, °C}
+                          chipCrit: {type: number, description: emergency chip-temperature cut, °C}
+                          vrCeil: {type: number}
+                          vrCrit: {type: number}
+                          maxPower: {type: number, description: the tuner's power ceiling, W}
+                      overclock:
+                        type: object
+                        properties:
+                          available: {type: boolean, description: 'the board file has an [envelope] (never on a NerdQaxe++ rev7)'}
+                          unlocked: {type: boolean, description: the user unlocked it}
+                          active: {type: boolean, description: unlocked, and the power supply check is not weak or bad}
+                          stockFreq: {type: integer}
+                          stockMv: {type: integer}
+                          stockPower: {type: number}
+                          cutoffPower: {type: number, description: 'the power cut-off, 115 % of stock; never moves'}
+                          boardId: {type: string, description: 'the board file, boards/<id>.toml'}
+                          envFreq: {type: integer, description: 'MHz an unlock adds: the board file''s envelope, 0 where overclocking is not available'}
+                          envMv: {type: integer}
+                          envPowerPct: {type: integer, description: at most maxPowerPct}
+                          maxPowerPct: {type: integer, description: 'the most an envelope may add to the stock power limit (10, below the 115 % cut-off)'}
     post:
       summary: Change any subset of settings
       description: |
-        Send only the keys to change. Keys: `ssid`, `wpass`, `hostname`, `atune`, `freq`, `mv`,
-        `fantgt`, `fanmin`, `fmode0`, `fmode1`, `fman0`, `fman1`, `theme`, `tiles` (dashboard cards: 0 bars, 1 gauges), `bright`, `scroff`,
-        `defpage`, `rotate`, `rot180`, `city`, `fahr`, `h24`, `pages`, `disptype`, `mempool`,
-        `mpurl`, `paymode` (0 warn, 1 hold back work), `payfee` (0-100), `jobms` (0 = default),
-        `vrhz` (0 = default, BM1370 only), `discord`, `tgtoken`, `tgchat`, `notify` (bits: 1 block,
-        2 best share, 4 faults, 8 no pool, 16 started), `notifyClear`, `bap`, `blesetup`,
-        `tgoal` (0 hashrate, 1 power limit, 2 efficiency), `pcap` (W, 0 = board limit), `chiptune`,
-        `otaguard`, `priceon`, `pricesrc` (0 Energy-Charts, 1 URL), `pricezone`, `priceurl`,
-        `pricepath`, `pricemax`, `chipworkers`, `eprice` (per kWh, 0 = market price), `currency`, `overclock` (true
-        needs `confirm: "OVERCLOCK"` as well, and a board with `overclock.available`;
-        false always works). A new goal, limit, `chiptune` or `overclock` starts a new tuner search.
+        Send only the keys to change; the keys are in the request schema. A new goal, limit,
+        `chiptune` or `overclock` starts a new tuner search.
         Wi-Fi, hostname, theme, screen type and the accessory port reboot the miner; the rest
         applies right away.
       requestBody:
-        content: {application/json: {schema: {type: object}, example: {freq: 600, mv: 1150, atune: false}}}
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/Settings'
+                - type: object
+                  properties:
+                    wpass: {type: string, description: Wi-Fi password; empty leaves it unchanged; reboots}
+                    discord: {type: string, description: Discord webhook URL}
+                    tgtoken: {type: string, description: Telegram bot token}
+                    priceurl: {type: string, description: your own price URL (pricesrc 1)}
+                    notifyClear: {type: boolean, description: clear the notification list}
+                    overclock: {type: boolean, description: 'true needs confirm as well, and a board with overclock.available; false always works'}
+                    confirm: {type: string, enum: [OVERCLOCK]}
+            example: {freq: 600, mv: 1150, atune: false}
       responses:
         '200': {$ref: '#/components/responses/Text'}
         '401': {$ref: '#/components/responses/LoginNeeded'}
@@ -442,10 +674,39 @@ paths:
         '200': {$ref: '#/components/responses/Text'}
   /api/swarm:
     get:
-      summary: Other miners on the network and totals
+      summary: This miner and the others it knows on the network
       security: []
       responses:
-        '200': {description: Swarm, content: {application/json: {schema: {type: object}}}}
+        '200':
+          description: Swarm
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scanning: {type: boolean, description: a network scan is running}
+                  miners:
+                    type: array
+                    description: this miner first, then the peers
+                    items:
+                      type: object
+                      properties:
+                        ip: {type: string}
+                        name: {type: string, description: '"this miner" for the first entry'}
+                        worker: {type: string}
+                        kind: {type: string, example: AxeForge}
+                        model: {type: string}
+                        version: {type: string}
+                        online: {type: boolean}
+                        self: {type: boolean}
+                        hashrate: {type: number, description: GH/s}
+                        temp: {type: number, description: hottest chip, °C}
+                        power: {type: number, description: W}
+                        uptime: {type: integer, description: seconds}
+                        best: {type: number}
+                        accepted: {type: integer}
+                        rejected: {type: integer}
+                        ago: {type: integer, description: 'seconds since it last answered; 0 while online, -1 if not seen since this miner booted'}
     post:
       summary: '{"add":"192.168.1.20"}, {"remove":"192.168.1.20"} or {"scan":true}'
       responses:

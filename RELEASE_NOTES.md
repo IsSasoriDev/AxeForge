@@ -6,6 +6,12 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 _Nothing yet._
 
+## AxeForge v1.4.10
+
+### Fixes
+- Web flasher: the board list was empty on 1.4.9. A quote in the BitForge Nano text stopped the page's script. CI now checks the flasher's script parses before it is deployed.
+- Firmware is the same as 1.4.9.
+
 ## AxeForge v1.4.9
 
 ### Boards

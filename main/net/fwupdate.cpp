@@ -20,6 +20,7 @@
 #include "core/ota_guard.h"
 #include "core/settings.h"
 #include "core/state.h"
+#include "net/netping.h"
 #include "net/wifi.h"
 
 static const char *TAG = "fwupdate";
@@ -357,6 +358,7 @@ static volatile bool s_installing = false;
 static void install_task(void *)
 {
     do_install();  // restarts on success
+    netping::pause(false);
     s_installing = false;
     vTaskDelete(NULL);
 }
@@ -367,7 +369,9 @@ static void spawn_install()
     s_installing = true;
     s_info.state = State::Downloading;  // the web UI shows it at once
     s_info.pct = 0;
+    netping::pause(true);  // its session task's internal RAM goes to the download
     if (xTaskCreate(install_task, "fwinstall", 8192, NULL, 3, NULL) != pdPASS) {
+        netping::pause(false);
         s_installing = false;
         fail("not enough memory to start the download");
     }

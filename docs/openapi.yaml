@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: AxeForge miner API
-  version: 1.4.8
+  version: 1.4.9
   description: |
     The HTTP API every AxeForge miner serves at `http://<miner-ip>/api/...`. The web UI uses
     exactly these calls.
@@ -49,6 +49,7 @@ components:
         chiptune: {type: boolean, description: per-chip clock trimming}
         chipworkers: {type: boolean, description: 'Stratum V1: each chip submits under its own worker name'}
         otaguard: {type: boolean, description: roll back a new firmware that doesn't come up mining}
+        autoupdate: {type: boolean, description: 'install a newer GitHub release by itself (checked every 6 h); off: the web UI offers it'}
         fantgt: {type: number, description: target chip temperature for the automatic fan, °C}
         fanmin: {type: integer, description: 'lowest automatic fan speed, %'}
         fmode0: {type: integer, description: fan 1 mode}
@@ -223,6 +224,16 @@ paths:
                   ssid: {type: string}
                   worker: {type: string, description: the worker name this miner submits under}
                   otaPending: {type: boolean, description: a new firmware is on trial under the OTA guard}
+                  update:
+                    type: object
+                    description: the self-update from GitHub releases
+                    properties:
+                      latest: {type: string, description: 'newest release tag, e.g. v1.4.9; empty until the first check'}
+                      newer: {type: boolean, description: the latest release is newer than this firmware}
+                      state: {type: string, enum: [idle, checking, downloading, failed]}
+                      pct: {type: integer, description: 'download progress, %'}
+                      msg: {type: string, description: the last result, for people}
+                      auto: {type: boolean, description: auto-update is on}
                   psu:
                     type: object
                     description: the supply check

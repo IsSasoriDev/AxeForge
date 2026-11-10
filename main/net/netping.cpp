@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/idf_additions.h"
 #include "lwip/inet.h"
 #include "lwip/netdb.h"
 #include "ping/ping_sock.h"
@@ -20,6 +21,7 @@ static const char *TAG = "netping";
 #define LOSS_WINDOW 20  // loss is reported over the last this many pings
 
 static esp_ping_handle_t s_ping = nullptr;
+static volatile bool s_paused = false;  // the self-update wants the ping task's RAM
 static uint8_t s_results[LOSS_WINDOW];  // 1 = answered, 0 = lost
 static int s_count = 0, s_pos = 0;
 
@@ -103,8 +105,16 @@ static const char *pool_host()
 static void ping_task(void *)
 {
     char current[sizeof(g_state.net_target)] = "";
+    int tick = 0;
     while (true) {
-        vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        if (s_paused) {  // checked every second, so a pause is quick
+            stop();
+            current[0] = 0;
+            continue;
+        }
+        if (++tick < 10) continue;  // the pool is looked at every 10 s
+        tick = 0;
         if (!wifi::connected() && !eth::up()) {  // nothing to ping over: every send would fail
             stop();
             current[0] = 0;
@@ -120,5 +130,14 @@ static void ping_task(void *)
 }
 
 namespace netping {
-void start() { xTaskCreate(ping_task, "netping", 3072, NULL, 3, NULL); }
+// this task only resolves names and starts the session: its stack can be in PSRAM
+// (the session's own task, made by esp_ping, stays in internal RAM)
+void start() { xTaskCreateWithCaps(ping_task, "netping", 3072, NULL, 3, NULL, MALLOC_CAP_SPIRAM); }
+
+void pause(bool on)
+{
+    s_paused = on;
+    if (!on) return;
+    for (int i = 0; i < 30 && s_ping; i++) vTaskDelay(pdMS_TO_TICKS(100));  // the task stops it within a second
+}
 }

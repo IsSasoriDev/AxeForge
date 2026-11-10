@@ -5,4 +5,6 @@
 // g_state.net_*.
 namespace netping {
 void start();
+// Stop pinging (and free the session's task) while a firmware update installs
+void pause(bool on);
 }

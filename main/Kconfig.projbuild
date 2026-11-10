@@ -45,7 +45,7 @@ menu "AxeForge"
         config AF_BOARD_NEXUS
             bool "Nexus S1 (4x BM1373)"
         config AF_BOARD_BS1
-            bool "Bitfortun BS-1 (4x BM1373)"
+            bool "Bitfortun BS-1 (1x BM1373)"
         config AF_BOARD_GAIA
             bool "NerdAxe Gaia (1x BM1373, 12 V)"
         config AF_BOARD_BITFORGE_NANO

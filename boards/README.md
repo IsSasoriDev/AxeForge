@@ -40,6 +40,8 @@ Top level: `name` (shown in the UI), `id` (file names and the board tag an updat
 | sensors | emc2101, emc2103 | `AF_EMC2101`, `AF_EMC2103` | fan and diode controller |
 | sensors | emc_ideality, emc_beta | `AF_EMC_IDEALITY/BETA` | diode model registers |
 | sensors | emc_flip, emc_direct_pwm | `AF_EMC_FLIP`, `AF_EMC_DIRECT_PWM` | |
+| sensors | emc_mux_addr, emc_mux_ch0, emc_mux_ch1 | `AF_EMC_MUX_ADDR`, `AF_EMC_MUX_CH0/1` | two EMC2101s behind a PCA9544 I2C switch, one per chip and fan (BitForge Nano) |
+| sensors | ina260 | `AF_INA260` | input voltage, current and power from an INA260 at 0x40 instead of the regulator |
 | sensors | tmp451_muxes, tmp451_pin_a1 | `AF_TMP451_MUXES`, `AF_TMP451_PIN_A1` | per-chip die sensors |
 | sensors | proxy_die_offset_c | `AF_PROXY_DIE_OFFSET` | board sensor + offset where there is no die sensor |
 | sensors | power_offset_w | `AF_POWER_OFFSET_W` | added to the measured input power |

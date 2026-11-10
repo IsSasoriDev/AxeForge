@@ -54,7 +54,7 @@ struct Settings {
     uint8_t fan_mode[2] = {0, 0};
     uint8_t fan_manual[2] = {60, 60};
     uint8_t tiles = 0;             // dashboard telemetry cards: 0 = bars (as before), 1 = gauges
-    uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (e-ink style), 2 = Ember (Bitcoin orange), 3 = Spatial (deep space)
+    uint8_t theme = 0;             // 0 = Forge (dark neon), 1 = Paper (e-ink style), 2 = Ember (Bitcoin orange), 3 = DTV (DTV Electronics, First Supporter)
     uint8_t brightness = 100;
     uint8_t screen_off_min = 0;   // backlight off after this many idle minutes, 0 = never
 
@@ -96,6 +96,9 @@ struct Settings {
     // after a web update, go back to the previous firmware if the new one
     // crashes at start-up or doesn't mine within 10 minutes
     bool ota_guard = true;
+    // install a new GitHub release by itself (checked every 6 h); off = the web UI
+    // offers it and the user presses Update now
+    bool auto_update = false;
 
     // electricity price: stop mining while the price is above price_max
     bool price_on = false;

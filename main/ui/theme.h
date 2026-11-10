@@ -9,13 +9,13 @@
 
 namespace theme {
 
-enum Id : uint8_t { FORGE = 0, PAPER = 1, EMBER = 2, SPATIAL = 3 };
+enum Id : uint8_t { FORGE = 0, PAPER = 1, EMBER = 2, DTV = 3 };
 
 Id current();         // from settings, read live (a theme change rebuilds the screen)
 bool paper();
 bool ember();
-bool spatial();
-// After the screen UI is built: Spatial draws a starfield behind the pages.
+bool dtv();
+// After the screen UI is built: DTV draws a starfield behind the pages.
 void decorate(lv_obj_t *scr);
 // mempool.space fee colour for a fee rate (sat/vB); Ember draws blocks with it
 uint32_t mempool_fee_rgb(float fee);

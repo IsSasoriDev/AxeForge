@@ -1,0 +1,6 @@
+# BitForge Nano build. Used on top of sdkconfig.defaults:
+#   idf.py -B build_bitforgenano -D SDKCONFIG=build_bitforgenano/sdkconfig \n#          -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.bitforgenano" build
+CONFIG_AF_BOARD_BITFORGE_NANO=y
+# no display is fitted, but the OLED code looks for one and runs headless without
+CONFIG_LV_FONT_UNSCII_8=y
+CONFIG_LWIP_LOCAL_HOSTNAME="axeforge-bitforge"

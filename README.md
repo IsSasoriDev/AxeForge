@@ -35,8 +35,9 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 | **Bitaxe GT** 801 | 2× BM1370 | TPS546 stack, 2-phase | 60 W | `axeforge-gt.bin` | ✅ Tested by community |
 | **Bitaxe Gamma Hex** 1300 | 6× BM1370 | TPS546 stack, 4-phase, 2 stacked domains | 180 W | `axeforge-gammahex.bin` | ✅ Tested by community |
 | **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | `axeforge-nexus.bin` | ✅ Tested by community |
-| **Bitfortun BS-1** | 4× BM1373 | TPS53647, 4-phase, 12 V | 120 W | `axeforge-bs1.bin` | ⚠️ Not tested on hardware yet |
+| **Bitfortun BS-1** | 1× BM1373 | TPS53647, 4-phase, 12 V | 120 W | `axeforge-bs1.bin` | ⚠️ Not tested on hardware yet |
 | **NerdAxe Gaia** | 1× BM1373 | TPS546, 12 V | 35 W | `axeforge-gaia.bin` | ⚠️ Not tested on hardware yet |
+| **BitForge Nano** | 2× BM1370 | TPS546, 12 V | 60 W | `axeforge-bitforgenano.bin` | ⚠️ Not tested on hardware yet |
 | **HX-6** rev B ([open hardware](https://github.com/IsSasoriDev/HX6-Miner)) | 6× BM1370 | TPS53647, 4-phase | 130 W | `axeforge-hx6.bin` | ⚠️ No board built yet |
 
 - Each board has its own firmware file. A file for another board is refused, because the boards switch their core power on differently.

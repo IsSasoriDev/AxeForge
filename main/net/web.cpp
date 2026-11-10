@@ -14,6 +14,7 @@
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/idf_additions.h"
 #include "sdkconfig.h"
 
 #include "asic/bm13xx.h"
@@ -25,6 +26,7 @@
 #include "core/dust.h"
 #include "core/energy.h"
 #include "core/ota_guard.h"
+#include "net/fwupdate.h"
 #include "core/psu.h"
 #include "core/settings.h"
 #include "core/state.h"
@@ -246,6 +248,16 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddStringToObject(r, "version", esp_app_get_description()->version);
     cJSON_AddBoolToObject(r, "otaPending", ota_guard::pending());
     {
+        const fwupdate::Info &u = fwupdate::info();
+        cJSON *uj = cJSON_AddObjectToObject(r, "update");
+        cJSON_AddStringToObject(uj, "latest", u.latest);
+        cJSON_AddBoolToObject(uj, "newer", u.newer);
+        cJSON_AddStringToObject(uj, "state", fwupdate::state_name(u.state));
+        cJSON_AddNumberToObject(uj, "pct", u.pct);
+        cJSON_AddStringToObject(uj, "msg", u.msg);
+        cJSON_AddBoolToObject(uj, "auto", settings::get().auto_update);
+    }
+    {
         const psu::State &p = psu::state();
         cJSON *po = cJSON_AddObjectToObject(r, "psu");
         cJSON_AddStringToObject(po, "level", psu::level_name(p.level));
@@ -270,6 +282,10 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddBoolToObject(net, "up", eth::up());
     cJSON_AddStringToObject(net, "ip", eth::ip());
     cJSON_AddStringToObject(r, "bleSetup", ble_setup::name());
+    cJSON *ping = cJSON_AddObjectToObject(r, "net");
+    cJSON_AddStringToObject(ping, "target", s.net_target);
+    cJSON_AddNumberToObject(ping, "rttMs", s.net_rtt_ms);
+    cJSON_AddNumberToObject(ping, "lossPct", s.net_loss_pct);
 
     cJSON *pool = cJSON_AddObjectToObject(r, "pool");
     cJSON_AddBoolToObject(pool, "connected", s.pool_connected);
@@ -410,6 +426,20 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(wx, "temp", w.temp);
     cJSON_AddNumberToObject(wx, "code", w.code);
     cJSON_AddStringToObject(wx, "text", weather::describe(w.code));
+    cJSON_AddBoolToObject(wx, "isDay", w.is_day);
+    cJSON_AddNumberToObject(wx, "feels", w.feels);
+    cJSON_AddNumberToObject(wx, "humidity", w.humidity);
+    cJSON_AddNumberToObject(wx, "wind", w.wind);
+    cJSON_AddNumberToObject(wx, "tmin", w.days[0].tmin);  // today's range
+    cJSON_AddNumberToObject(wx, "tmax", w.days[0].tmax);
+    cJSON *days = cJSON_AddArrayToObject(wx, "days");  // today and the next two
+    for (int i = 0; i < 3; i++) {
+        cJSON *d = cJSON_CreateObject();
+        cJSON_AddNumberToObject(d, "code", w.days[i].code);
+        cJSON_AddNumberToObject(d, "tmin", w.days[i].tmin);
+        cJSON_AddNumberToObject(d, "tmax", w.days[i].tmax);
+        cJSON_AddItemToArray(days, d);
+    }
     cJSON_AddStringToObject(wx, "error", w.error);
     return send_json(req, r);
 }
@@ -451,6 +481,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "chipworkers", c.chip_workers);
     cJSON_AddBoolToObject(r, "chipClock", asic::PER_CHIP_CLOCK);
     cJSON_AddBoolToObject(r, "otaguard", c.ota_guard);
+    cJSON_AddBoolToObject(r, "autoupdate", c.auto_update);
     cJSON_AddBoolToObject(r, "priceon", c.price_on);
     cJSON_AddNumberToObject(r, "pricesrc", c.price_src);
     cJSON_AddStringToObject(r, "pricezone", c.price_zone);
@@ -589,7 +620,14 @@ static void schedule_reboot(httpd_req_t *req)
              http_method_str((enum http_method) req->method), req->uri, ip);
     s_restart_note.magic = RESTART_NOTE_MAGIC;
     ESP_LOGW(TAG, "restart requested: %s", s_restart_note.why);
-    xTaskCreate(reboot_task, "reboot", 4096, NULL, 5, NULL);  // shutdown + logging needs >2 kB
+    // shutdown + logging needs >2 kB. Short on internal RAM, the PSRAM stack will do
+    // (no flash writes here); failing both, restart from this handler after a moment
+    if (xTaskCreate(reboot_task, "reboot", 4096, NULL, 5, NULL) == pdPASS) return;
+    if (xTaskCreateWithCaps(reboot_task, "reboot", 4096, NULL, 5, NULL, MALLOC_CAP_SPIRAM) == pdPASS) return;
+    ESP_LOGE(TAG, "no memory for the restart task: restarting from the web task");
+    vTaskDelay(pdMS_TO_TICKS(500));  // let the reply go out
+    board::shutdown();
+    esp_restart();
 }
 
 static esp_err_t settings_post(httpd_req_t *req)
@@ -754,6 +792,7 @@ static esp_err_t settings_post(httpd_req_t *req)
     c.bap_on = bap_on;
     c.ble_setup = get_bool(j, "blesetup", c.ble_setup);
     c.ota_guard = get_bool(j, "otaguard", c.ota_guard);
+    c.auto_update = get_bool(j, "autoupdate", c.auto_update);
 
     // electricity price
     c.price_on = get_bool(j, "priceon", c.price_on);
@@ -880,105 +919,71 @@ static esp_err_t restart_post(httpd_req_t *req)
 extern const char af_board_tag[];
 const char af_board_tag[] = AF_BOARD_TAG;
 
-// Looks for "AXEFORGE-BOARD:<id>;" in `data`. Returns the id length (copied to
-// `id`) or 0. The bare prefix used by this search sits in rodata too, followed
-// by a NUL, so only a complete tag counts.
-static int find_board_tag(const char *data, int len, char *id, int id_cap)
-{
-    const int plen = sizeof(AF_BOARD_TAG_PREFIX) - 1;
-    for (int i = 0; i + plen < len; i++) {
-        if (data[i] != 'A' || memcmp(data + i, AF_BOARD_TAG_PREFIX, plen) != 0) continue;
-        int k = 0;
-        const char *p = data + i + plen;
-        while (i + plen + k < len && k < id_cap - 1 &&
-               ((p[k] >= 'a' && p[k] <= 'z') || (p[k] >= '0' && p[k] <= '9')))
-            k++;
-        if (k >= 2 && i + plen + k < len && p[k] == ';') {
-            memcpy(id, p, k);
-            id[k] = 0;
-            return k;
-        }
-    }
-    return 0;
-}
-
 // Raw .bin upload (the app image, not the factory image).
 static esp_err_t ota_post(httpd_req_t *req)
 {
-    const esp_partition_t *part = esp_ota_get_next_update_partition(NULL);
-    if (!part) return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "no OTA partition");
-    if (req->content_len < 0x10000 || req->content_len > part->size)
+    fwupdate::Writer w;
+    const esp_partition_t *next = esp_ota_get_next_update_partition(NULL);
+    if (!next) return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "no OTA partition");
+    if (req->content_len < 0x10000 || req->content_len > next->size)
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "file size looks wrong");
     ESP_LOGW(TAG, "OTA upload started (%d bytes)", req->content_len);
+    if (!w.begin()) return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, w.error());
 
-    esp_ota_handle_t h;
-    // erase sector by sector as data arrives: a one-shot 4 MB erase stalls the CPU
-    // for seconds, long enough for the sensor reads to fail and trip the cut-off
-    if (esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &h) != ESP_OK)
-        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "ota begin failed");
-
-    // mining keeps running; only the HTTP task is busy while writing.
-    // The last bytes of each chunk are kept in front of the next one, so a
-    // board tag split across two chunks is still found.
-    const int CHUNK = 4096, KEEP = 48;
-    char *buf = (char *) malloc(CHUNK + KEEP);
-    int remaining = req->content_len, carry = 0;
-    bool ok = true, first = true, wrong_board = false;
-    char other[24] = "";
+    // mining keeps running; only the HTTP task is busy while writing
+    const int CHUNK = 4096;
+    char *buf = (char *) malloc(CHUNK);
+    if (!buf) return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "out of memory");
+    int remaining = req->content_len;
+    bool ok = true;
     while (remaining > 0) {
-        int n = httpd_req_recv(req, buf + carry, remaining < CHUNK ? remaining : CHUNK);
+        int n = httpd_req_recv(req, buf, remaining < CHUNK ? remaining : CHUNK);
         if (n == HTTPD_SOCK_ERR_TIMEOUT) continue;
-        if (n <= 0) {
-            ok = false;
-            break;
-        }
-        if (first) {
-            first = false;
-            if ((uint8_t) buf[0] != 0xE9) {  // ESP image magic
-                ok = false;
-                break;
-            }
-        }
-        if (!other[0] && find_board_tag(buf, carry + n, other, sizeof(other)) && strcmp(other, AF_BOARD_ID) != 0) {
-            wrong_board = true;
-            ok = false;
-            break;
-        }
-        if (esp_ota_write(h, buf + carry, n) != ESP_OK) {
+        if (n <= 0 || !w.feed(buf, n)) {
             ok = false;
             break;
         }
         remaining -= n;
-        int total = carry + n;
-        carry = total < KEEP ? total : KEEP;
-        memmove(buf, buf + total - carry, carry);
     }
     free(buf);
-    if (wrong_board) {
-        esp_ota_abort(h);
-        ESP_LOGE(TAG, "OTA refused: image is for '%s', this is '%s'", other, AF_BOARD_ID);
+    if (w.wrong_board()) {
+        w.abort();
+        ESP_LOGE(TAG, "OTA refused: image is for '%s', this is '%s'", w.found_board(), AF_BOARD_ID);
         char msg[160];
         snprintf(msg, sizeof(msg), "Upload refused: that firmware is for the %s build, this miner needs the %s build.",
-                 other, AF_BOARD_ID);
+                 w.found_board(), AF_BOARD_ID);
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
     }
-    if (ok && !other[0]) {
-        // every AxeForge image carries its board tag; one without it isn't ours
-        esp_ota_abort(h);
-        ESP_LOGE(TAG, "OTA refused: no AxeForge board tag in the image");
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
-                                   "Upload refused: that file is not an AxeForge firmware for this miner.");
-    }
-    if (!ok || esp_ota_end(h) != ESP_OK || esp_ota_set_boot_partition(part) != ESP_OK) {
-        if (ok) ESP_LOGE(TAG, "OTA validation failed");
-        else esp_ota_abort(h);
+    if (!ok) {
+        w.abort();
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Upload rejected: not a valid AxeForge app image");
     }
-    ota_guard::armed(part);
-    ESP_LOGW(TAG, "OTA written to %s, rebooting", part->label);
+    if (!w.finish()) {
+        ESP_LOGE(TAG, "OTA refused: %s", w.error());
+        char msg[160];
+        snprintf(msg, sizeof(msg), "Upload refused: %s.", w.error());
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg);
+    }
+    ota_guard::armed(w.partition());
+    ESP_LOGW(TAG, "OTA written to %s, rebooting", w.partition()->label);
     httpd_resp_sendstr(req, "Update installed. Rebooting...");
     schedule_reboot(req);
     return ESP_OK;
+}
+
+// Self-update: POST "check" asks GitHub again; any other body installs the newer
+// release now (the status's update object reports progress).
+static esp_err_t update_post(httpd_req_t *req)
+{
+    char buf[16] = {0};
+    int n = req->content_len > 0 ? httpd_req_recv(req, buf, sizeof(buf) - 1) : 0;
+    if (n > 0 && strncmp(buf, "check", 5) == 0) {
+        fwupdate::check_now();
+        return httpd_resp_sendstr(req, "Checking GitHub for a new release...");
+    }
+    if (!fwupdate::install_now())
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No newer release to install, or an update is already running.");
+    return httpd_resp_sendstr(req, "Downloading the update. The miner restarts when it's installed.");
 }
 
 // ------------------------------------------------------------------ pools
@@ -1448,6 +1453,7 @@ void start()
         {"/api/identify", HTTP_POST, identify_post, NULL},
         {"/api/ota", HTTP_POST, ota_post, NULL},
         {"/api/ota/keep", HTTP_POST, ota_keep_post, NULL},
+        {"/api/update", HTTP_POST, update_post, NULL},
         {"/api/dust", HTTP_POST, dust_post, NULL},
         {"/api/energy", HTTP_POST, energy_post, NULL},
         {"/api/pools", HTTP_GET, pools_get, NULL},

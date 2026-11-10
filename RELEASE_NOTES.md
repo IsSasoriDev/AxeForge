@@ -4,8 +4,34 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
+_Nothing yet._
+
+## AxeForge v1.4.9
+
 ### Boards
-- Bitfortun BS-1: 4× BM1373 on the NerdQaxe layout, a 4-phase TPS53647 on 12 V. Pins, regulator limits and the stock point (425 MHz / 1010 mV) come from Bitfortun's published source. Their screen adds a fixed 400 GH/s to the hashrate it shows; AxeForge shows what the chips report. Not tested on hardware yet.
+- BitForge Nano (WantClue / DTV Electronics): 2× BM1370 on a 12 V TPS546. Each chip has its own EMC2101 and fan behind a PCA9544 I2C switch, so both chip temperatures and both fans show, and the input power comes from its INA260. Values from ForgeOS. No display; the accessory port stays off. Not tested on hardware yet.
+
+### Themes
+- **Spatial is now DTV, "First Supporter".** The look of AxeMobile's DTV Electronics theme: AMOLED black, white text and DTV orange, on the miner's screen and in the web UI. In the browser a live black hole turns behind the pages: AxeMobile's ray-traced one, drawn in WebGL at reduced resolution and about 30 frames a second, paused while the tab is hidden, a still frame with reduced motion. A miner already on Spatial switches over by itself.
+
+### Web UI
+- **Updates from GitHub, one click or none.** The miner checks GitHub for the latest AxeForge release every 6 hours. When there's a newer one, a banner under the header says so, with the release notes and an *Update now* button: the miner downloads its own board's file from the release, checks it the same way as an upload (right board, valid image), installs it and restarts, with the banner showing progress. *System → Firmware update → Install updates automatically* does all of that without a click. It waits while the last update is still on probation or the miner is in a fault, and the rollback guard still covers a bad release. *Check for updates* asks GitHub right away. The × hides the banner until the next release. `POST /api/update` installs (or checks, with the body `check`), `/api/status` gains `update` and the settings `autoupdate`.
+
+### Fixes
+- Stratum V2 follows three rules from the recent spec revision. An extranonce prefix the pool addresses to a group channel is ignored rather than applied (spec 5.3.10). A pool that refuses the connection now has its error code shown on the Pools card instead of a bare "SV2 setup refused". The miner disconnects from a pool that picks a protocol version other than 2, or that forbids version rolling at setup, rather than mining shares the pool would reject.
+
+### Dashboard
+- **The Best shares table moved from the dashboard to the Pools page**, under the pools it belongs to. The dashboard keeps the best share as two figures on the Pools card.
+- **The Weather card shows the weather and nothing else**, and more of it: an icon for the conditions (sun or moon, clouds, rain, snow, thunder, as on the miner's screen), today's low and high, feels-like, humidity and wind, and the three-day outlook. Uptime, Wi-Fi, board and firmware moved to a card of their own, "This miner".
+- **Wi-Fi signal as bars and a word** (Excellent, Good, Fair, Poor) with the dBm beside it, on the dashboard and the Network page.
+- **Best share as two labelled rows**, all time and since boot, instead of two numbers around a slash.
+- **Share response time per pool** on the dashboard's Pools card, as the Pools page already had it.
+- **Network ping to the pool in use** on the same card: round trip and loss over the last 20 pings, every 5 s, so a slow network and a slow pool can be told apart. `/api/status` gains `net`.
+
+## AxeForge v1.4.8
+
+### Boards
+- Bitfortun BS-1: one BM1373 on the NerdQaxe layout, a 4-phase TPS53647 on 12 V. Pins, regulator limits and the stock point (425 MHz / 1010 mV) come from Bitfortun's published source. Their screen adds a fixed 400 GH/s to the hashrate it shows; AxeForge shows what the chips report. Not tested on hardware yet.
 - NerdAxe Gaia: one BM1373 on a 12 V TPS546D24A, with the NerdAxe's T-Display-S3. The regulator's logic is powered from the LDO on GPIO12, so AxeForge switches that on before it looks for the regulator. Stock point 350 MHz / 940 mV, values from shufps' firmware. The optional W5500 Ethernet interposer isn't supported. Not tested on hardware yet.
 - The README marks every board the community has run as tested. The HX-6 has no built board yet.
 

@@ -1,0 +1,28 @@
+# BitForge Nano (WantClue / DTV Electronics): 2x BM1370 in parallel on one TPS546 fed
+# 12 V, an INA260 at 0x40 on the input, and a PCA9544 I2C switch at 0x70 with an
+# EMC2101 on channels 2 and 3, one per chip, each driving its own fan. I2C 47/48,
+# reset GPIO1; GPIO10 (enable) is left alone, the TPS546 switches the core. No
+# display. Values from ForgeOS (github.com/WantClue/forge-os), the stock firmware.
+name = "BitForge Nano"
+id = "bitforgenano"
+kconfig = "AF_BOARD_BITFORGE_NANO"
+family = "bitaxe"
+
+[asic]
+chip = "bm1370"
+count = 2                 # in parallel, one domain
+diff_min = 256
+diff_max = 1024
+
+[sensors]
+emc2101 = true
+emc_mux_addr = 0x70       # PCA9544
+emc_mux_ch0 = 2           # chip 1's EMC2101 and fan
+emc_mux_ch1 = 3           # chip 2's
+emc_ideality = 0x37       # 1.0566, as ForgeOS
+emc_beta = 0x00
+ina260 = true
+
+[stock]
+freq_mhz = 525            # ForgeOS's shipped config
+mv = 1150

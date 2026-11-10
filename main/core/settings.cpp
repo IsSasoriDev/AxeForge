@@ -269,6 +269,7 @@ void load()
     get_bool(h, "bap", s.bap_on);
     get_bool(h, "blesetup", s.ble_setup);
     get_bool(h, "otaguard", s.ota_guard);
+    get_bool(h, "autoupd", s.auto_update);
     get_bool(h, "priceon", s.price_on);
     get_u8(h, "pricesrc", s.price_src);
     get_str(h, "pricezone", s.price_zone, sizeof(s.price_zone));
@@ -339,6 +340,7 @@ void save()
     nvs_set_u8(h, "bap", s.bap_on);
     nvs_set_u8(h, "blesetup", s.ble_setup);
     nvs_set_u8(h, "otaguard", s.ota_guard);
+    nvs_set_u8(h, "autoupd", s.auto_update);
     nvs_set_u8(h, "priceon", s.price_on);
     nvs_set_u8(h, "pricesrc", s.price_src);
     nvs_set_str(h, "pricezone", s.price_zone);

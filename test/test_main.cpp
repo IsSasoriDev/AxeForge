@@ -362,6 +362,39 @@ static void test_sv2_frames()
     CHECK(sv2_parse_close_channel(cc, sizeof(cc), &ch, reason, sizeof(reason)) == 0);
     CHECK(ch == 9 && strcmp(reason, "timeout") == 0);
     CHECK(sv2_parse_close_channel(cc, 4, &ch, reason, sizeof(reason)) != 0);
+
+    // SetupConnection.Success: used_version U16 + flags U32
+    uint8_t ss[6] = {0x02, 0x00, 0x01, 0x00, 0x00, 0x00};
+    uint16_t ver = 0;
+    uint32_t fl = 0;
+    CHECK(sv2_parse_setup_connection_success(ss, sizeof(ss), &ver, &fl) == 0);
+    CHECK(ver == 2 && (fl & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION));
+    CHECK(sv2_parse_setup_connection_success(ss, 5, &ver, &fl) != 0);
+
+    // SetupConnection.Error: flags U32 + error_code STR0_255
+    static const char ecode[] = "unsupported-feature-flags";
+    uint8_t se[4 + 1 + sizeof(ecode) - 1] = {};
+    le32(se, SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING);
+    se[4] = sizeof(ecode) - 1;
+    memcpy(se + 5, ecode, sizeof(ecode) - 1);
+    char code[64];
+    CHECK(sv2_parse_setup_connection_error(se, sizeof(se), &fl, code, sizeof(code)) == 0);
+    CHECK(fl == SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING && strcmp(code, ecode) == 0);
+    char small[8];
+    CHECK(sv2_parse_setup_connection_error(se, sizeof(se), &fl, small, sizeof(small)) == 0);
+    CHECK(strcmp(small, "unsuppo") == 0);                                       // truncated, terminated
+    CHECK(sv2_parse_setup_connection_error(se, 4, &fl, code, sizeof(code)) != 0);   // no string
+    CHECK(sv2_parse_setup_connection_error(se, 20, &fl, code, sizeof(code)) != 0);  // string runs past the end
+
+    // SetExtranoncePrefix carries the channel it is addressed to, so a prefix
+    // for a group channel can be told apart and ignored (spec 5.3.10)
+    uint8_t sp[4 + 1 + 4] = {};
+    le32(sp, 0x100);  // group channel id
+    sp[4] = 4;
+    memcpy(sp + 5, "\x01\x02\x03\x04", 4);
+    uint8_t pfx[32], plen = 0;
+    CHECK(sv2_parse_set_extranonce_prefix(sp, sizeof(sp), &ch, pfx, &plen) == 0);
+    CHECK(ch == 0x100 && plen == 4 && pfx[3] == 4);
 }
 
 // Noise transport: a payload over 65519 bytes goes out in chunks of at most

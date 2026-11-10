@@ -18,12 +18,13 @@ permissions:
   contents: write  # needed to create releases
 
 env:
-  BOARDS: nerdaxe nerdqaxeplus nerdoctaxeplus nerdoctaxegamma nerdqx suprahex ultrahex supra gamma bitair naja max ultra gammaduo gt gammahex hx6 nexus bs1 gaia
+  BOARDS: nerdaxe nerdqaxeplus nerdoctaxeplus nerdoctaxegamma nerdqx suprahex ultrahex supra gamma bitair naja max ultra gammaduo gt gammahex hx6 nexus bs1 gaia bitforgenano
 
 jobs:
   # Host-side unit tests (test/): difficulty, coinbase/merkle, template decode,
   # SV2 parsers, payout check. Built with ASan/UBSan; no ESP-IDF needed, so this
-  # takes seconds.
+  # takes seconds. Then the API check: the keys the handlers send and read must
+  # match docs/openapi.yaml (scripts/api_contract.py).
   test:
     runs-on: ubuntu-latest
     permissions:
@@ -32,9 +33,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Install compiler, mbedtls and cJSON
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ make libmbedtls-dev libcjson-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ make libmbedtls-dev libcjson-dev python3-yaml
       - name: Run unit tests
         run: make -C test
+      - name: Check the API against docs/openapi.yaml
+        run: python3 scripts/api_contract.py
 
   build:
     runs-on: ubuntu-latest

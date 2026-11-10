@@ -26,6 +26,8 @@ make -C test
 
 They cover the code that does not touch hardware (difficulty, coinbase and merkle building, template decoding, the payout check, SV2 framing and Noise) and the TPS546 regulator setup, run against a fake part. Add a test when you change any of that. CI runs them on every pull request, then builds the firmware for every board.
 
+Other programs drive miners through the HTTP API, so `docs/openapi.yaml` is its contract. If you add, rename or drop a key an `/api` handler sends or reads, change the spec in the same PR. CI checks the two against each other with `python3 scripts/api_contract.py`, and `--host <miner-ip>` checks a live miner as well (GET requests only).
+
 ## Pull requests
 
 - One change per PR. Base it on `main`.

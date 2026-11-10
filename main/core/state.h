@@ -197,6 +197,11 @@ struct MinerState {
 
     // Pool
     bool pool_connected = false;
+    // ICMP ping to the pool in use (net/netping.cpp): a network problem (round
+    // trip, loss) told apart from a slow pool (share response time)
+    char net_target[64] = "";
+    float net_rtt_ms = 0;        // smoothed round trip, 0 = no answer yet
+    float net_loss_pct = 0;      // over the last 20 pings
     char pool_host[64] = "";
     uint32_t pool_diff = 0;
     uint32_t shares_accepted = 0;

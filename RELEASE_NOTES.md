@@ -4,7 +4,10 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-_Nothing yet._
+### Fixes
+- Bitfortun BS-1: it stopped with "Temperature sensor not responding". Its two TMP1075s are not at the NerdQaxe addresses, so the regulator's own sensor now reads the VR, and stands in for the chip until a TMP1075 is found. The firmware also looks for TMP1075s at all eight addresses and, if none answer, logs every device on the I2C bus.
+- Bitfortun BS-1: the RJ45 port works. Its W5500 sits on the board on other pins than the NerdQAxe adapter (SCLK 2, MOSI 21, MISO 16, CS 3, 2 MHz).
+- TPS53647 boards that read the regulator's own temperature (HX-6, BS-1): a failed read showed as 0 C instead of a missing sensor. It now counts as missing, so the power-up check and the cut-off see it.
 
 ## AxeForge v1.4.10
 

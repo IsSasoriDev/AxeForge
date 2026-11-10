@@ -21,10 +21,26 @@
 static const char *TAG = "eth";
 
 #define ETH_HOST SPI3_HOST  // SPI2 belongs to an SPI-wired screen
-#define PIN_SCLK GPIO_NUM_2
-#define PIN_MOSI GPIO_NUM_12
-#define PIN_MISO GPIO_NUM_16
-#define PIN_CS GPIO_NUM_21
+// the NerdQAxe adapter header; a board with the W5500 on the PCB sets its own
+#ifndef AF_ETH_SCLK
+#define AF_ETH_SCLK 2
+#endif
+#ifndef AF_ETH_MOSI
+#define AF_ETH_MOSI 12
+#endif
+#ifndef AF_ETH_MISO
+#define AF_ETH_MISO 16
+#endif
+#ifndef AF_ETH_CS
+#define AF_ETH_CS 21
+#endif
+#ifndef AF_ETH_SPI_MHZ
+#define AF_ETH_SPI_MHZ 20
+#endif
+#define PIN_SCLK ((gpio_num_t) AF_ETH_SCLK)
+#define PIN_MOSI ((gpio_num_t) AF_ETH_MOSI)
+#define PIN_MISO ((gpio_num_t) AF_ETH_MISO)
+#define PIN_CS ((gpio_num_t) AF_ETH_CS)
 #define W5500_VERSIONR 0x0039
 #define W5500_VERSION 0x04
 
@@ -99,7 +115,7 @@ void start()
 
     spi_device_interface_config_t dev = {};
     dev.mode = 0;
-    dev.clock_speed_hz = 20 * 1000 * 1000;
+    dev.clock_speed_hz = AF_ETH_SPI_MHZ * 1000 * 1000;
     dev.spics_io_num = PIN_CS;
     dev.queue_size = 20;
     eth_w5500_config_t w5500 = ETH_W5500_DEFAULT_CONFIG(ETH_HOST, &dev);

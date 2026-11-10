@@ -37,6 +37,7 @@
 #include "net/captive.h"
 #include "net/mempool.h"
 #include "net/swarm.h"
+#include "net/netping.h"
 #include "net/weather.h"
 #include "net/web.h"
 #include "net/wifi.h"
@@ -167,6 +168,7 @@ extern "C" void app_main(void)
     notify::start();
     bap::start();
     swarm::start();
+    netping::start();
     web::start();
     weather::start();
     mempool::start();

@@ -282,6 +282,10 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddBoolToObject(net, "up", eth::up());
     cJSON_AddStringToObject(net, "ip", eth::ip());
     cJSON_AddStringToObject(r, "bleSetup", ble_setup::name());
+    cJSON *ping = cJSON_AddObjectToObject(r, "net");
+    cJSON_AddStringToObject(ping, "target", s.net_target);
+    cJSON_AddNumberToObject(ping, "rttMs", s.net_rtt_ms);
+    cJSON_AddNumberToObject(ping, "lossPct", s.net_loss_pct);
 
     cJSON *pool = cJSON_AddObjectToObject(r, "pool");
     cJSON_AddBoolToObject(pool, "connected", s.pool_connected);
@@ -422,6 +426,20 @@ static esp_err_t status_get(httpd_req_t *req)
     cJSON_AddNumberToObject(wx, "temp", w.temp);
     cJSON_AddNumberToObject(wx, "code", w.code);
     cJSON_AddStringToObject(wx, "text", weather::describe(w.code));
+    cJSON_AddBoolToObject(wx, "isDay", w.is_day);
+    cJSON_AddNumberToObject(wx, "feels", w.feels);
+    cJSON_AddNumberToObject(wx, "humidity", w.humidity);
+    cJSON_AddNumberToObject(wx, "wind", w.wind);
+    cJSON_AddNumberToObject(wx, "tmin", w.days[0].tmin);  // today's range
+    cJSON_AddNumberToObject(wx, "tmax", w.days[0].tmax);
+    cJSON *days = cJSON_AddArrayToObject(wx, "days");  // today and the next two
+    for (int i = 0; i < 3; i++) {
+        cJSON *d = cJSON_CreateObject();
+        cJSON_AddNumberToObject(d, "code", w.days[i].code);
+        cJSON_AddNumberToObject(d, "tmin", w.days[i].tmin);
+        cJSON_AddNumberToObject(d, "tmax", w.days[i].tmax);
+        cJSON_AddItemToArray(days, d);
+    }
     cJSON_AddStringToObject(wx, "error", w.error);
     return send_json(req, r);
 }

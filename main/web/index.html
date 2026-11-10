@@ -295,18 +295,18 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
   <p class="note" id="dustnote"></p>
   <div class="btns" id="dustbtn" style="display:none"><button class="btn sm" onclick="act('/api/dust','{}')">Done, I cleaned it</button></div></div>
 </div>
-<div class="mb">
- <div class="card"><h3>Best shares <span class="tag" id="scorecount">--</span></h3>
-  <div style="overflow-x:auto"><table class="tbl" id="scores"></table></div>
-  <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="resetScores()">Clear list</button><span class="meta">Kept across reboots.</span></div></div>
-</div>
-<div class="grid g3">
+<div class="grid g2 mb">
  <div class="card"><h3>Auto-tune</h3><div class="tune"><span class="pill" id="tph">--</span><b id="tpt"></b></div><div class="sub" id="tnote" style="margin-top:8px"></div><div class="bar"><i id="tbar" style="background:var(--violet)"></i></div>
   <div class="kv" style="margin-top:12px"><div>Best point</div><div id="tbest">--</div><div>Steps tested</div><div id="tsteps">0</div></div></div>
  <div class="card"><h3>Pools <span class="tag" id="pmode">--</span></h3><div id="pmini"></div>
-  <div class="kv" style="margin-top:10px"><div>Best diff</div><div id="pbest">--</div><div>Blocks found</div><div id="pblk">0</div></div></div>
- <div class="card"><h3>Weather</h3><div class="wx"><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div>
-  <div class="kv" style="margin-top:14px"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Firmware</div><div id="kver">--</div></div></div>
+  <div class="kv" style="margin-top:10px"><div title="Highest share difficulty ever, kept across reboots">Best share, all time</div><div id="pbest">--</div><div title="Highest share difficulty since this boot">Best share, since boot</div><div id="pbests">--</div><div>Blocks found</div><div id="pblk">0</div><div title="ICMP ping to the pool in use, every 5 s. Loss over the last 20.">Network ping</div><div id="pnet">--</div><div title="From sending a share to the pool's answer, last share">Share response</div><div id="presp">--</div></div></div>
+</div>
+<div class="grid g2">
+ <div class="card"><h3>Weather</h3><div class="wx"><div id="wxi" style="width:48px;height:48px;flex:none"></div><div class="t" id="wxt">--</div><div><b id="wxc"></b><div class="sub" id="wxl"></div></div></div>
+  <div class="sub" id="wxd" style="margin-top:8px"></div>
+  <div id="wxdays" style="display:flex;gap:10px;margin-top:12px"></div></div>
+ <div class="card"><h3>This miner</h3>
+  <div class="kv"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Board</div><div id="kboard">--</div><div>Firmware</div><div id="kver">--</div></div></div>
 </div>
 <a id="axm" href="https://github.com/IsSasoriDev/AxeMobile" target="_blank" rel="noopener" title="AxeMobile on GitHub">
  <i class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></i>
@@ -348,6 +348,9 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <label title="A pool whose block template keeps more than this share of the reward for itself counts as not paying you. 100 turns the check off.">Highest pool fee you accept (%)</label><input name="payfee" type="number" min="0" max="100" step="1">
 <p class="note">Only for usernames that are a Bitcoin address (solo mining). With "don't send work", a pool whose block template would pay you less than 100% minus this fee gets no jobs until its next template does; the other pools carry on. 100 means any fee is fine and only a template that doesn't pay you at all is skipped.</p></div>
 <div class="btns"><button class="btn">Save payout check</button></div></form>
+<div class="card" style="margin-top:14px"><h3>Best shares <span class="tag" id="scorecount">--</span></h3>
+  <div style="overflow-x:auto"><table class="tbl" id="scores"></table></div>
+  <div class="btns" style="margin-top:10px"><button class="btn alt sm" onclick="resetScores()">Clear list</button><span class="meta">The ten highest-difficulty shares this miner has found, kept across reboots.</span></div></div>
 </section>
 
 <!-- ============================== TUNING -->
@@ -555,7 +558,7 @@ a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopProp
 const SRC='https://github.com/IsSasoriDev/AxeForge';
 function tab(t){cur=t;document.querySelectorAll('nav button[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t==t));
  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==t));$('title').textContent=titles[t];history.replaceState(null,'','#'+t);
- if(t=='display'){shot();drawCanvas()}if(t=='system'){pollLogs();pollSelftest();loadOtp()}if(t=='swarm')loadSwarm()}
+ if(t=='display'){shot();drawCanvas()}if(t=='system'){pollLogs();pollSelftest();loadOtp()}if(t=='swarm')loadSwarm();if(t=='pools')loadScores()}
 document.querySelectorAll('nav button[data-t]').forEach(b=>{b.onclick=()=>tab(b.dataset.t);b.title=titles[b.dataset.t]});
 function navRail(){const r=document.documentElement.dataset.nav!='rail';document.documentElement.dataset.nav=r?'rail':'';try{localStorage.setItem('af-nav',r?'rail':'')}catch(e){}$('navtog').title=r?'Expand menu':'Collapse menu'}
 if(document.documentElement.dataset.nav=='rail')$('navtog').title='Expand menu';
@@ -665,11 +668,16 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('pmode').textContent=S.pool.mode;
  $('pmini').innerHTML=S.pools.map((p,i)=>p.enabled?`<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span class="dot ${p.connected?'ok':'wait'}"></span>
   <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.host)}</span><span class="tag">${PSHORT[p.proto]}</span><b>${p.workPct}%</b>
-  <span class="meta" style="color:var(--green)">${p.accepted}</span>/<span class="meta" style="color:var(--red)">${p.rejected}</span></div>`:'').join('')||'<span class="meta">No pools enabled</span>';
- $('pbest').textContent=sfx(S.pool.bestDiff)+' / '+sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
- const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
- $('kup').textContent=dur(S.uptime);$('krssi').textContent=S.rssi?S.rssi+' dBm':'--';$('kver').textContent=S.version;updShow(S);
- $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').textContent=S.rssi?S.rssi+' dBm ('+(S.rssi>-60?'great':S.rssi>-70?'good':'weak')+')':'--';$('npmf').textContent=S.pmf===undefined?'--':S.pmf?'yes (802.11w)':'no, the router doesn\'t offer them';
+  <span class="meta" style="color:var(--green)">${p.accepted}</span>/<span class="meta" style="color:var(--red)">${p.rejected}</span>${p.connected&&p.pingMs?`<span class="meta" title="Share response: from sending a share to the pool's answer">${p.pingMs} ms</span>`:''}</div>`:'').join('')||'<span class="meta">No pools enabled</span>';
+ $('pbest').textContent=sfx(S.pool.bestDiff);$('pbests').textContent=sfx(S.pool.sessionBest);$('pblk').textContent=S.pool.blocks;
+ const N=S.net||{};$('pnet').innerHTML=N.rttMs?`<b>${N.rttMs.toFixed(0)}</b> ms`+(N.lossPct?` · <b style="color:var(--${N.lossPct>=10?'red':'orange'})">${N.lossPct.toFixed(0)}%</b> loss`:' · no loss'):(N.target?'no answer':'--');
+ const ap=S.pools.find(p=>p.enabled&&p.connected&&p.pingMs);$('presp').innerHTML=ap?`<b>${ap.pingMs}</b> ms`+(S.pools.filter(p=>p.enabled).length>1?` <span class="meta">${esc(ap.host)}</span>`:''):'--';
+ const w=S.weather;$('wxt').textContent=w.valid?w.temp.toFixed(0)+'°':'--';$('wxi').innerHTML=w.valid?wxIcon(w.code,w.isDay):'';
+ $('wxd').innerHTML=w.valid?`L <b>${w.tmin.toFixed(0)}°</b> H <b>${w.tmax.toFixed(0)}°</b> · feels ${w.feels.toFixed(0)}° · ${w.humidity}% hum · ${w.wind.toFixed(0)} ${cfg.fahr?'mph':'km/h'}`:'';
+ const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],d0=new Date().getDay();
+ $('wxdays').innerHTML=w.valid&&w.days?w.days.map((d,i)=>`<div style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--track)"><span style="width:28px;height:28px;flex:none">${wxIcon(d.code,true).replace('width="48" height="48"','width="28" height="28"')}</span><div><div class="meta">${i?DN[(d0+i)%7]:'Today'}</div><div><b>${d.tmax.toFixed(0)}°</b> <span class="meta">${d.tmin.toFixed(0)}°</span></div></div></div>`).join(''):'';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
+ $('kup').textContent=dur(S.uptime);$('krssi').innerHTML=S.rssi?wifiSig(S.rssi):S.eth?.up?'Ethernet':'--';$('kboard').textContent=S.board||'--';$('kver').textContent=S.version;updShow(S);
+ $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').innerHTML=S.rssi?wifiSig(S.rssi):'--';$('npmf').textContent=S.pmf===undefined?'--':S.pmf?'yes (802.11w)':'no, the router doesn\'t offer them';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
  $('otabox').style.display=S.otaPending?'':'none';$('cwrow').style.display=S.asicCount>1?'':'none';priceLive(S.price);energyLive(S.energy);dustLive(S.dust);
@@ -961,6 +969,22 @@ async function scanWifi(){$('wscan').textContent='scanning…';$('wlist').innerH
  $('wlist').innerHTML=a.map(n=>`<button type="button" data-s="${esc(n.ssid)}"><b>${esc(n.ssid)}</b><span>${n.secure?'🔒 ':''}${n.rssi} dBm</span></button>`).join('');
  $('wlist').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('ssidin').value=b.dataset.s;$('wlist').innerHTML='';document.querySelector('[name=wpass]').focus()})}
 
+/* Weather icon: six drawings reused across the WMO code groups the screen uses */
+function wxIcon(c,day){const W='var(--text)',O='var(--orange)',B='var(--cyan)',D='var(--dim)';
+ const sun=(x,y,r)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${O}"/>`+[0,45,90,135,180,225,270,315].map(a=>{const t=a*Math.PI/180,x1=x+Math.cos(t)*(r+3),y1=y+Math.sin(t)*(r+3),x2=x+Math.cos(t)*(r+7),y2=y+Math.sin(t)*(r+7);return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${O}" stroke-width="2.5" stroke-linecap="round"/>`}).join('');
+ const moon=(x,y,r)=>`<path d="M${x+r*0.2} ${y-r} a${r} ${r} 0 1 0 ${r*0.8} ${r*1.6} a${r*0.75} ${r*0.75} 0 1 1 -${r*0.8} -${r*1.6}z" fill="${W}"/>`;
+ const cloud=(y,col)=>`<path d="M14 ${y+10} h20 a7 7 0 0 0 0-14 a10 10 0 0 0-19-3 a8.5 8.5 0 0 0-1 17z" fill="${col}"/>`;
+ const drops=c=>[18,25,32].map(x=>`<line x1="${x}" y1="36" x2="${x-2}" y2="43" stroke="${B}" stroke-width="2.5" stroke-linecap="round"/>`).join('');
+ const flakes=[18,25,32].map(x=>`<circle cx="${x}" cy="40" r="2" fill="${W}"/>`).join('');
+ const bolt=`<path d="M25 32 l-5 9 h5 l-2 7 7-10 h-5 l3-6z" fill="${O}"/>`;
+ const body=c==0?(day?sun(24,24,9):moon(24,24,10)):c<=2?(day?sun(31,15,6):moon(31,15,7))+cloud(26,D):c<=48?cloud(26,D):c>=95?cloud(24,D)+bolt:(c>=71&&c<=77)||c==85||c==86?cloud(22,D)+flakes:cloud(22,D)+drops();
+ return `<svg viewBox="0 0 48 48" width="48" height="48">${body}</svg>`}
+
+/* Wi-Fi signal as bars and a word; dBm means little on its own */
+function wifiSig(r){const q=r>=-55?[4,'Excellent','green']:r>=-65?[3,'Good','green']:r>=-75?[2,'Fair','orange']:[1,'Poor','red'];
+ const bars=[4,7,10,13].map((h,i)=>`<rect x="${i*4}" y="${13-h}" width="3" height="${h}" rx="1" fill="${i<q[0]?'var(--'+q[2]+')':'var(--line)'}"/>`).join('');
+ return `<span title="${r} dBm. Closer to 0 is stronger: better than -65 is good, worse than -75 can drop shares." style="display:inline-flex;align-items:center;gap:6px"><svg width="15" height="13" viewBox="0 0 15 13">${bars}</svg><b style="color:var(--${q[2]})">${q[1]}</b><small class="meta">${r} dBm</small></span>`}
+
 /* ---------------- self-test */
 let stTimer;
 async function runSelftest(){await act('/api/selftest');pollSelftest()}
@@ -1004,7 +1028,7 @@ function upload(f){if(!f)return;if(!confirm(`Install ${f.name} (${(f.size/1024|0
  x.onload=()=>toast(x.responseText);x.onerror=()=>toast('Upload failed');x.open('POST','/api/ota');x.setRequestHeader('X-AxeForge','1');if(SESS)x.setRequestHeader('X-AxeForge-Session',SESS);
  x.onload=()=>{if(x.status==401){toast('Log in first, then upload again');askLogin()}else toast(x.responseText)};x.send(f)}
 
-loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();loadDay();loadScores();
-setInterval(()=>{if(!document.hidden&&cur=='dash'){loadDay();loadScores()}},60000);
+loadCfg().then(()=>{tick();const h=location.hash.slice(1);if(titles[h])tab(h)});loadPools();loadLayout();chart();loadDay();
+setInterval(()=>{if(!document.hidden&&cur=='dash')loadDay();if(!document.hidden&&cur=='pools')loadScores()},60000);
 setInterval(()=>{if(!document.hidden)tick()},2000);setInterval(()=>{if(!document.hidden)chart()},30000);
 </script></body></html>

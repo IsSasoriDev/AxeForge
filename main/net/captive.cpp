@@ -3,6 +3,7 @@
 #include <string.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/idf_additions.h"
 #include "freertos/task.h"
 #include "lwip/sockets.h"
 
@@ -82,5 +83,6 @@ static void dns_task(void *)
 }
 
 namespace captive {
-void start() { xTaskCreatePinnedToCore(dns_task, "dns", 3072, NULL, 3, NULL, 0); }
+// PSRAM stack: sockets only
+void start() { xTaskCreatePinnedToCoreWithCaps(dns_task, "dns", 3072, NULL, 3, NULL, 0, MALLOC_CAP_SPIRAM); }
 }

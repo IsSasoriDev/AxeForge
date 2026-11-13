@@ -4,13 +4,31 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 
 ## Unreleased
 
-### Screen
-- DTV theme on the screen (both the 3.5in and the 320x170 T-Display-S3) has its own pages now, not the Forge pages in DTV colours. The DTV Electronics logo replaces the AxeForge text, an orange rail on the left names and numbers the page, and panels have cut corners. The crate and coin from the logo are the shapes: the hashrate fills a stack of five crates (one per 20 % of the expected hashrate), mined blocks and chips are crates, coming blocks are wireframe crates. The clock has split-flap digits and slanted second ticks, pools are tickets, and the system page carries a First Supporter plate. A boot screen shows the logo for a few seconds. On the 3.5in screen the dashboard also keeps the last-hour hashrate line, the clock a 3-day forecast, and the chips page the auto-tune panel; your custom pages keep their layout.
+_Nothing yet._
+
+## AxeForge v1.5.0
+
+### Watchdogs
+- **Chips that go silent are restarted.** The "flatline" known from AxeOS: the chips keep hashing and drawing power, but nothing comes back over the serial line, so no shares and a hashrate stuck on one value. AxeForge now watches for it two ways: no results from the chips for a while (2 to 10 minutes, depending on how often your board finds results), or a hashrate that has not changed by a single bit in 3 minutes. Either one powers the chips down and up again at the same clock and voltage, as a restart would, without stepping the clock down. Three of those in an hour count as a fault.
+- **A pool that stops answering is dropped and rejoined.** A pool can keep the connection open and keep talking while it no longer takes our shares, or (Stratum V1) stops sending new work. Shares unanswered for 5 minutes, or no new V1 work for 10, reconnect, the same as a restart does. Only that pool reconnects; mining on the others carries on.
+- The System page shows what the watchdogs did since boot (`watchdog` in `/api/status`).
+
+### Faster and lighter
+- The web UI is built into the firmware gzipped: about 45 kB instead of 130 kB of flash, and that much less to load on every visit. Repeat visits get a "not modified" answer until a firmware update changes the UI.
+- The weather, swarm, accessory port and setup-portal DNS tasks moved their stacks to PSRAM, which frees about 19 kB of the scarce internal RAM. Their few flash writes are now done by the monitor task.
 
 ### Fixes
+- **Choosing a tuning goal could stop a miner until it was reflashed (#89).** On boards with a low stock point (Bitaxe Naja Duo: 327 MHz / 1000 mV), the Tuning page's sliders couldn't show it, because they had fixed minimums of 400 MHz and 1100 mV. Saving that page (picking a goal saves it) sent the slider values instead: 450 MHz / 1200 mV on a Naja, which drew 83 W against its 60 W limit, and the chips didn't come up at that point after the cut. The sliders now take the board's own range before they are filled. A new tuner search never jumps above the stock point; it climbs from there. If a saved point keeps failing, the fault retries fall back to the stock point and keep it, so a restart brings the miner back.
+- **DTV theme in the web UI (1.4.9 and 1.4.10):** the live black hole was missing, and worse, the page stopped while loading the settings, so their forms showed default values; saving one sent those. The black hole code is back and the settings load again.
 - Bitfortun BS-1: it stopped with "Temperature sensor not responding". Its two TMP1075s are not at the NerdQaxe addresses, so the regulator's own sensor now reads the VR, and stands in for the chip until a TMP1075 is found. The firmware also looks for TMP1075s at all eight addresses and, if none answer, logs every device on the I2C bus.
 - Bitfortun BS-1: the RJ45 port works. Its W5500 sits on the board on other pins than the NerdQAxe adapter (SCLK 2, MOSI 21, MISO 16, CS 3, 2 MHz).
 - TPS53647 boards that read the regulator's own temperature (HX-6, BS-1): a failed read showed as 0 C instead of a missing sensor. It now counts as missing, so the power-up check and the cut-off see it.
+
+### Releases
+- The release lists each board's update file and one `axeforge-factory-images.zip` with all the full images, 25 files instead of 45. The self-update and the web flasher are unaffected.
+
+### Screen
+- DTV theme on the screen (both the 3.5in and the 320x170 T-Display-S3) has its own pages now, not the Forge pages in DTV colours. The DTV Electronics logo replaces the AxeForge text, an orange rail on the left names and numbers the page, and panels have cut corners. The crate and coin from the logo are the shapes: the hashrate fills a stack of five crates (one per 20 % of the expected hashrate), mined blocks and chips are crates, coming blocks are wireframe crates. The clock has split-flap digits and slanted second ticks, pools are tickets, and the system page carries a First Supporter plate. A boot screen shows the logo for a few seconds. On the 3.5in screen the dashboard also keeps the last-hour hashrate line, the clock a 3-day forecast, and the chips page the auto-tune panel; your custom pages keep their layout.
 
 ## AxeForge v1.4.10
 

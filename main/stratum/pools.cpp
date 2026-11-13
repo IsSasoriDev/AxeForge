@@ -69,6 +69,12 @@ static uint32_t shown_diff(double d) { return d >= 4294967295.0 ? UINT32_MAX : (
 // Pools send new work every 30-60 s, so three silent minutes means the pool has
 // stopped serving us; pools tend to write a silent miner off not long after.
 #define IDLE_RECONNECT_S 180
+// The socket can stay open while the pool has stopped serving this miner in two
+// ways the idle timer can't see, because something still arrives: shares sent
+// but never answered, or (Stratum V1, where pools send work every 30-60 s) no
+// new work. Either for this long reconnects, as a restart would.
+#define UNANSWERED_S 300
+#define NO_WORK_S 600
 #define HASHRATE_WINDOW_S 600
 
 struct Pool {
@@ -92,6 +98,8 @@ struct Pool {
     uint32_t submit_id = ID_SUBMIT_BASE;
     uint32_t chip_ok = 0;        // chips whose own worker the pool accepted
     int64_t submit_t_us = 0;
+    volatile uint32_t work_s = 0;        // uptime of the last new job
+    volatile uint32_t unanswered_s = 0;  // uptime of the oldest share not yet answered, 0: none
 
     // SV2 channel
     uint32_t channel_id = 0;
@@ -179,6 +187,7 @@ static void note_new_block(Pool &p, const uint8_t prev[32])
 // Publishes a new template and wakes the job task on clean jobs.
 static void publish(Pool &p, StratumJob &j, const char *coinb1_hex, const char *coinb2_hex)
 {
+    p.work_s = g_state.uptime_s;
     note_new_block(p, j.prev_hash_raw);
     xSemaphoreTake(p.lock, portMAX_DELAY);
     free(p.job.coinb1);
@@ -194,8 +203,29 @@ static void publish(Pool &p, StratumJob &j, const char *coinb1_hex, const char *
     if (j.clean) miner::kick();
 }
 
+// What is wrong with a pool that still talks to us, or null (see UNANSWERED_S).
+static const char *pool_stuck(Pool &p)
+{
+    const uint32_t now = g_state.uptime_s, u = p.unanswered_s, w = p.work_s;
+    if (u && now - u > UNANSWERED_S) return "shares unanswered for 5 min";
+    if (p.proto != PoolProto::V2 && w && now - w > NO_WORK_S) return "no new work for 10 min";
+    return nullptr;
+}
+
+static bool watchdog_reconnect(Pool &p)
+{
+    const char *why = pool_stuck(p);
+    if (!why) return false;
+    ESP_LOGW(TAG, "[%d] watchdog: %s, reconnecting", p.idx, why);
+    snprintf(g_state.wd_last, sizeof(g_state.wd_last), "pool %d: %s", p.idx + 1, why);
+    g_state.wd_pool++;
+    set_status(p, "Watchdog: %s, reconnecting", why);
+    return true;
+}
+
 static void on_share_result(Pool &p, bool ok, const char *err)
 {
+    p.unanswered_s = 0;
     PoolState &ps = g_state.pools[p.idx];
     if (p.submit_t_us) ps.ping_ms = (uint32_t) ((esp_timer_get_time() - p.submit_t_us) / 1000);
     if (ok) {
@@ -413,6 +443,8 @@ static void run_v1(Pool &p, const PoolCfg &cfg)
     }
     g_state.pools[p.idx].connected = true;
     p.lag_have = false;
+    p.work_s = g_state.uptime_s;
+    p.unanswered_s = 0;
     set_status(p, cfg.proto == PoolProto::V1Tls ? "Connected (TLS)" : "Connected");
 
     char *buf = (char *) malloc(V1_RX_BUF);
@@ -420,6 +452,7 @@ static void run_v1(Pool &p, const PoolCfg &cfg)
     int64_t last_rx = esp_timer_get_time();
     p.bad_subscribe = false;
     while (!p.restart && !p.bad_subscribe) {
+        if (watchdog_reconnect(p)) break;
         // poll without the lock so submits are never blocked behind a read
         int ready = esp_transport_poll_read(p.t, 200);
         if (ready < 0) break;
@@ -726,7 +759,10 @@ static void run_v2(Pool &p, const PoolCfg &cfg)
         // Same rule as V1: a pool that has sent nothing for this long has stopped
         // giving us work, even if the socket still looks open.
         int64_t last_rx = esp_timer_get_time();
+        p.work_s = g_state.uptime_s;
+        p.unanswered_s = 0;
         while (!p.restart && !p.channel_closed && !p.bad_subscribe) {
+            if (watchdog_reconnect(p)) break;
             int ready = esp_transport_poll_read(p.t, 1000);
             if (ready < 0) break;
             if (ready == 0) {
@@ -875,6 +911,7 @@ void submit(int i, const Work &w, uint32_t nonce, uint32_t version, int chip)
     Pool &p = s_pools[i];
     if (!g_state.pools[i].connected) return;
     p.submit_t_us = esp_timer_get_time();
+    if (!p.unanswered_s) p.unanswered_s = g_state.uptime_s ? g_state.uptime_s : 1;
     if (p.proto == PoolProto::V2) {
         uint8_t en2[32];
         size_t en2_len = work::hex2bin(w.extranonce2, en2, sizeof(en2));

@@ -22,6 +22,7 @@
 #include "mining/miner.h"
 #include "net/notify.h"
 #include "net/price.h"
+#include "net/swarm.h"
 #include "net/wifi.h"
 
 static const char *TAG = "monitor";
@@ -87,6 +88,43 @@ static RTC_NOINIT_ATTR struct {
     char text[140];
 } s_note;
 
+static void emergency(SysStatus status, const char *why);
+
+// The watchdog's answer to a silent chain (the "flatline", see miner.cpp): power
+// the chips down and up again at the same clock and voltage, as a restart does,
+// without counting it as a fault or stepping the clock down. Three in an hour
+// means something else is wrong: then it is a fault like any other.
+#define CHAIN_RESTARTS_PER_HOUR 3
+static bool restart_chain()
+{
+    static uint32_t when[CHAIN_RESTARTS_PER_HOUR] = {};
+    static int next = 0;
+    const uint32_t now = g_state.uptime_s;
+    int recent = 0;
+    for (uint32_t t : when)
+        if (t && now - t < 3600) recent++;
+    if (recent >= CHAIN_RESTARTS_PER_HOUR) {
+        emergency(SysStatus::Fault, "Chips keep going silent (3 restarts in an hour)");
+        return false;
+    }
+    when[next] = now ? now : 1;
+    next = (next + 1) % CHAIN_RESTARTS_PER_HOUR;
+    const uint16_t f = board::freq_mhz(), mv = board::core_mv();
+    ESP_LOGW(TAG, "watchdog: restarting the chain at %u MHz / %u mV (%s)", f, mv, g_state.wd_last);
+    miner::pause(true);
+    board::shutdown();
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    board::Error e = board::power_up(f, mv);
+    if (e != board::Error::None) {
+        emergency(SysStatus::Fault, board::error_text(e));
+        return false;
+    }
+    g_state.wd_chain++;
+    miner::pause(false);
+    notify::post(NOTIFY_FAULT, "watchdog restarted the chips: %s", g_state.wd_last);
+    return true;
+}
+
 static void emergency(SysStatus status, const char *why)
 {
     // whatever else was pending belongs to the power-up being cut now
@@ -131,6 +169,9 @@ static void monitor_task(void *)
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
         g_state.uptime_s++;
+        // flash writes asked for by the tasks that run on PSRAM stacks
+        settings::flush();
+        swarm::flush();
         board::read_telemetry();
         psu::tick();
         ota_guard::tick();
@@ -196,6 +237,10 @@ static void monitor_task(void *)
                 g_state.no_hash = false;
                 emergency(SysStatus::Fault, "No chip is hashing");
                 continue;
+            }
+            if (g_state.no_results) {
+                g_state.no_results = false;
+                if (!restart_chain()) continue;
             }
             float set_v = board::core_mv() / 1000.0f;
             // a failed read is NAN and doesn't count either way (a busy bus is not a lost rail)
@@ -365,8 +410,23 @@ static void monitor_task(void *)
                 uint16_t f = cfg.tuned_freq ? cfg.tuned_freq : cfg.freq_mhz;
                 uint16_t mv = cfg.tuned_mv ? cfg.tuned_mv : cfg.core_mv;
                 uint16_t lower = board::clamp_freq(f - RECOVERY_FREQ_DROP);
+                // The saved point itself may be what fails (#89: 0 chips at 450 MHz /
+                // 1.2 V on a Naja Duo, on every boot). From the second retry on, use
+                // the board's stock point, and keep it, so a restart comes up too.
+                const bool stock = fault_retries >= 2 && (lower != AF_STOCK_FREQ_MHZ || mv != AF_STOCK_MV);
+                if (stock) {
+                    lower = AF_STOCK_FREQ_MHZ;
+                    mv = AF_STOCK_MV;
+                    ESP_LOGW(TAG, "falling back to the stock point %u MHz / %u mV", lower, mv);
+                }
                 if (board::power_up(lower, mv) == board::Error::None) {
                     tuner::hold(lower);
+                    if (stock) {
+                        cfg.freq_mhz = lower;
+                        cfg.core_mv = mv;
+                        cfg.tuned_freq = cfg.tuned_mv = 0;
+                        settings::save();
+                    }
                     g_state.status = SysStatus::Mining;
                     g_state.fault[0] = 0;
                     miner::pause(false);

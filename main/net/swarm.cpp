@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/idf_additions.h"
 #include "freertos/task.h"
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
@@ -91,7 +92,13 @@ static bool valid_ip(const char *ip)
 }
 
 // ------------------------------------------------------------------ storage
-static void save()
+// add()/remove() run on the swarm task too, whose stack is in PSRAM and must not
+// touch flash: they mark the list, and the monitor task writes it (flush()).
+static volatile bool s_dirty = false;
+
+static void save() { s_dirty = true; }
+
+static void write_list()
 {
     char buf[MAX_PEERS * 16 + 1] = "";
     {
@@ -384,7 +391,7 @@ void start()
 {
     s_lock = xSemaphoreCreateMutex();
     load();
-    xTaskCreatePinnedToCore(swarm_task, "swarm", 6144, NULL, 2, &s_task, 0);
+    xTaskCreatePinnedToCoreWithCaps(swarm_task, "swarm", 6144, NULL, 2, &s_task, 0, MALLOC_CAP_SPIRAM);
 }
 
 char *to_json()
@@ -450,6 +457,13 @@ bool remove(const char *ip)
     }
     if (hit) save();
     return hit;
+}
+
+void flush()
+{
+    if (!s_dirty) return;
+    s_dirty = false;
+    write_list();
 }
 
 void request_scan()

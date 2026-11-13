@@ -506,7 +506,11 @@ static void tuner_task(void *)
             clear_offsets();
             settings::save();
             g_state.tuner = TunerState();
-            apply(cfg.freq_mhz, cfg.core_mv);
+            // A new search climbs; it never jumps above the board's stock point in
+            // one step. A start point above it (typed in, or a stale form, #89) put
+            // a Naja Duo straight at 1.2 V and over its power limit.
+            apply(cfg.freq_mhz < AF_STOCK_FREQ_MHZ ? cfg.freq_mhz : AF_STOCK_FREQ_MHZ,
+                  cfg.core_mv < AF_STOCK_MV ? cfg.core_mv : AF_STOCK_MV);
         }
 
         uint16_t best_f = board::freq_mhz(), best_mv = board::core_mv();

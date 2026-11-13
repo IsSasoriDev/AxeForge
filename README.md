@@ -208,7 +208,7 @@ Later updates don't need USB: upload your board's file under **System → Firmwa
 
 ### Flashing without the web flasher
 
-If the web flasher is down (or you'd rather not use a browser), flash over USB with Espressif's `esptool`. Download your board's files from the [Releases](https://github.com/IsSasoriDev/AxeForge/releases) page first:
+If the web flasher is down (or you'd rather not use a browser), flash over USB with Espressif's `esptool`. Download your board's files from the [Releases](https://github.com/IsSasoriDev/AxeForge/releases) page first. Update files are listed one per board; the full images are all in `axeforge-factory-images.zip` (since 1.5.0), and `SHA256SUMS.txt` covers both:
 
 | Board | Update file | Full image |
 |---|---|---|

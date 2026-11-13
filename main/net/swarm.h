@@ -10,4 +10,5 @@ char *to_json();               // caller frees
 bool add(const char *ip);      // false if not a valid IPv4 address or the list is full
 bool remove(const char *ip);
 void request_scan();           // probes the local /24 for miners, in the background
+void flush();                  // the monitor task: writes a changed list to flash
 }

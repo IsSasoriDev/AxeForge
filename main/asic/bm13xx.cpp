@@ -697,6 +697,8 @@ void set_difficulty_mask(uint32_t difficulty)
     ESP_LOGI(TAG, "ticket mask %lu", (unsigned long) mask);
 }
 
+uint32_t difficulty_mask() { return s_diff_mask; }
+
 uint8_t send_job(uint32_t counter, AsicJob &job)
 {
 #if AF_ASIC_BM1397

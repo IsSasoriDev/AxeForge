@@ -41,10 +41,24 @@ endif()
 idf_component_register(
     SRCS ${SRCS}
     INCLUDE_DIRS "." ${AF_GEN_DIR}
-    EMBED_TXTFILES "web/index.html"
     REQUIRES driver esp_wifi esp_netif nvs_flash esp_http_server esp_timer
              esp_lcd json mbedtls lwip esp_app_format app_update esp_http_client esp_https_ota
              tcp_transport esp-tls stratum_v2 esp_adc esp_eth wifi_provisioning bt wpa_supplicant
 )
+# The web UI ships gzipped: ~130 kB of HTML/JS becomes ~45 kB of flash, and every
+# page load sends that instead. mtime=0 keeps the build reproducible.
+if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+    idf_build_get_property(python PYTHON)
+    set(AF_UI_GZ ${CMAKE_CURRENT_BINARY_DIR}/index.html.gz)
+    add_custom_command(OUTPUT ${AF_UI_GZ}
+        COMMAND ${python} -c "import gzip,sys; open(sys.argv[2],'wb').write(gzip.compress(open(sys.argv[1],'rb').read(),9,mtime=0))"
+                ${CMAKE_CURRENT_LIST_DIR}/web/index.html ${AF_UI_GZ}
+        DEPENDS ${CMAKE_CURRENT_LIST_DIR}/web/index.html
+        VERBATIM)
+    add_custom_target(af_ui_gz DEPENDS ${AF_UI_GZ})
+    add_dependencies(${COMPONENT_LIB} af_ui_gz)
+    target_add_binary_data(${COMPONENT_LIB} ${AF_UI_GZ} BINARY)
+endif()
+
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-missing-field-initializers -Wno-format-truncation
     $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>)

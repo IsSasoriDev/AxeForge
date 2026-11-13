@@ -73,8 +73,8 @@ static const bool HAS_ETH = true;
 static const bool HAS_ETH = false;
 #endif
 
-extern const char index_html_start[] asm("_binary_index_html_start");
-extern const char index_html_end[] asm("_binary_index_html_end");
+extern const char index_gz_start[] asm("_binary_index_html_gz_start");
+extern const char index_gz_end[] asm("_binary_index_html_gz_end");
 
 static bool via_setup_ap(httpd_req_t *req);
 
@@ -108,12 +108,27 @@ static char *recv_body(httpd_req_t *req, size_t max)
     return b;
 }
 
+// The UI is built into the firmware gzipped (see main/CMakeLists.txt). Its ETag is
+// the firmware's own hash, so a browser revalidates every load (no-cache) and gets
+// a 304 until a firmware update changes the UI.
 static esp_err_t index_get(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "text/html");
-    // revalidate on every load, so a firmware update never leaves an old UI cached
+    static char etag[24] = "";
+    if (!etag[0]) {
+        const uint8_t *sha = esp_app_get_description()->app_elf_sha256;
+        snprintf(etag, sizeof(etag), "\"%02x%02x%02x%02x%02x%02x%02x%02x\"", sha[0], sha[1], sha[2], sha[3], sha[4],
+                 sha[5], sha[6], sha[7]);
+    }
     httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
-    return httpd_resp_send(req, index_html_start, index_html_end - index_html_start - 1);
+    httpd_resp_set_hdr(req, "ETag", etag);
+    char inm[24];
+    if (httpd_req_get_hdr_value_str(req, "If-None-Match", inm, sizeof(inm)) == ESP_OK && !strcmp(inm, etag)) {
+        httpd_resp_set_status(req, "304 Not Modified");
+        return httpd_resp_send(req, NULL, 0);
+    }
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+    return httpd_resp_send(req, index_gz_start, index_gz_end - index_gz_start);
 }
 
 static const char *phase_name(TunerPhase p)
@@ -256,6 +271,12 @@ static esp_err_t status_get(httpd_req_t *req)
         cJSON_AddNumberToObject(uj, "pct", u.pct);
         cJSON_AddStringToObject(uj, "msg", u.msg);
         cJSON_AddBoolToObject(uj, "auto", settings::get().auto_update);
+    }
+    {
+        cJSON *wd = cJSON_AddObjectToObject(r, "watchdog");
+        cJSON_AddNumberToObject(wd, "chain", g_state.wd_chain);
+        cJSON_AddNumberToObject(wd, "pool", g_state.wd_pool);
+        cJSON_AddStringToObject(wd, "last", g_state.wd_last);
     }
     {
         const psu::State &p = psu::state();
@@ -522,6 +543,7 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddBoolToObject(r, "blesetup", c.ble_setup);
     cJSON_AddBoolToObject(r, "hasEth", HAS_ETH);
     cJSON *lim = cJSON_AddObjectToObject(r, "limits");
+    cJSON_AddNumberToObject(lim, "minFreq", AF_MIN_FREQ_MHZ);
     cJSON_AddNumberToObject(lim, "maxFreq", gates::max_freq());
     cJSON_AddNumberToObject(lim, "minMv", CONFIG_AF_MIN_CORE_MV);
     cJSON_AddNumberToObject(lim, "maxMv", gates::max_mv());

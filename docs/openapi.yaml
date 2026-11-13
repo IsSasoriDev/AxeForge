@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: AxeForge miner API
-  version: 1.4.10
+  version: 1.5.0
   description: |
     The HTTP API every AxeForge miner serves at `http://<miner-ip>/api/...`. The web UI uses
     exactly these calls.
@@ -234,6 +234,13 @@ paths:
                       pct: {type: integer, description: 'download progress, %'}
                       msg: {type: string, description: the last result, for people}
                       auto: {type: boolean, description: auto-update is on}
+                  watchdog:
+                    type: object
+                    description: what the chain and pool watchdogs did since boot
+                    properties:
+                      chain: {type: integer, description: chain restarts after the chips went silent or the hashrate froze}
+                      pool: {type: integer, description: pool reconnects after unanswered shares or no new work}
+                      last: {type: string, description: the last thing a watchdog acted on, for people}
                   psu:
                     type: object
                     description: the supply check
@@ -438,6 +445,7 @@ paths:
                         type: object
                         description: What the tuner and manual settings work within right now (the envelope while overclocking is active)
                         properties:
+                          minFreq: {type: integer, description: 'MHz, the lowest clock the board allows'}
                           maxFreq: {type: integer, description: MHz}
                           minMv: {type: integer}
                           maxMv: {type: integer}

@@ -5,7 +5,7 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ## Unreleased
 
 ### Screen
-- DTV theme on the 320x170 screen (T-Display-S3 boards) has its own pages now, not the Forge pages in DTV colours. The DTV Electronics logo replaces the AxeForge text, an orange rail on the left names and numbers the page, and panels have cut corners. The crate and coin from the logo are the shapes: the hashrate fills a stack of five crates (one per 20 % of the expected hashrate), mined blocks and chips are crates, coming blocks are wireframe crates. The clock has split-flap digits and slanted second ticks, pools are tickets, and the system page carries a First Supporter plate. A boot screen shows the logo for a few seconds. The 3.5in screen keeps its current DTV look.
+- DTV theme on the screen (both the 3.5in and the 320x170 T-Display-S3) has its own pages now, not the Forge pages in DTV colours. The DTV Electronics logo replaces the AxeForge text, an orange rail on the left names and numbers the page, and panels have cut corners. The crate and coin from the logo are the shapes: the hashrate fills a stack of five crates (one per 20 % of the expected hashrate), mined blocks and chips are crates, coming blocks are wireframe crates. The clock has split-flap digits and slanted second ticks, pools are tickets, and the system page carries a First Supporter plate. A boot screen shows the logo for a few seconds. On the 3.5in screen the dashboard also keeps the last-hour hashrate line, the clock a 3-day forecast, and the chips page the auto-tune panel; your custom pages keep their layout.
 
 ## AxeForge v1.4.10
 

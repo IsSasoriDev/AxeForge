@@ -7,6 +7,11 @@ Newest first. Each release is a `## AxeForge vX.Y.Z` section; the release workfl
 ### Screen
 - DTV theme on the screen (both the 3.5in and the 320x170 T-Display-S3) has its own pages now, not the Forge pages in DTV colours. The DTV Electronics logo replaces the AxeForge text, an orange rail on the left names and numbers the page, and panels have cut corners. The crate and coin from the logo are the shapes: the hashrate fills a stack of five crates (one per 20 % of the expected hashrate), mined blocks and chips are crates, coming blocks are wireframe crates. The clock has split-flap digits and slanted second ticks, pools are tickets, and the system page carries a First Supporter plate. A boot screen shows the logo for a few seconds. On the 3.5in screen the dashboard also keeps the last-hour hashrate line, the clock a 3-day forecast, and the chips page the auto-tune panel; your custom pages keep their layout.
 
+### Fixes
+- Bitfortun BS-1: it stopped with "Temperature sensor not responding". Its two TMP1075s are not at the NerdQaxe addresses, so the regulator's own sensor now reads the VR, and stands in for the chip until a TMP1075 is found. The firmware also looks for TMP1075s at all eight addresses and, if none answer, logs every device on the I2C bus.
+- Bitfortun BS-1: the RJ45 port works. Its W5500 sits on the board on other pins than the NerdQAxe adapter (SCLK 2, MOSI 21, MISO 16, CS 3, 2 MHz).
+- TPS53647 boards that read the regulator's own temperature (HX-6, BS-1): a failed read showed as 0 C instead of a missing sensor. It now counts as missing, so the power-up check and the cut-off see it.
+
 ## AxeForge v1.4.10
 
 ### Fixes

@@ -191,7 +191,13 @@ static Error power_up_once(uint16_t freq, uint16_t mv, bool last_try)
     mv = clamp_mv(mv);
 
     read_telemetry();
+#if AF_VR_TEMP_FROM_CONTROLLER
+    // the regulator's own sensor may only answer once the LDO is on: checked
+    // again below, after the regulator is set up and before its output is on
+    if (!g_state.temp_ok && !AF_CHIP_TEMP_FROM_VR) {
+#else
     if (!g_state.temp_ok || !g_state.vr_temp_ok) {
+#endif
         ESP_LOGE(TAG, "temperature sensor not answering, refusing to power up");
         return Error::NoTempSensor;
     }
@@ -228,6 +234,14 @@ static Error power_up_once(uint16_t freq, uint16_t mv, bool last_try)
                      s_phases == 6 ? "TPS53667" : "TPS53647", tps53647::is_tps53667() ? "TPS53667" : "TPS53647");
             gpio_set_level(PIN_LDO_EN, 0);
             return Error::NoRegulator;
+        }
+#endif
+#if AF_VR_TEMP_FROM_CONTROLLER
+        read_telemetry();
+        if (!g_state.temp_ok || !g_state.vr_temp_ok) {
+            ESP_LOGE(TAG, "temperature sensor not answering, refusing to power up");
+            gpio_set_level(PIN_LDO_EN, 0);
+            return Error::NoTempSensor;
         }
 #endif
         gpio_set_level(PIN_VR_EN, 1);
@@ -321,7 +335,22 @@ void read_telemetry()
     // that persists.
     float tmax = 0;
     int n = temp::count();
-    bool ok = n > 0 || s_die_sensors > 0;
+    // TPS53647 boards measure the regulator with the TMP1075 on its back side
+    // (the HX-6 and BS-1 have none there and read the controller), the TPS546
+    // reports its own die temperature
+#if AF_VR_TEMP_FROM_CONTROLLER
+    float vr = tps53647::temperature();
+#else
+    float vr = s_rev7 ? tps546::temperature() : temp::vr_board() + s_vr_offset;
+#endif
+#if AF_CHIP_TEMP_FROM_VR
+    // no chip sensor found (BS-1): the regulator sits next to the one chip and
+    // stands in for it, so the miner still has a temperature to protect it
+    bool vr_proxy = n == 0 && s_die_sensors == 0 && !isnan(vr);
+#else
+    const bool vr_proxy = false;
+#endif
+    bool ok = n > 0 || s_die_sensors > 0 || vr_proxy;
     float last = NAN;
     const float proxy_offset = s_rev7 ? REV7_DIE_TEMP_OFFSET : AF_PROXY_DIE_OFFSET;
     // each board sensor once per tick (the bus is shared with the TMP451 reader);
@@ -343,6 +372,7 @@ void read_telemetry()
         } else if (!own) {
             t = s_die_sensors > 0 ? board_max : last;
         }
+        if (vr_proxy) t = vr + proxy_offset;
         if (isnan(t)) {
             ok = false;
             t = 0;
@@ -355,14 +385,6 @@ void read_telemetry()
     g_state.temp_ok = ok;
     g_state.fan_rpm[0] = fan::rpm(0);
     g_state.fan_rpm[1] = fan::rpm(1);
-    // TPS53647 boards measure the regulator with the TMP1075 on its back side
-    // (the HX-6 has none there and reads the controller), the TPS546 reports its
-    // own die temperature
-#if AF_VR_TEMP_FROM_CONTROLLER
-    float vr = tps53647::temperature();
-#else
-    float vr = s_rev7 ? tps546::temperature() : temp::vr_board() + s_vr_offset;
-#endif
     g_state.vr_temp_ok = !isnan(vr);
     g_state.vr_temp = g_state.vr_temp_ok ? vr : 0;
     if (!s_powered) return;

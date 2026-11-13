@@ -76,6 +76,11 @@ FIELDS = [
     ("pins", "i2c_scl", "AF_PIN_I2C_SCL"),
     ("pins", "button_1", "AF_PIN_BTN_1"),
     ("pins", "ldo_en", "AF_PIN_LDO_EN"),
+    ("ethernet", "sclk", "AF_ETH_SCLK"),
+    ("ethernet", "mosi", "AF_ETH_MOSI"),
+    ("ethernet", "miso", "AF_ETH_MISO"),
+    ("ethernet", "cs", "AF_ETH_CS"),
+    ("ethernet", "spi_mhz", "AF_ETH_SPI_MHZ"),
     ("display", "lcd", "AF_HAS_LCD"),
     ("display", "color_board", "AF_COLOR_BOARD"),
     ("display", "spi_st7789", "AF_LCD_SPI_ST7789"),
@@ -105,6 +110,7 @@ FIELDS = [
     ("sensors", "tmp451_muxes", "AF_TMP451_MUXES"),
     ("sensors", "tmp451_pin_a1", "AF_TMP451_PIN_A1"),
     ("sensors", "proxy_die_offset_c", "AF_PROXY_DIE_OFFSET"),
+    ("sensors", "chip_temp_from_vr", "AF_CHIP_TEMP_FROM_VR"),
     ("sensors", "power_offset_w", "AF_POWER_OFFSET_W"),
     ("stock", "freq_mhz", "AF_STOCK_FREQ_MHZ"),
     ("stock", "mv", "AF_STOCK_MV"),
@@ -127,6 +133,9 @@ TAIL = """
 
 #ifndef AF_HAS_VR_SENSOR
 #define AF_HAS_VR_SENSOR 1
+#endif
+#ifndef AF_CHIP_TEMP_FROM_VR
+#define AF_CHIP_TEMP_FROM_VR 0
 #endif
 #ifndef AF_VR_FAN_TARGET_C
 #define AF_VR_FAN_TARGET_C 65.0f  // the VR fan's PI target

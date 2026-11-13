@@ -237,7 +237,13 @@ static Error power_up_once(uint16_t freq, uint16_t mv, bool last_try)
         }
 #endif
 #if AF_VR_TEMP_FROM_CONTROLLER
-        read_telemetry();
+        // the controller's first readings after setup can miss (a BS-1 failed its
+        // first power-up on every boot this way): give it up to a second
+        for (int i = 0; i < 10; i++) {
+            read_telemetry();
+            if (g_state.temp_ok && g_state.vr_temp_ok) break;
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
         if (!g_state.temp_ok || !g_state.vr_temp_ok) {
             ESP_LOGE(TAG, "temperature sensor not answering, refusing to power up");
             gpio_set_level(PIN_LDO_EN, 0);

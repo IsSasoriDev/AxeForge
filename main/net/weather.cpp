@@ -7,6 +7,7 @@
 #include "cJSON.h"
 #include "esp_log.h"
 #include "esp_sntp.h"
+#include <time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/idf_additions.h"
 #include "freertos/task.h"
@@ -139,6 +140,9 @@ static void weather_task(void *)
     esp_sntp_setservername(1, "time.google.com");
     sntp_set_time_sync_notification_cb(on_time_sync);
     esp_sntp_init();
+    // HTTPS checks the certificate's dates: on a clock still at 1970 the first
+    // request fails ("Failed to verify peer certificate"). Wait for the time, briefly.
+    for (int i = 0; i < 15 && time(nullptr) < 1700000000; i++) vTaskDelay(pdMS_TO_TICKS(1000));
 
     bool force_geocode = false;
     while (true) {

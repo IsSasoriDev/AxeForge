@@ -22,6 +22,9 @@ _Nothing yet._
 - **DTV theme in the web UI (1.4.9 and 1.4.10):** the live black hole was missing, and worse, the page stopped while loading the settings, so their forms showed default values; saving one sent those. The black hole code is back and the settings load again.
 - Bitfortun BS-1: it stopped with "Temperature sensor not responding". Its two TMP1075s are not at the NerdQaxe addresses, so the regulator's own sensor now reads the VR, and stands in for the chip until a TMP1075 is found. The firmware also looks for TMP1075s at all eight addresses and, if none answer, logs every device on the I2C bus.
 - Bitfortun BS-1: the RJ45 port works. Its W5500 sits on the board on other pins than the NerdQAxe adapter (SCLK 2, MOSI 21, MISO 16, CS 3, 2 MHz).
+- Bitfortun BS-1 (from a field test): the first power-up after boot failed with "Temperature sensor not responding" because the regulator's first reading after setup can miss; the retry 30 s later came up, but capped 25 MHz lower. The check now gives the regulator up to a second.
+- With Ethernet up, the miner no longer follows a Wi-Fi mesh's requests to move it to another radio (each move drops open web connections for a moment). Without a cable it still does.
+- The first weather request after boot waits for the clock: on a clock still at 1970 HTTPS refuses the certificate.
 - TPS53647 boards that read the regulator's own temperature (HX-6, BS-1): a failed read showed as 0 C instead of a missing sensor. It now counts as missing, so the power-up check and the cut-off see it.
 
 ### Releases

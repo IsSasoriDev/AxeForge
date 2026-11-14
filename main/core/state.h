@@ -190,6 +190,10 @@ struct MinerState {
     bool board_rev7 = false;  // TPS546 regulator
     uint8_t chip_stall = 0;   // 1-based chip that stopped hashing; the monitor acts on it
     bool no_hash = false;     // powered and fed work, but no chip returns anything
+    bool no_results = false;  // the chips' replies stopped (the "flatline"): the monitor restarts the chain
+    uint16_t wd_chain = 0;    // watchdog: chain restarts since boot
+    uint16_t wd_pool = 0;     // watchdog: pool reconnects since boot
+    char wd_last[72] = "";    // what the watchdog last did, for the web UI
     uint16_t fan_rpm[2] = {};
     uint8_t fan_pct = 0;
     uint8_t fan_duty[2] = {};

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include "esp_app_desc.h"
+#include "esp_timer.h"
 #include "lvgl.h"
 #include "ui/theme.h"  // after lvgl.h: routes colours through the active theme
 #include "sdkconfig.h"
@@ -160,6 +161,8 @@ static lv_obj_t *new_page(lv_obj_t *scr)
     lv_obj_add_flag(p, LV_OBJ_FLAG_HIDDEN);
     return p;
 }
+
+#include "ui_small_dtv.inc"  // the DTV theme's own pages
 
 // ------------------------------------------------------------------ build
 static void build_header(lv_obj_t *scr)
@@ -343,6 +346,7 @@ static void show_page(int idx)
         lv_obj_set_style_bg_color(s_dots[i], i == s_page ? C_CYAN : C_TRACK, 0);
         lv_obj_set_width(s_dots[i], i == s_page ? 12 : 4);
     }
+    if (theme::dtv()) dtv_show_page();
 }
 
 static void show_kind(int k)
@@ -594,7 +598,8 @@ static void refresh_cb(lv_timer_t *)
         else show_page(s_page + req);
     }
     refresh_header();
-    switch (s_order[s_page]) {
+    if (theme::dtv()) dtv_refresh(s_order[s_page]);
+    else switch (s_order[s_page]) {
     case K_DASH: refresh_dash(); break;
     case K_CLOCK: refresh_clock(); break;
     case K_BLOCKS: refresh_blocks(); break;
@@ -623,21 +628,25 @@ void build()
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
-    build_header(scr);
-    for (int i = 0; i < NUM_KINDS; i++) s_pages[i] = new_page(scr);
-    build_dash(s_pages[K_DASH]);
-    build_clock(s_pages[K_CLOCK]);
-    build_blocks(s_pages[K_BLOCKS]);
-    build_pool(s_pages[K_POOL]);
-    build_chips(s_pages[K_CHIPS]);
-    build_system(s_pages[K_SYSTEM]);
-    for (int i = 0; i < NUM_KINDS; i++) s_dots[i] = box(scr, 0, H - 6, 4, 4, C_TRACK, 2);
+    if (theme::dtv()) {
+        dtv_build(scr);
+    } else {
+        build_header(scr);
+        for (int i = 0; i < NUM_KINDS; i++) s_pages[i] = new_page(scr);
+        build_dash(s_pages[K_DASH]);
+        build_clock(s_pages[K_CLOCK]);
+        build_blocks(s_pages[K_BLOCKS]);
+        build_pool(s_pages[K_POOL]);
+        build_chips(s_pages[K_CHIPS]);
+        build_system(s_pages[K_SYSTEM]);
+        for (int i = 0; i < NUM_KINDS; i++) s_dots[i] = box(scr, 0, H - 6, 4, 4, C_TRACK, 2);
 
-    s_banner = box(scr, 0, HDR, W, 22, C_RED, 0);
-    lv_obj_set_style_bg_opa(s_banner, LV_OPA_90, 0);
-    s_banner_lbl = label(s_banner, &lv_font_montserrat_12, lv_color_hex(0xffffff), "");
-    lv_obj_center(s_banner_lbl);
-    lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
+        s_banner = box(scr, 0, HDR, W, 22, C_RED, 0);
+        lv_obj_set_style_bg_opa(s_banner, LV_OPA_90, 0);
+        s_banner_lbl = label(s_banner, &lv_font_montserrat_12, lv_color_hex(0xffffff), "");
+        lv_obj_center(s_banner_lbl);
+        lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
+    }
 
     load_order();
     if (settings::get().wifi_ssid[0]) show_page(settings::get().default_page % s_order_n);

@@ -5,6 +5,10 @@
 # boards/bitfortunqaxeplus2.cpp), a fork of shufps' NerdQAxe firmware. That source
 # still says 4 chips, copied from the NerdQAxe it started from; the board has one.
 # Their screen adds a fixed 400 GH/s to the hashrate it shows; AxeForge shows the real one.
+# Differences from the NerdQaxe found on a real board: its two TMP1075s (U37, U38)
+# do not answer at 0x48-0x4b, so the regulator's own sensor reads the VR and stands
+# in for the chip when no TMP1075 turns up; and the W5500 is on the PCB, on other
+# pins than the NerdQAxe adapter (network/w5500.h in their source).
 name = "Bitfortun BS-1"
 id = "bs1"
 kconfig = "AF_BOARD_BS1"
@@ -24,9 +28,18 @@ phases = 4
 imax_a = 122              # stock: round(0.85 / 48700 / 5 mOhm * 35000)
 ifault_a = 160
 init_mv = 1050            # stock: chips enumerate at max(1050 mV, target)
+temp_from_controller = true  # no TMP1075 at the regulator; the TPS53647 reads itself
+
+[ethernet]                # W5500 on the board
+sclk = 2
+mosi = 21
+miso = 16
+cs = 3
+spi_mhz = 2                # as their firmware runs it
 
 [sensors]
 proxy_die_offset_c = 10.0 # no die sensors; stock adds 10 C to the board sensors
+chip_temp_from_vr = true  # no TMP1075 found: the regulator next to the chip stands in
 
 [stock]
 freq_mhz = 425

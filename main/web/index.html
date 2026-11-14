@@ -306,7 +306,7 @@ html[data-scr=oled] .lcd{display:none!important}html:not([data-scr=oled]) .oled{
   <div class="sub" id="wxd" style="margin-top:8px"></div>
   <div id="wxdays" style="display:flex;gap:10px;margin-top:12px"></div></div>
  <div class="card"><h3>This miner</h3>
-  <div class="kv"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Board</div><div id="kboard">--</div><div>Firmware</div><div id="kver">--</div></div></div>
+  <div class="kv"><div>Uptime</div><div id="kup">--</div><div>Wi-Fi</div><div id="krssi">--</div><div>Board</div><div id="kboard">--</div><div>Firmware</div><div id="kver">--</div><div>Watchdog</div><div id="kwd" title="Restarts the chips when they go silent, reconnects a pool that stops answering">--</div></div></div>
 </div>
 <a id="axm" href="https://github.com/IsSasoriDev/AxeMobile" target="_blank" rel="noopener" title="AxeMobile on GitHub">
  <i class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></i>
@@ -372,8 +372,8 @@ hashrate as one chip per pool — or uses them as failover.</div>
 <div><label title="The symbol shown next to costs on the dashboard.">Currency</label><input name="currency" maxlength="4" placeholder="€"></div></div>
 <p class="note">For the power bill card on the dashboard. With no price of your own, the Energy-Charts market price above is used while the price mode is on (wholesale, without taxes and fees).</p></div>
 <div class="card"><h3>Manual point / tuner start</h3><div class="row">
-<div><label title="The chip clock the tuner starts from, or runs at with auto-tune off. Higher needs more voltage and makes more heat; the hard limit is the board&#x27;s stock point, or its envelope with Overclock on. 1 MHz steps.">Frequency (MHz)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="freq" min="400" max="750" step="1" style="flex:1" oninput="fnum.value=this.value"><input type="number" id="fnum" min="400" max="750" step="1" style="width:84px" oninput="this.form.freq.value=this.value"></div></div>
-<div><label title="The chip core voltage. Each clock needs enough of it or the chips make errors; more than needed is heat. 5 mV steps.">Core voltage (mV)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="mv" min="1100" max="1300" step="5" style="flex:1" oninput="mvnum.value=this.value"><input type="number" id="mvnum" min="1100" max="1300" step="5" style="width:84px" oninput="this.form.mv.value=this.value"></div></div></div>
+<div><label title="The chip clock the tuner starts from, or runs at with auto-tune off. Higher needs more voltage and makes more heat; the hard limit is the board&#x27;s stock point, or its envelope with Overclock on. 1 MHz steps.">Frequency (MHz)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="freq" min="100" max="750" step="1" style="flex:1" oninput="fnum.value=this.value"><input type="number" id="fnum" min="100" max="750" step="1" style="width:84px" oninput="this.form.freq.value=this.value"></div></div>
+<div><label title="The chip core voltage. Each clock needs enough of it or the chips make errors; more than needed is heat. 5 mV steps.">Core voltage (mV)</label><div style="display:flex;gap:8px;align-items:center"><input type="range" name="mv" min="700" max="1500" step="5" style="flex:1" oninput="mvnum.value=this.value"><input type="number" id="mvnum" min="700" max="1500" step="5" style="width:84px" oninput="this.form.mv.value=this.value"></div></div></div>
 <p class="note">Used directly when auto-tune is off, and as the starting point when a new search begins.</p></div>
 <div class="card"><h3>Cooling</h3><div class="row">
 <div><label title="The fans aim to hold the hottest chip here. Lower is cooler and louder. The tuner&#x27;s ceiling is separate and compiled in.">Target chip temp (°C) <span class="rv" id="ftv"></span></label><input type="range" name="fantgt" min="40" max="70" oninput="ftv.textContent=this.value"></div>
@@ -552,6 +552,66 @@ function updShow(S){const u=S.update||{};$('updmsg').textContent=u.msg||'';$('up
  checkUpdate(S.version)}
 async function updNow(){$('updnow').disabled=$('updnow2').disabled=true;await act('/api/update');setTimeout(()=>{$('updnow').disabled=$('updnow2').disabled=false},3000)}
 function updClose(){const b=$('updban');b.classList.remove('on');try{localStorage.setItem('af-upd-skip',b.dataset.tag||'')}catch(e){}}
+// DTV theme background: AxeMobile's black hole, ray-traced live in WebGL at reduced
+// resolution and ~30 fps, paused while the tab is hidden. One still frame with
+// reduced motion; nothing without WebGL (the page stays AMOLED black).
+const BH_FS=`precision highp float;
+uniform vec2 u_res;uniform float u_time;
+float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
+ return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+  mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*noise(p);p*=2.03;a*=.5;}return s;}
+vec3 sky(vec3 d){vec3 col=vec3(0.);
+ col+=vec3(.28,.07,.38)*pow(fbm(d*2.2+vec3(0.,0.,u_time*.01)),3.)*1.1;
+ col+=vec3(.5,.2,.03)*pow(fbm(d*3.1+7.),4.)*.9;
+ for(int i=0;i<3;i++){float s=90.+float(i)*140.;vec3 p=d*s;vec3 id=floor(p);vec3 f=fract(p)-.5;float h=hash(id+float(i)*17.31);
+  if(h>.986){float tw=.65+.35*sin(u_time*(2.+h*4.)+h*80.);float b=smoothstep(.22,0.,length(f))*tw;
+   col+=mix(vec3(1.),vec3(1.,.62,.28),step(.994,h))*b*(1.6-float(i)*.4);}}
+ return col;}
+void main(){vec2 uv=(gl_FragCoord.xy-.5*u_res)/u_res.y;float dist=17.;
+ float ang=.9+u_time*.05;float elev=.16+.05*sin(u_time*.2);
+ vec3 ro=vec3(sin(ang),elev,-cos(ang))*dist;vec3 ww=normalize(-ro);vec3 uu=normalize(cross(ww,vec3(0.,1.,0.)));vec3 vv=cross(uu,ww);
+ float roll=.18;vec2 q=mat2(cos(roll),-sin(roll),sin(roll),cos(roll))*uv;vec3 rd=normalize(q.x*uu+q.y*vv+1.5*ww);
+ vec3 p=ro;vec3 v=rd;vec3 hv=cross(p,v);float h2=dot(hv,hv);vec3 col=vec3(0.);float trans=1.;bool cap=false;float minr=1e9;
+ for(int i=0;i<170;i++){float r2=dot(p,p);float r=sqrt(r2);minr=min(minr,r);
+  if(r<1.){cap=true;break;}
+  if(r>30.)break;
+  float dt=.02+.07*r;v+=-1.5*h2*p/(r2*r2*r)*dt;vec3 pn=p+v*dt;
+  if(p.y*pn.y<0.){float k=p.y/(p.y-pn.y);vec3 c=mix(p,pn,k);float rc=length(c.xz);
+   if(rc>2.4&&rc<11.){float a=atan(c.z,c.x);float spin=a-u_time*1.6/pow(rc,1.5)*2.5;
+    float bands=fbm(vec3(rc*2.2,spin*3.,u_time*.15));float fine=noise(vec3(rc*14.,spin*18.,3.));
+    float edge=smoothstep(11.,6.,rc)*smoothstep(2.4,3.,rc);float temp=pow(3./rc,1.5);
+    vec3 vel=normalize(vec3(-c.z,0.,c.x));float dop=1.+.75*dot(vel,-normalize(v));
+    vec3 dc=mix(vec3(.55,.12,.02),vec3(1.,.45,.06),clamp(temp*1.2,0.,1.));dc=mix(dc,vec3(1.,.93,.82),clamp((temp-.75)*1.6,0.,1.));
+    float inten=edge*(.25+bands*1.1+fine*.25)*temp*1.8*dop*dop*dop;col+=trans*dc*inten;trans*=1.-clamp(inten*.55,0.,.92);
+    if(trans<.02)break;}}
+  p=pn;}
+ if(!cap)col+=trans*sky(normalize(v));
+ col+=vec3(1.,.7,.35)*exp(-pow((minr-1.5)*6.,2.))*(cap?0.:1.)*.9*trans;
+ col=1.-exp(-col*1.35);col=pow(col,vec3(.92));col*=1.-.35*dot(uv,uv);
+ gl_FragColor=vec4(col*.8,1.);}`;
+let BH=null;
+function dtvBH(on){const cv=$('bh');if(!cv)return;
+ if(!on){cv.classList.remove('on');if(BH)BH.run=false;return}
+ if(!BH){const gl=cv.getContext('webgl',{antialias:false,alpha:false,powerPreference:'low-power'});if(!gl)return;
+  const sh=(t,src)=>{const o=gl.createShader(t);gl.shaderSource(o,src);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null};
+  const vs=sh(gl.VERTEX_SHADER,'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'),fs=sh(gl.FRAGMENT_SHADER,BH_FS);if(!vs||!fs)return;
+  const pr=gl.createProgram();gl.attachShader(pr,vs);gl.attachShader(pr,fs);gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS))return;
+  gl.useProgram(pr);gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const al=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+  BH={gl,ur:gl.getUniformLocation(pr,'u_res'),ut:gl.getUniformLocation(pr,'u_time'),run:false,last:0,t0:performance.now()};
+  addEventListener('visibilitychange',()=>{if(!document.hidden&&BH.run)requestAnimationFrame(bhFrame)})}
+ cv.classList.add('on');if(!BH.run){BH.run=true;requestAnimationFrame(bhFrame)}}
+function bhFrame(now){if(!BH||!BH.run||document.hidden)return;
+ const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(now-BH.last>=33||still){BH.last=now;const cv=$('bh'),k=Math.min(.6,Math.sqrt(360000/(innerWidth*innerHeight)));
+  const w=Math.max(1,Math.round(innerWidth*k)),h=Math.max(1,Math.round(innerHeight*k));
+  if(cv.width!=w||cv.height!=h){cv.width=w;cv.height=h}
+  const g=BH.gl;g.viewport(0,0,w,h);g.uniform2f(BH.ur,w,h);g.uniform1f(BH.ut,(now-BH.t0)/1000);g.drawArrays(g.TRIANGLES,0,3)}
+ if(still){addEventListener('resize',()=>requestAnimationFrame(bhFrame),{once:true});return}
+ requestAnimationFrame(bhFrame)}
+dtvBH(document.documentElement.dataset.theme=='dtv');
 // AxeMobile corner card on the dashboard; the x hides it for this browser
 (()=>{const a=document.getElementById('axm');if(!a)return;try{if(localStorage.getItem('af-axm')==='0')a.classList.add('off')}catch(e){}
 a.querySelector('.x').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();a.classList.add('off');try{localStorage.setItem('af-axm','0')}catch(e){}})})();
@@ -676,7 +736,7 @@ async function tick(){try{S=await (await fetch('/api/status')).json()}catch(e){r
  $('wxd').innerHTML=w.valid?`L <b>${w.tmin.toFixed(0)}°</b> H <b>${w.tmax.toFixed(0)}°</b> · feels ${w.feels.toFixed(0)}° · ${w.humidity}% hum · ${w.wind.toFixed(0)} ${cfg.fahr?'mph':'km/h'}`:'';
  const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],d0=new Date().getDay();
  $('wxdays').innerHTML=w.valid&&w.days?w.days.map((d,i)=>`<div style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--track)"><span style="width:28px;height:28px;flex:none">${wxIcon(d.code,true).replace('width="48" height="48"','width="28" height="28"')}</span><div><div class="meta">${i?DN[(d0+i)%7]:'Today'}</div><div><b>${d.tmax.toFixed(0)}°</b> <span class="meta">${d.tmin.toFixed(0)}°</span></div></div></div>`).join(''):'';$('wxc').textContent=w.valid?w.text:'No weather';$('wxl').textContent=w.valid?w.city:w.error;
- $('kup').textContent=dur(S.uptime);$('krssi').innerHTML=S.rssi?wifiSig(S.rssi):S.eth?.up?'Ethernet':'--';$('kboard').textContent=S.board||'--';$('kver').textContent=S.version;updShow(S);
+ $('kup').textContent=dur(S.uptime);$('krssi').innerHTML=S.rssi?wifiSig(S.rssi):S.eth?.up?'Ethernet':'--';$('kboard').textContent=S.board||'--';$('kver').textContent=S.version;updShow(S);{const w=S.watchdog||{};$('kwd').textContent=(w.chain||w.pool)?`${w.chain} chip restart${w.chain==1?'':'s'}, ${w.pool} pool reconnect${w.pool==1?'':'s'}${w.last?' · '+w.last:''}`:'quiet';}
  $('nip').textContent=S.ip||'--';$('ethrow').style.display=$('ethnote').style.display=S.eth?.present?'':'none';$('neth').textContent=S.eth?.up?'connected · '+S.eth.ip:'adapter fitted, no cable';$('hostin').placeholder=S.hostname?S.hostname+' (automatic)':'automatic';$('nrssi').innerHTML=S.rssi?wifiSig(S.rssi):'--';$('npmf').textContent=S.pmf===undefined?'--':S.pmf?'yes (802.11w)':'no, the router doesn\'t offer them';
  $('sboard').textContent=S.board||'--';$('sver').textContent='AxeForge '+S.version;$('schips').textContent=S.chipsDetected+' × '+(S.asicModel||'BM1370');$('svin').textContent=S.vin.toFixed(2)+' V';
  const ps=S.psu;$('spsu').innerHTML=!ps||ps.level=='unknown'?'measuring…':`<span style="color:${ps.level=='ok'?'var(--green)':ps.level=='weak'?'var(--orange)':'var(--red)'}">${ps.level}</span> · ${ps.load.toFixed(2)} V at ${ps.watts.toFixed(0)} W (${ps.sag.toFixed(1)}% below ${ps.nominal} V)`+(ps.mohm>0?` · ~${ps.mohm.toFixed(0)} mΩ`:'');
@@ -716,8 +776,12 @@ async function swDel(ip){await act('/api/swarm',JSON.stringify({remove:ip}));loa
 async function swScan(){await act('/api/swarm',JSON.stringify({scan:true}));loadSwarm()}
 setInterval(()=>{if(cur=='swarm'&&!document.hidden)loadSwarm()},5000);
 async function loadCfg(){cfg=await (await fetch('/api/settings')).json();setTheme(cfg.theme);
+ // the board's limits go on the sliders first: a range input can't hold a value
+ // outside its min/max, and saving the form would send the clamped one (#89)
+ const L=cfg.limits,fr=document.querySelector('[name=freq]'),mv=document.querySelector('[name=mv]');
+ fr.min=$('fnum').min=L.minFreq||100;fr.max=$('fnum').max=L.maxFreq;mv.min=$('mvnum').min=L.minMv;mv.max=$('mvnum').max=L.maxMv;
  document.querySelectorAll('form[data-f] [name]').forEach(e=>{const v=cfg[e.name];if(v===undefined)return;if(e.type=='checkbox')e.checked=!!v;else e.value=v;e.dispatchEvent(new Event('input'))});
- const L=cfg.limits;document.querySelector('[name=freq]').max=$('fnum').max=L.maxFreq;const mv=document.querySelector('[name=mv]');mv.min=$('mvnum').min=L.minMv;mv.max=$('mvnum').max=L.maxMv;ocUi();
+ ocUi();
  $('lims').innerHTML=[[L.maxFreq+' MHz','max clock'],[L.minMv+'–'+L.maxMv+' mV','core voltage'],[L.chipCeil+'°C','chip ceiling'],[L.chipCrit+'°C','chip shutdown'],[L.vrCeil+'°C','VR ceiling'],[L.vrCrit+'°C','VR shutdown'],[(+L.maxPower).toFixed(L.maxPower%1?1:0)+' W','max power']]
   .map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
  $('jobms').placeholder=cfg.jobmsDefault+' (default)';$('vrrow').style.display=cfg.vrSupported?'':'none';

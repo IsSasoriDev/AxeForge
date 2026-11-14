@@ -125,6 +125,10 @@ struct Settings {
 namespace settings {
 void load();
 void save();
+// For tasks whose stack is in PSRAM, which must never touch flash: the monitor
+// task does the save within a second (flush()).
+void save_later();
+void flush();  // the monitor: a pending save_later()
 Settings &get();
 // pools are stored as one JSON blob
 char *pools_to_json();  // caller frees

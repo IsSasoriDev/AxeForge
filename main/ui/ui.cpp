@@ -621,6 +621,8 @@ static void load_order()
     }
 }
 
+static void b_show_page();  // ui_dtv.inc
+
 static void show_page(int idx)
 {
     s_page = ((idx % s_order_n) + s_order_n) % s_order_n;
@@ -631,6 +633,7 @@ static void show_page(int idx)
         lv_obj_set_style_bg_color(s_dots[i], i == s_page ? C_CYAN : C_TRACK, 0);
         lv_obj_set_width(s_dots[i], i == s_page ? 18 : 6);
     }
+    if (theme::dtv()) b_show_page();
 }
 
 static void show_kind(int kind)
@@ -903,6 +906,7 @@ static void refresh_clock()
 
 #include "ui/pages_pool_blocks.inc"
 #include "ui/widgets.inc"
+#include "ui/ui_dtv.inc"  // the DTV theme's own pages
 
 static void refresh_cb(lv_timer_t *)
 {
@@ -927,7 +931,7 @@ static void refresh_cb(lv_timer_t *)
     }
 
     refresh_header();
-    switch (s_order[s_page]) {
+    if (!(theme::dtv() && b_refresh(s_order[s_page]))) switch (s_order[s_page]) {
     case K_DASH: refresh_dashboard(); break;
     case K_CLOCK: refresh_clock(); break;
     case K_BLOCKS: refresh_blocks(); break;
@@ -960,35 +964,39 @@ void build()
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
-    build_header(scr);
-    for (int i = 0; i < NUM_KINDS; i++) s_pages[i] = new_page(scr);
-    build_dashboard(s_pages[K_DASH]);
-    build_clock(s_pages[K_CLOCK]);
-    build_blocks(s_pages[K_BLOCKS]);
-    build_pool(s_pages[K_POOL]);
-    build_chips(s_pages[K_CHIPS]);
-    build_system(s_pages[K_SYSTEM]);
-    s_custom_root[0] = s_pages[K_CUSTOM1];
-    s_custom_root[1] = s_pages[K_CUSTOM2];
-    build_custom(0);
-    build_custom(1);
+    if (theme::dtv()) {
+        b_build(scr);
+    } else {
+        build_header(scr);
+        for (int i = 0; i < NUM_KINDS; i++) s_pages[i] = new_page(scr);
+        build_dashboard(s_pages[K_DASH]);
+        build_clock(s_pages[K_CLOCK]);
+        build_blocks(s_pages[K_BLOCKS]);
+        build_pool(s_pages[K_POOL]);
+        build_chips(s_pages[K_CHIPS]);
+        build_system(s_pages[K_SYSTEM]);
+        s_custom_root[0] = s_pages[K_CUSTOM1];
+        s_custom_root[1] = s_pages[K_CUSTOM2];
+        build_custom(0);
+        build_custom(1);
 
-    for (int i = 0; i < NUM_KINDS; i++) {
-        s_dots[i] = lv_obj_create(scr);
-        lv_obj_remove_style_all(s_dots[i]);
-        lv_obj_set_size(s_dots[i], 6, 6);
-        lv_obj_set_style_radius(s_dots[i], 3, 0);
-        lv_obj_set_style_bg_opa(s_dots[i], LV_OPA_COVER, 0);
+        for (int i = 0; i < NUM_KINDS; i++) {
+            s_dots[i] = lv_obj_create(scr);
+            lv_obj_remove_style_all(s_dots[i]);
+            lv_obj_set_size(s_dots[i], 6, 6);
+            lv_obj_set_style_radius(s_dots[i], 3, 0);
+            lv_obj_set_style_bg_opa(s_dots[i], LV_OPA_COVER, 0);
+        }
+
+        s_banner = lv_obj_create(scr);
+        lv_obj_remove_style_all(s_banner);
+        lv_obj_set_size(s_banner, LCD_H_RES, 30);
+        lv_obj_align(s_banner, LV_ALIGN_TOP_MID, 0, HEADER_H);
+        lv_obj_set_style_bg_opa(s_banner, LV_OPA_90, 0);
+        s_banner_lbl = label(s_banner, &lv_font_montserrat_14, lv_color_hex(0xffffff), "");
+        lv_obj_center(s_banner_lbl);
+        lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
     }
-
-    s_banner = lv_obj_create(scr);
-    lv_obj_remove_style_all(s_banner);
-    lv_obj_set_size(s_banner, LCD_H_RES, 30);
-    lv_obj_align(s_banner, LV_ALIGN_TOP_MID, 0, HEADER_H);
-    lv_obj_set_style_bg_opa(s_banner, LV_OPA_90, 0);
-    s_banner_lbl = label(s_banner, &lv_font_montserrat_14, lv_color_hex(0xffffff), "");
-    lv_obj_center(s_banner_lbl);
-    lv_obj_add_flag(s_banner, LV_OBJ_FLAG_HIDDEN);
 
     // first boot without Wi-Fi: open on the setup QR
     load_order();

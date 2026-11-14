@@ -163,7 +163,14 @@ bool set_vout(float volts)
 
 void clear_faults() { i2c_bus::send_cmd(ADDR, CLEAR_FAULTS); }
 
-float temperature() { return read_linear(READ_TEMPERATURE_1); }
+// NAN when it does not answer, never 0: a dead read must not look like a cool
+// regulator. Read before init() too, so the power-up check can use it.
+float temperature()
+{
+    uint16_t t = 0;
+    if (i2c_bus::read_word_le(ADDR, READ_TEMPERATURE_1, &t) != ESP_OK) return NAN;
+    return slinear11_to_float(t);
+}
 float vin() { return read_linear(READ_VIN); }
 float iin() { return read_linear(READ_IIN); }
 float pin() { return read_linear(READ_PIN); }

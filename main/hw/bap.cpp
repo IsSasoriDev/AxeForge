@@ -15,6 +15,7 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/idf_additions.h"
 #include "freertos/task.h"
 
 #include "asic/bm13xx.h"
@@ -111,7 +112,7 @@ static int param_of(const char *name)
 static void restart_soon()
 {
     send("STA", "status", "restarting");
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(2500));  // the monitor writes the pending settings within a second
     board::shutdown();
     esp_restart();
 }
@@ -145,13 +146,13 @@ static void handle_set(const char *param, const char *value)
     } else if (!strcmp(param, "ssid")) {
         if (strlen(value) >= sizeof(c.wifi_ssid)) return send("ERR", param, "invalid_range");
         snprintf(c.wifi_ssid, sizeof(c.wifi_ssid), "%s", value);
-        settings::save();
+        settings::save_later();
         send("ACK", param, value);
         return;  // the password comes next and restarts
     } else if (!strcmp(param, "password")) {
         if (strlen(value) >= sizeof(c.wifi_pass)) return send("ERR", param, "invalid_range");
         snprintf(c.wifi_pass, sizeof(c.wifi_pass), "%s", value);
-        settings::save();
+        settings::save_later();
         send("ACK", param, "password_set");
         restart_soon();
         return;
@@ -159,7 +160,7 @@ static void handle_set(const char *param, const char *value)
         send("ERR", param, "unsupported_parameter");
         return;
     }
-    settings::save();
+    settings::save_later();
     ESP_LOGI(TAG, "accessory set %s = %s", param, value);
     send("ACK", param, value);
 }
@@ -280,7 +281,8 @@ void start()
     if (uart_driver_install(BAP_UART, 1024, 1024, 0, NULL, 0) != ESP_OK) return;
     uart_param_config(BAP_UART, &cfg);
     uart_set_pin(BAP_UART, PIN_TX, PIN_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    xTaskCreate(task, "bap", 4096, NULL, 3, NULL);
+    // PSRAM stack: UART only; settings go through save_later()
+    xTaskCreateWithCaps(task, "bap", 4096, NULL, 3, NULL, MALLOC_CAP_SPIRAM);
     ESP_LOGI(TAG, "accessory port on TX %d / RX %d", PIN_TX, PIN_RX);
 }
 

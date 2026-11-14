@@ -268,8 +268,23 @@ void start()
 
 bool connected() { return s_connected || eth::up(); }
 
+// A mesh moves its stations between radios (802.11v transition requests); each
+// move drops the open connections for a moment. With the cable in, Wi-Fi is only
+// the spare: don't follow those requests then. Changing it reconnects Wi-Fi once.
+static void follow_steering(bool on)
+{
+    wifi_config_t sta = {};
+    if (!settings::get().wifi_ssid[0] || esp_wifi_get_config(WIFI_IF_STA, &sta) != ESP_OK) return;
+    if (sta.sta.btm_enabled == (on ? 1u : 0u)) return;
+    sta.sta.btm_enabled = on ? 1 : 0;
+    sta.sta.rm_enabled = on ? 1 : 0;
+    esp_wifi_set_config(WIFI_IF_STA, &sta);
+    ESP_LOGI(TAG, "%s the network's requests to change radio", on ? "following" : "Ethernet up: ignoring");
+}
+
 void eth_changed()
 {
+    follow_steering(!eth::up());
     if (eth::up()) {
         if (!s_connected) snprintf(g_state.ip, sizeof(g_state.ip), "%s", eth::ip());
         if (s_setup && !ble_setup::active()) {

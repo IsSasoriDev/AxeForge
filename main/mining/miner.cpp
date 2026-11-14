@@ -35,10 +35,18 @@ static const char *TAG = "miner";
 #define HISTORY_EVERY 6  // counter periods per chart point (30 s)
 #define STATS_EVERY 12   // counter periods per 24-hour sample (60 s)
 #define BEST_NOTIFY_GAP_S 600  // at most one "new best" message per 10 minutes
+// The "flatline": the chips keep hashing (and drawing power) but nothing comes
+// back over the UART, so no results and no counter replies; the hashrate then
+// holds its last value to the decimal. Either sign for this long, while the
+// chain is powered and fed work, has the monitor restart the chain.
+#define SILENT_MIN_S 120   // no results at all; longer when results are rare (see below)
+#define SILENT_MAX_S 600
+#define FROZEN_S 180       // the hashrate unchanged to the last bit
 
 static SemaphoreHandle_t s_work_lock;
 static Work s_work[NUM_SLOTS];
 static volatile bool s_paused = false;
+static volatile uint32_t s_last_result_s = 0;  // uptime of the last nonce frame from any chip
 static TaskHandle_t s_job_task;
 static uint32_t s_job_counter = 0;
 
@@ -309,6 +317,7 @@ static void result_task(void *)
             continue;
         }
         if (!asic::receive(r, 1000)) continue;
+        if (!r.is_register) s_last_result_s = (uint32_t) (esp_timer_get_time() / 1000000);
 
         if (r.is_register) {
             if (r.reg == asic::REG_NONCE_COUNT && asic::COUNT_IS_RATE) {
@@ -384,6 +393,8 @@ static void counter_task(void *)
 {
     vTaskDelay(pdMS_TO_TICKS(4000));
     int n = 0, periods = 0, stall = 0, dead = 0;
+    uint32_t frozen_s = 0;
+    float last_total = -1;
     while (true) {
         if (!board::is_powered()) {
             memset(s_prev_t, 0, sizeof(s_prev_t));
@@ -428,6 +439,32 @@ static void counter_task(void *)
         // quiet at once (a tripped regulator, say): catch that on its own, while
         // work is actually being sent.
         bool fed = g_state.pool_connected && !s_paused && g_state.expected_ghs > 0;
+        // silent chain / frozen hashrate (see SILENT_MIN_S): the window grows on
+        // boards where results are rare, so it always spans ~40 expected results
+        const uint32_t now_s = (uint32_t) (esp_timer_get_time() / 1000000);
+        if (!fed || periods <= 3) {
+            s_last_result_s = now_s;
+            frozen_s = 0;
+        } else {
+            uint32_t mask = asic::difficulty_mask();
+            double per_s = mask != 0xffffffffu ? g_state.expected_ghs * 1e9 / ((double) mask + 1) / 4294967296.0 : 0;
+            uint32_t window = per_s > 0 ? (uint32_t) (40.0 / per_s) : SILENT_MAX_S;
+            window = window < SILENT_MIN_S ? SILENT_MIN_S : window > SILENT_MAX_S ? SILENT_MAX_S : window;
+            frozen_s = total > 0 && total == last_total ? frozen_s + COUNTER_PERIOD_MS / 1000 : 0;
+            if (now_s - s_last_result_s > window || frozen_s >= FROZEN_S) {
+                if (frozen_s >= FROZEN_S)
+                    snprintf(g_state.wd_last, sizeof(g_state.wd_last), "hashrate frozen at %.0f GH/s for %lu s", total,
+                             (unsigned long) frozen_s);
+                else
+                    snprintf(g_state.wd_last, sizeof(g_state.wd_last), "no results from the chips for %lu s",
+                             (unsigned long) (now_s - s_last_result_s));
+                ESP_LOGE(TAG, "watchdog: %s", g_state.wd_last);
+                g_state.no_results = true;
+                s_last_result_s = now_s;
+                frozen_s = 0;
+            }
+        }
+        last_total = total;
         dead = periods > 3 && fed && total < 0.05f * g_state.expected_ghs ? dead + 1 : 0;
         if (dead >= STALL_PERIODS) {
             ESP_LOGE(TAG, "no chip is hashing (%.0f GH/s of %.0f expected)", total, g_state.expected_ghs);

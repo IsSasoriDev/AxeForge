@@ -445,15 +445,26 @@ static bool tmp_present(int dev)
 }
 
 static int s_num_asic_sensors = 0;
+static int s_dev[4];  // the TMP1075 index (0..7) behind ASIC sensor i
+
+// Every address that answers on the bus, once, for a board whose sensors are
+// not where its definition says: the log then shows where they are.
+static void log_bus_scan()
+{
+    char list[160] = "";
+    for (int a = 0x08; a < 0x78; a++)
+        if (i2c_bus::probe(a)) snprintf(list + strlen(list), sizeof(list) - strlen(list), " 0x%02x", a);
+    ESP_LOGW(TAG, "I2C devices:%s", list[0] ? list : " none");
+}
 
 namespace temp {
 
 int detect()
 {
-    // Which of the four TMP1075 addresses answer, once, so a board with fewer
+    // Which of the eight TMP1075 addresses answer, once, so a board with fewer
     // sensors than its definition expects can be told from a dead one.
-    char found[48] = "";
-    for (int dev = 0; dev < 4; dev++) {
+    char found[96] = "";
+    for (int dev = 0; dev < 8; dev++) {
         bool here = i2c_bus::probe(TMP_BASE + dev);
         snprintf(found + strlen(found), sizeof(found) - strlen(found), "%s0x%02x%s", dev ? " " : "", TMP_BASE + dev,
                  here ? "" : "(none)");
@@ -465,12 +476,23 @@ int detect()
     s_num_asic_sensors = 0;
     for (int i = 0; i < MAX_ASIC_SENSORS; i++) {
         if (!tmp_present(ASIC_SENSOR_DEV[i])) break;
-        s_num_asic_sensors++;
+        s_dev[s_num_asic_sensors++] = ASIC_SENSOR_DEV[i];
     }
     for (int i = s_num_asic_sensors + 1; i < MAX_ASIC_SENSORS; i++)
         if (tmp_present(ASIC_SENSOR_DEV[i]))
             ESP_LOGW(TAG, "TMP1075 at 0x%02x answers but 0x%02x before it does not: not used", TMP_BASE + ASIC_SENSOR_DEV[i],
                      TMP_BASE + ASIC_SENSOR_DEV[s_num_asic_sensors]);
+    // None where they should be: take any other TMP1075 that answers, in address
+    // order (the regulator's own sensor excepted). The Bitfortun BS-1 has two
+    // TMP1075s, and they are not at the NerdQaxe addresses.
+    if (s_num_asic_sensors == 0) {
+        for (int dev = 0; dev < 8 && s_num_asic_sensors < 4; dev++) {
+            if (dev == TMP_VR_INDEX || !tmp_present(dev)) continue;
+            ESP_LOGW(TAG, "using the TMP1075 at 0x%02x as an ASIC sensor", TMP_BASE + dev);
+            s_dev[s_num_asic_sensors++] = dev;
+        }
+    }
+    if (s_num_asic_sensors == 0) log_bus_scan();
     ESP_LOGI(TAG, "%d of %d ASIC temperature sensors", s_num_asic_sensors, MAX_ASIC_SENSORS);
     return s_num_asic_sensors;
 }
@@ -478,7 +500,7 @@ int detect()
 float asic_area(int index)
 {
     if (index < 0 || index >= s_num_asic_sensors) return NAN;
-    return tmp_read(ASIC_SENSOR_DEV[index]);
+    return tmp_read(s_dev[index]);
 }
 
 float vr_board() { return TMP_VR_INDEX < 0 ? NAN : tmp_read(TMP_VR_INDEX); }

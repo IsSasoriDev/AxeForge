@@ -38,7 +38,7 @@ jobs:
         run: make -C test
       - name: Check the API against docs/openapi.yaml
         run: python3 scripts/api_contract.py
-      - name: Check the web flasher's script parses
+      - name: Check the flasher's and the web UI's scripts parse
         run: python3 scripts/check_flasher.py
 
   build:
@@ -101,6 +101,10 @@ jobs:
           done
           sudo chown -R "$(id -u):$(id -g)" dist
           cd dist && sha256sum *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt
+          # The release lists each board's update file (the self-update fetches
+          # those by name) and one zip with every full image, not 22 more files.
+          mkdir -p factory && mv *-factory.bin factory/
+          (cd factory && zip -9 -q ../axeforge-factory-images.zip *.bin)
 
       # The flasher writes the pieces separately so the NVS area (Wi-Fi, pools)
       # is left alone; the merged factory image would blank it.
@@ -153,6 +157,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             dist/*.bin
+            dist/axeforge-factory-images.zip
             dist/SHA256SUMS.txt
           # notes live in their own Markdown file so editing them can't break this YAML
           body_path: dist/release-notes.md

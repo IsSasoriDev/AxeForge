@@ -281,6 +281,17 @@ void load()
     nvs_close(h);
 }
 
+static volatile bool s_save_pending = false;
+
+void save_later() { s_save_pending = true; }
+
+void flush()
+{
+    if (!s_save_pending) return;
+    s_save_pending = false;
+    save();
+}
+
 void save()
 {
     nvs_handle_t h;

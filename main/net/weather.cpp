@@ -7,7 +7,9 @@
 #include "cJSON.h"
 #include "esp_log.h"
 #include "esp_sntp.h"
+#include <time.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/idf_additions.h"
 #include "freertos/task.h"
 
 #include "core/settings.h"
@@ -70,7 +72,7 @@ static bool geocode(Settings &cfg)
         cfg.lon = (float) cJSON_GetObjectItem(r, "longitude")->valuedouble;
         cJSON *name = cJSON_GetObjectItem(r, "name");
         if (cJSON_IsString(name)) strncpy(g_state.weather.city, name->valuestring, sizeof(g_state.weather.city) - 1);
-        settings::save();
+        settings::save_later();  // this task runs on a PSRAM stack: no flash here
         ok = true;
         ESP_LOGI(TAG, "%s -> %.3f, %.3f", cfg.city, cfg.lat, cfg.lon);
     } else {
@@ -138,6 +140,9 @@ static void weather_task(void *)
     esp_sntp_setservername(1, "time.google.com");
     sntp_set_time_sync_notification_cb(on_time_sync);
     esp_sntp_init();
+    // HTTPS checks the certificate's dates: on a clock still at 1970 the first
+    // request fails ("Failed to verify peer certificate"). Wait for the time, briefly.
+    for (int i = 0; i < 15 && time(nullptr) < 1700000000; i++) vTaskDelay(pdMS_TO_TICKS(1000));
 
     bool force_geocode = false;
     while (true) {
@@ -165,7 +170,8 @@ static void weather_task(void *)
 
 namespace weather {
 
-void start() { xTaskCreate(weather_task, "weather", 6144, NULL, 3, &s_task); }
+// PSRAM stack: HTTPS only, the one settings change goes through save_later()
+void start() { xTaskCreatePinnedToCoreWithCaps(weather_task, "weather", 6144, NULL, 3, &s_task, tskNO_AFFINITY, MALLOC_CAP_SPIRAM); }
 
 void refresh_now()
 {

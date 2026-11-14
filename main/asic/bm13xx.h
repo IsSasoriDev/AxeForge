@@ -90,6 +90,7 @@ void switch_to_fast_baud();
 bool set_frequency(float freq_mhz);
 float frequency();
 void set_difficulty_mask(uint32_t difficulty);
+uint32_t difficulty_mask();  // the ticket mask now set; 0xffffffff before the first job
 // Restricts version rolling to the pool's BIP-310 mask.
 void set_version_mask(uint32_t mask);
 // BM1370 version-rolling speed in Hz (0 = the board's default). Kept for every

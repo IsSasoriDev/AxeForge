@@ -227,7 +227,20 @@ Error power_up(uint16_t freq, uint16_t mv)
     gpio_set_level(PIN_ASIC_RST, 1);
     vTaskDelay(pdMS_TO_TICKS(250));
 
+    // BM1373s sometimes don't enumerate after a power cut (#92: 0 chips on every
+    // fault retry of a Naja Duo, fine on a cold boot); the reference firmware gives
+    // them three tries. Reset and ask again, on the rail that is already up.
     int chips = asic::init(freq, AF_NUM_ASICS, START_DIFFICULTY);
+#if AF_ASIC_BM1373
+    for (int t = 2; chips < AF_NUM_ASICS && t <= 3; t++) {
+        ESP_LOGW(TAG, "%d of %d chips answered: reset and try again (%d/3)", chips, AF_NUM_ASICS, t);
+        gpio_set_level(PIN_ASIC_RST, 0);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        gpio_set_level(PIN_ASIC_RST, 1);
+        vTaskDelay(pdMS_TO_TICKS(250));
+        chips = asic::init(freq, AF_NUM_ASICS, START_DIFFICULTY);
+    }
+#endif
     g_state.chips_detected = chips;
     if (chips == 0) {
         shutdown();

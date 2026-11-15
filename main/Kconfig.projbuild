@@ -172,7 +172,7 @@ menu "AxeForge"
             default 1000 if AF_BOARD_NERDQX
             default 800 if AF_BOARD_BITAXE_GAMMA
             default 650 if AF_BOARD_BITAIR  # 25 W budget; 600 MHz drew ~19 W in skot's bring-up
-            default 450 if AF_BOARD_NAJA
+            default 700 if AF_BOARD_NAJA  # #92: 465-680 MHz run on stock AxeOS, which sets no limit
             default 500 if AF_BOARD_NEXUS  # stock v1.0.2 stops at 450; 475 MHz / 975 mV ran clean
             default 550 if AF_BOARD_BS1  # top of the stock frequency list
             default 440 if AF_BOARD_GAIA  # top of the stock list; ~31 A at 1 V there
@@ -216,7 +216,10 @@ menu "AxeForge"
             default 25 if AF_BOARD_BITAXE_ULTRA || AF_BOARD_BITAXE_MAX || AF_BOARD_BITAIR  # Bitair: its own firmware's power range
             default 60 if AF_BOARD_BITAXE_GT || AF_BOARD_BITFORGE_NANO  # Nano: ForgeOS's max power
             default 180 if AF_BOARD_GAMMA_HEX  # reference firmware's max_power
-            default 60 if AF_BOARD_NAJA
+            # #92: stock AxeOS shows 60 W but never enforces it; its stock point (450 MHz /
+            # 1070 mV) already draws ~69 W and owners run 680 MHz at ~110 W. The cut-off
+            # at 115 % (~126 W) stays under the TPS546's own 61 A warning (~138 W at 2.27 V).
+            default 110 if AF_BOARD_NAJA
             default 70 if AF_BOARD_NERDQAXEPLUS
             default 130 if AF_BOARD_NERDOCTAXEPLUS
             default 250 if AF_BOARD_NERDOCTAXEGAMMA

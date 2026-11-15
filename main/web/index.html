@@ -1063,8 +1063,11 @@ const NEV=[[1,'Block found'],[2,'New best share'],[4,'Faults and power cuts'],[8
 function notifyForm(){$('nevents').innerHTML=NEV.map(([b,n])=>`<label><input type="checkbox" data-b="${b}" ${cfg.notify&b?'checked':''}>${n}</label>`).join('');
  $('ndiscord').value='';$('ndiscord').placeholder=cfg.discordSet?'saved (hidden), paste a new one to replace':'https://discord.com/api/webhooks/...';
  $('ntgtoken').value='';$('ntgtoken').placeholder=cfg.tgSet?'saved (hidden)':'123456789:AA...';$('ntgchat').value=cfg.tgchat||''}
-async function saveNotify(){let n=0;document.querySelectorAll('#nevents input').forEach(e=>{if(e.checked)n|=+e.dataset.b});
- await act('/api/settings',JSON.stringify({discord:$('ndiscord').value.trim(),tgtoken:$('ntgtoken').value.trim(),tgchat:$('ntgchat').value.trim(),notify:n}));loadCfg()}
+async function saveNotify(){const box=document.querySelectorAll('#nevents input');let n=0;box.forEach(e=>{if(e.checked)n|=+e.dataset.b});
+ // no switches drawn (the settings didn't load): leave the saved events alone (#91)
+ const body={discord:$('ndiscord').value.trim(),tgtoken:$('ntgtoken').value.trim(),tgchat:$('ntgchat').value.trim()};if(box.length)body.notify=n;
+ if(box.length&&!n&&!confirm('Every event is switched off: only test messages will be sent. Save anyway?'))return;
+ await act('/api/settings',JSON.stringify(body));loadCfg()}
 async function clearNotify(){if(!confirm('Remove the Discord webhook and the Telegram bot?'))return;await act('/api/settings',JSON.stringify({notifyClear:true}));loadCfg()}
 
 /* ---------------- two-factor login */

@@ -1,15 +1,34 @@
+<div align="center">
+
 # AxeForge
 
+**Open firmware for Bitaxe and NerdQAxe miners.**
+An auto-tuner, up to four pools, Stratum V2, and a screen and web UI you can make your own.
+
+[![Release](https://img.shields.io/github/v/release/IsSasoriDev/AxeForge?display_name=tag&color=ff8000)](https://github.com/IsSasoriDev/AxeForge/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/IsSasoriDev/AxeForge/total?color=ff8000&label=downloads)](https://github.com/IsSasoriDev/AxeForge/releases)
 [![Build](https://github.com/IsSasoriDev/AxeForge/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/IsSasoriDev/AxeForge/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/IsSasoriDev/AxeForge?display_name=tag)](https://github.com/IsSasoriDev/AxeForge/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/github/license/IsSasoriDev/AxeForge)](LICENSE)
-[![Flash in browser](https://img.shields.io/badge/flash-in%20browser-blue)](https://issasoridev.github.io/AxeForge/)
 
-Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex, Supra, Gamma and Naja Duo (see [Supported boards](#supported-boards)). On a Bitaxe it replaces AxeOS completely. It has a built-in auto-tuner that finds the highest stable hashrate, multi-pool mining over Stratum V1, V1+TLS or Stratum V2, and a screen layout you can customize, on the stock LilyGo T-Display-S3 or a 3.5" 480×320 display.
+**[Install from your browser](https://issasoridev.github.io/AxeForge/)** &nbsp;·&nbsp; [Releases](https://github.com/IsSasoriDev/AxeForge/releases) &nbsp;·&nbsp; [Supported boards](#supported-boards) &nbsp;·&nbsp; [AxeMobile app](https://github.com/IsSasoriDev/AxeMobile)
 
-> **Install it from the browser:** https://issasoridev.github.io/AxeForge/ (Chrome or Edge, USB cable). If that page is down, see [Flashing without the web flasher](#flashing-without-the-web-flasher).
+</div>
 
-> ⚠️ **Young firmware.** Every board in the table below has been run by the community, apart from the newest ones marked *not tested* and the HX-6, which has no built board yet. The mining math is checked against a real Bitcoin block (`tools/verify_work.py`). Keep a backup of your stock flash so you can go back.
+---
+
+AxeForge runs on 24 boards: the NerdQAxe family and most Bitaxes, plus a few others (full list below). On a Bitaxe it replaces AxeOS completely. You flash it once over USB from the web page above; after that it updates itself from GitHub, or you upload the file in the web UI.
+
+### At a glance
+
+- **Auto-tuner** that climbs until a heat, power or error wall, trims the voltage back, and gives each chip its own clock when it can go faster.
+- **Up to 4 pools** over Stratum V1, V1 with TLS, or Stratum V2, split by percentage or as failover, plus a check that a solo block would really pay your address.
+- **Watchdogs** that restart the chips if they go quiet (the AxeOS "flatline") and reconnect a pool that stops answering.
+- **Hard safety limits** compiled in: power, temperature, fan stall and lost-voltage cut-offs that the web UI can't switch off.
+- **Screens**: every page on the stock T-Display-S3 and on a 3.5" panel, two pages you lay out yourself, and four themes, one of them the DTV Electronics look.
+- **Updates and rollback**: one click (or automatic) updates from GitHub, and a new version that doesn't mine is rolled back by itself.
+- **Extras**: Swarm view of every miner on your network, Discord and Telegram alerts, electricity-price pausing, a power-supply check, two-factor login and Ethernet.
+
+Every board below has been run by owners, apart from the ones marked otherwise. Keep a backup of your stock flash so you can always go back (see [Flashing](#flashing)).
 
 ## Supported boards
 
@@ -28,14 +47,14 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 | **Bitaxe Gamma** 600–603 | 1× BM1370 | TPS546 | 40 W | `axeforge-gamma.bin` | ✅ Tested by community |
 | **StarMiner** (Bitaxe Gamma 601, 12 V) | 1× BM1370 | TPS546, 12 V input found at boot | 40 W | `axeforge-gamma.bin` | ✅ Tested by community |
 | **Heatbit Bitair** V1.22 | 1× BM1370 | TPS546 on its 5 V rail | 25 W | `axeforge-bitair.bin` | ✅ Tested by community |
-| **Bitaxe Naja Duo** 1201 | 2× BM1373 | TPS546 stack, 2 stacked domains | 60 W | `axeforge-naja.bin` | ✅ Tested by community |
+| **Bitaxe Naja Duo** 1201 | 2× BM1373 | TPS546 stack, 2 stacked domains | 110 W | `axeforge-naja.bin` | ✅ Tested by community |
 | **Bitaxe Max** 102 | 1× BM1397 | DS4432U + TPS40305 | 25 W | `axeforge-max.bin` | ✅ Tested by community |
 | **Bitaxe Ultra** 201–207 | 1× BM1366 | DS4432U (201–205) or TPS546 (207), detected at boot | 25 W | `axeforge-ultra.bin` | ✅ Tested by community |
 | **Bitaxe Gamma Duo** 650 | 2× BM1370 | TPS546 | 40 W | `axeforge-gammaduo.bin` | ✅ Tested by community |
 | **Bitaxe GT** 801 | 2× BM1370 | TPS546 stack, 2-phase | 60 W | `axeforge-gt.bin` | ✅ Tested by community |
 | **Bitaxe Gamma Hex** 1300 | 6× BM1370 | TPS546 stack, 4-phase, 2 stacked domains | 180 W | `axeforge-gammahex.bin` | ✅ Tested by community |
 | **Nexus S1** (BitLuck) | 4× BM1373 | TPS53647, 4-phase | 170 W | `axeforge-nexus.bin` | ✅ Tested by community |
-| **Bitfortun BS-1** | 1× BM1373 | TPS53647, 4-phase, 12 V | 120 W | `axeforge-bs1.bin` | ⚠️ Not tested on hardware yet |
+| **Bitfortun BS-1** | 1× BM1373 | TPS53647, 4-phase, 12 V | 120 W | `axeforge-bs1.bin` | ✅ Tested by community (mining and Ethernet) |
 | **NerdAxe Gaia** | 1× BM1373 | TPS546, 12 V | 35 W | `axeforge-gaia.bin` | ⚠️ Not tested on hardware yet |
 | **BitForge Nano** | 2× BM1370 | TPS546, 12 V | 60 W | `axeforge-bitforgenano.bin` | ⚠️ Not tested on hardware yet |
 | **HX-6** rev B ([open hardware](https://github.com/IsSasoriDev/HX6-Miner)) | 6× BM1370 | TPS53647, 4-phase | 130 W | `axeforge-hx6.bin` | ⚠️ No board built yet |
@@ -48,7 +67,6 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
 - The Gamma and the Naja Duo read the chip's own temperature diode once it has power; the Supra 400/401 uses the fan controller's sensor next to the chip, as AxeOS does.
 - BitLuck publishes no source or schematics for the Nexus S1, so its pins and power sequence were read from the stock firmware, and it has been run on one board. Its limits stay close to stock (500 MHz, 1000 mV, 170 W). Wi-Fi and pools carry over from the stock firmware.
 - If you run one of the untested boards, please open an issue with your log (*System → Log*), working or not.
-- Other Bitaxe models (Ultra, Max, GT, Gamma Duo, Gamma Hex) are not supported yet.
 
 ## What it does
 
@@ -104,15 +122,17 @@ Alternative firmware for the NerdQAxe family and the Bitaxe Supra Hex, Ultra Hex
   - Automatic recoveries (fault retries, overheat cool-down) re-detect the chips at the right baud rate, ramp them up from their reset clock, and stay at the lower clock afterwards until you change the settings.
   - The monitor that handles all of this runs on its own task, separate from the tuner.
 - **Swarm:** one page with every miner on your network (AxeForge, AxeOS/Bitaxe, NerdQAxe stock firmware): hashrate, temperature, power, shares, best difficulty and uptime, plus totals. *Scan network* finds them; you can also add an address by hand. This miner polls the others itself, so the API protection stays strict and no CORS is needed.
-- **Themes:** *Forge* (dark neon), *Paper* (minimal, e-ink style: ink on paper, hairline rules, no glow) or *Ember* (dark, Bitcoin orange). One setting changes both the screen and the web UI.
+- **Themes:** *Forge* (dark neon), *Paper* (minimal, e-ink style: ink on paper, hairline rules, no glow), *Ember* (dark, Bitcoin orange) or *DTV* (the DTV Electronics look: AMOLED black and orange, a live black hole behind the web UI, and its own screen pages with the DTV logo). One setting changes both the screen and the web UI.
 - **Fans:** both fan headers are detected on boards that have two (one on the NerdAxe); a header counts as connected once its fan has been seen spinning. Each fan can run on *Auto* or a fixed *Manual* speed. A PI controller keeps the hottest chip at the target you set (default 60 °C). The VR fan follows the hotter of the two loops. Within 3 °C of a tuner ceiling the fans go to 100 % regardless of the target, and both fan speeds are shown.
 - **Payout check that can act:** by default a coinbase that doesn't pay you is only shown in red. Under *Pools → Solo payout check* you can tell the miner to send that pool no work at all, and set the highest pool fee you accept. The other pools carry on; the pool gets work again as soon as a template pays you.
 - **Best shares and 24-hour charts:** the 10 best shares (difficulty, time, pool, chip), kept across reboots, and hashrate, chip temperature and power for the last 24 hours, one point per 5 minutes.
 - **Notifications:** Discord (webhook) and Telegram (bot) messages for a found block, a new best share, faults and power cuts, no pool for 5 minutes, and the miner starting. Pick which ones under *System → Notifications*.
+- **Watchdogs:** if the chips keep drawing power but nothing comes back from them (no results for 2-10 minutes, or a hashrate stuck on one value for 3), the chips are restarted at the same clock; three times in an hour counts as a fault. A pool that leaves shares unanswered for 5 minutes, or sends no new V1 work for 10, is reconnected. *System* shows what they did since boot.
+- **Self-update:** the miner checks GitHub for a new release every 6 hours. *Update now* installs it, or with auto-update on it installs by itself (not while a fault or an update is pending).
 - **Self-test:** *System → Self-test* checks sensors, regulator, chips and fans, then measures hashrate, hardware errors and power for a minute while mining.
 - **Two-factor login:** optional. With it on, every change (settings, pools, firmware upload) needs a 6-digit code from an authenticator app; a login lasts 12 hours or until a reboot. If you lose the app, reflash with *Erase*.
 - **Setup without typing:** *Network* lists the Wi-Fi networks in range. While the setup network is open, the miner can also be set up over Bluetooth with Espressif's free "ESP BLE Provisioning" app (it shows up as `PROV_AXEFORGE_XXXX`). Bluetooth turns off and gives its memory back once Wi-Fi works.
-- **Ethernet (NerdQAxe family):** the W5500 Ethernet adapter that plugs onto the NerdQAxe header is found at boot. On the NerdQX and NerdOctaxe-γ with die sensors the header pins are taken, so Ethernet is skipped there.
+- **Ethernet (NerdQAxe family):** the W5500 Ethernet adapter that plugs onto the NerdQAxe header is found at boot, and the Bitfortun BS-1's built-in port works too. On the NerdQX and NerdOctaxe-γ with die sensors the header pins are taken, so Ethernet is skipped there.
 - **Accessory port (Bitaxe):** the AxeOS accessory protocol on the Bitaxe's accessory header (GPIO39/40, 115200 baud), so displays and controllers made for AxeOS work with AxeForge. Unlike AxeOS, it never sends the Wi-Fi password out.
 - **Advanced chip timing:** job interval and, on BM1370 boards, the version-rolling speed, under *Tuning*. Leave them at 0 for the board's defaults.
 

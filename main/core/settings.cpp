@@ -278,7 +278,27 @@ void load()
     get_float(h, "pricemax", s.price_max);
     get_float(h, "eprice", s.energy_price);
     get_str(h, "currency", s.currency, sizeof(s.currency));
+    uint8_t nev_fixed = 0;
+    nvs_get_u8(h, "nevfix", &nev_fixed);
     nvs_close(h);
+
+    // #91, once: on 1.4.9/1.4.10 in the DTV theme the web UI never drew the event
+    // switches, so saving the notification card stored "no events" and only the
+    // test message (which ignores them) got through. A channel set up with every
+    // event off is that, not a choice: turn them all back on.
+    if (!nev_fixed) {
+        nvs_handle_t w;
+        if (nvs_open("axeforge", NVS_READWRITE, &w) == ESP_OK) {
+            if (s.notify_events == 0 && (s.discord_url[0] || (s.tg_token[0] && s.tg_chat[0]))) {
+                s.notify_events = 0x3f;
+                nvs_set_u8(w, "notify", s.notify_events);
+                ESP_LOGW(TAG, "notifications: every event was off with a channel set up, turned them back on");
+            }
+            nvs_set_u8(w, "nevfix", 1);
+            nvs_commit(w);
+            nvs_close(w);
+        }
+    }
 }
 
 static volatile bool s_save_pending = false;
